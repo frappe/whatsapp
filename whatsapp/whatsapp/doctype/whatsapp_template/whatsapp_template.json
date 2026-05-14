@@ -1,0 +1,170 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "field:template_label",
+ "creation": "2026-05-13 17:18:40.436320",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "template_label",
+  "template_name",
+  "column_break_hcvk",
+  "template_type",
+  "language",
+  "template_data_section",
+  "header_text",
+  "header_media",
+  "column_break_ijfh",
+  "header_type",
+  "section_break_snmo",
+  "message",
+  "footer",
+  "section_break_ohbb",
+  "related_doctype",
+  "template_variables",
+  "section_break_ghcu",
+  "buttons"
+ ],
+ "fields": [
+  {
+   "fieldname": "template_name",
+   "fieldtype": "Data",
+   "label": "Template name",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_hcvk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "MARKETING",
+   "fieldname": "template_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Template type",
+   "options": "UTILITY\nMARKETING\nAUTHENTICATION",
+   "reqd": 1
+  },
+  {
+   "default": "en_US",
+   "fieldname": "language",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Language",
+   "options": "en_UK\nen_US",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "template_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Template label",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "template_data_section",
+   "fieldtype": "Section Break",
+   "label": "Template Data"
+  },
+  {
+   "description": "To add parameters add template strings that look like {{1}} or {{name}}. Make sure all the template strings you added have a example",
+   "fieldname": "message",
+   "fieldtype": "Code",
+   "label": "Message",
+   "reqd": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "depends_on": "eval:doc.header_type === \"TEXT\"",
+   "description": "Header Text should only have one variable.",
+   "fieldname": "header_text",
+   "fieldtype": "Data",
+   "label": "Header Text"
+  },
+  {
+   "depends_on": "eval:[\"IMAGE\", \"DOCUMENT\", \"VIDEO\", \"GIF\"].includes(doc.header_type)",
+   "fieldname": "header_media",
+   "fieldtype": "Attach",
+   "label": "Header Media"
+  },
+  {
+   "fieldname": "column_break_ijfh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "TEXT",
+   "fieldname": "header_type",
+   "fieldtype": "Select",
+   "label": "Header Type",
+   "options": "TEXT\nIMAGE\nDOCUMENT\nGIF\nVIDEO"
+  },
+  {
+   "fieldname": "section_break_snmo",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "section_break_ghcu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "buttons",
+   "fieldtype": "Table",
+   "label": "Buttons",
+   "options": "Whatsapp Template Button"
+  },
+  {
+   "fieldname": "section_break_ohbb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Variable field is the field of the connecting doctype that you want. Use doctype field name like first_name and not contact.first_name",
+   "fieldname": "template_variables",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Template Variables",
+   "options": "Template Variables"
+  },
+  {
+   "fieldname": "related_doctype",
+   "fieldtype": "Link",
+   "label": "Related DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "footer",
+   "fieldtype": "Data",
+   "label": "Footer"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-14 15:40:41.845920",
+ "modified_by": "Administrator",
+ "module": "Whatsapp",
+ "name": "Whatsapp Template",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

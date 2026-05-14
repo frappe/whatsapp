@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-05-14 11:13:59.017140",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "button_type",
+  "button_text",
+  "phone_number",
+  "url"
+ ],
+ "fields": [
+  {
+   "fieldname": "button_type",
+   "fieldtype": "Select",
+   "label": "Button Type",
+   "options": "QUICK_REPLY\nCOPY_CODE\nURL\nVOICE_CALL\nPHONE_NUMBER",
+   "reqd": 1
+  },
+  {
+   "fieldname": "button_text",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Button Text",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"URL\"",
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL",
+   "mandatory_depends_on": "eval:doc.button_type === \"URL\""
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"PHONE_NUMBER\"",
+   "fieldname": "phone_number",
+   "fieldtype": "Data",
+   "label": "Phone Number",
+   "mandatory_depends_on": "eval:doc.button_type === \"PHONE_NUMBER\"",
+   "options": "Phone"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-14 11:47:16.886713",
+ "modified_by": "Administrator",
+ "module": "Whatsapp",
+ "name": "Whatsapp Template Button",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
