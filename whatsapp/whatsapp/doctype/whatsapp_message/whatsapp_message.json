@@ -1,0 +1,96 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-05-14 16:11:29.498448",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "to",
+  "message",
+  "whatsapp_account",
+  "column_break_lmtc",
+  "from",
+  "is_template",
+  "whatsapp_template",
+  "template_body_parameters",
+  "template_header_parameters"
+ ],
+ "fields": [
+  {
+   "fieldname": "to",
+   "fieldtype": "Data",
+   "label": "To"
+  },
+  {
+   "depends_on": "eval:!Boolean(doc.is_template)",
+   "fieldname": "message",
+   "fieldtype": "Long Text",
+   "label": "Message"
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "Whatsapp Account",
+   "options": "Whatsapp Account"
+  },
+  {
+   "fieldname": "column_break_lmtc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from",
+   "fieldtype": "Data",
+   "label": "From"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_template",
+   "fieldtype": "Check",
+   "label": "Is Template"
+  },
+  {
+   "fieldname": "whatsapp_template",
+   "fieldtype": "Link",
+   "label": "Whatsapp Template",
+   "options": "Whatsapp Template"
+  },
+  {
+   "fieldname": "template_body_parameters",
+   "fieldtype": "Code",
+   "label": "Template Body Parameters"
+  },
+  {
+   "fieldname": "template_header_parameters",
+   "fieldtype": "Code",
+   "label": "Template Header Parameters"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-14 16:36:17.476770",
+ "modified_by": "Administrator",
+ "module": "Whatsapp",
+ "name": "Whatsapp Message",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
