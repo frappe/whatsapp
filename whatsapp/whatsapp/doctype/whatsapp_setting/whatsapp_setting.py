@@ -5,7 +5,7 @@
 from frappe.model.document import Document
 
 
-class TemplateVariables(Document):
+class WhatsappSetting(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -14,12 +14,8 @@ class TemplateVariables(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		parent: DF.Data
-		parentfield: DF.Data
-		parenttype: DF.Data
-		variable_example: DF.Data
-		variable_field: DF.Data | None
-		variable_name: DF.Data
+		whatsapp_api_url: DF.Data | None
+		whatsapp_api_version: DF.Data | None
 	# end: auto-generated types
 
 	pass

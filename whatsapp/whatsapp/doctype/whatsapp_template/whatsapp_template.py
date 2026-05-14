@@ -16,8 +16,8 @@ class WhatsappTemplate(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		from whatsapp.whatsapp.doctype.template_variables.template_variables import (
-			TemplateVariables,
+		from whatsapp.whatsapp.doctype.template_variable.template_variable import (
+			TemplateVariable,
 		)
 		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import (
 			WhatsappTemplateButton,
@@ -34,7 +34,7 @@ class WhatsappTemplate(Document):
 		template_label: DF.Data
 		template_name: DF.Data | None
 		template_type: DF.Literal["UTILITY", "MARKETING", "AUTHENTICATION"]
-		template_variables: DF.Table[TemplateVariables]
+		template_variables: DF.Table[TemplateVariable]
 	# end: auto-generated types
 
 	def validate_template_variables(self) -> None:
