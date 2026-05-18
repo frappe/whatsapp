@@ -11,7 +11,7 @@ class Whatsapp:
 		self.access_token = args.access_token
 		self.phone_number_id = args.phone_number_id
 		self.base_url = getattr(args, "base_url", "https://graph.facebook.com")
-		self.api_version = getattr(args, "api_version", "v22.0")
+		self.api_version = getattr(args, "api_version", "v23.0")
 
 	def _request(self, method, endpoint, **kwargs):
 		url = f"{self.base_url}/{self.api_version}/{endpoint}"

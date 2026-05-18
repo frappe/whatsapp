@@ -39,6 +39,7 @@ class ParsedTemplateDoc(TypedDict):
 	template_name: str
 	template_type: str
 	language: str
+	status: str
 	header_type: str
 	header_text: str
 	message: str
@@ -139,10 +140,17 @@ def _resolve_examples(text: str, comp: dict) -> list[tuple[str, str]]:
 
 
 def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
+	api_status = data.get("status", "")
+	status_map = {
+		"APPROVED": "APPROVED",
+		"REJECTED": "REJECTED",
+		"PENDING": "PENDING",
+	}
 	doc = {
 		"template_name": data.get("name"),
 		"template_type": data.get("category"),
 		"language": data.get("language"),
+		"status": status_map.get(api_status, "PENDING"),
 	}
 
 	header_type = ""
@@ -170,14 +178,19 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 
 		elif comp_type == "BUTTONS":
 			for btn in comp.get("buttons", []):
+				btn_url = btn.get("url", "")
 				buttons.append(
 					{
 						"button_type": btn.get("type"),
 						"button_text": btn.get("text"),
-						"url": btn.get("url", ""),
+						"url": btn_url,
 						"phone_number": btn.get("phone_number", ""),
 					}
 				)
+				if btn.get("type") == "URL" and btn_url:
+					url_vars = get_template_variables(btn_url)
+					for var in url_vars:
+						variable_rows.append((var, ""))
 
 	doc["header_type"] = header_type
 	doc["header_text"] = header_text

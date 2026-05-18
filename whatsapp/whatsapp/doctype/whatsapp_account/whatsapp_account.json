@@ -2,6 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "field:account_name",
  "creation": "2026-05-13 15:20:31.705272",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -17,7 +18,8 @@
   {
    "fieldname": "account_name",
    "fieldtype": "Data",
-   "label": "Account name"
+   "label": "Account name",
+   "unique": 1
   },
   {
    "fieldname": "status",
@@ -41,17 +43,19 @@
   },
   {
    "fieldname": "access_token",
-   "fieldtype": "Data",
-   "label": "Access token"
+   "fieldtype": "Long Text",
+   "label": "Access token",
+   "max_height": "100px"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-13 17:15:24.008743",
+ "modified": "2026-05-18 17:27:49.209777",
  "modified_by": "Administrator",
  "module": "Whatsapp",
  "name": "Whatsapp Account",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {

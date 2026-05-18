@@ -14,7 +14,7 @@ class WhatsappAccount(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		access_token: DF.Data | None
+		access_token: DF.LongText | None
 		account_name: DF.Data | None
 		businesss_id: DF.Data | None
 		phone_id: DF.Data | None

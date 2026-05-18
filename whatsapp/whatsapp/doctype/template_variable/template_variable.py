@@ -18,7 +18,7 @@ class TemplateVariable(Document):
 		parentfield: DF.Data
 		parenttype: DF.Data
 		variable_example: DF.Data
-		variable_field: DF.Data | None
+		variable_field: DF.Literal[None]
 		variable_name: DF.Data
 	# end: auto-generated types
 
