@@ -1,5 +1,8 @@
 ### Whatsapp
 
+> [!WARNING] 
+> WIP 🚧: Not meant for use yet!
+
 Official whatsapp integration for frappe crm
 
 ### Installation
