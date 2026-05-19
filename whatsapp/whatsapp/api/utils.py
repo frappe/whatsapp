@@ -42,10 +42,12 @@ class ParsedTemplateDoc(TypedDict):
 	status: str
 	header_type: str
 	header_text: str
+	header_media_handle: str
 	message: str
 	footer: str
 	buttons: list[ButtonRow]
 	template_variables: list[TemplateVariableRow]
+	variable_format: str
 
 
 def get_template_variables(text: str) -> list[str]:
@@ -54,15 +56,41 @@ def get_template_variables(text: str) -> list[str]:
 	return re.findall(r"\x7b\x7b\s*([^}]+)\s*\x7d\x7d", text)
 
 
-# use find instead
 def _find_example(variables, var_name: str) -> str:
 	for v in variables:
-		if v["variable_name"] == var_name:
-			return v["variable_example"]
+		if isinstance(v, dict):
+			if v["variable_name"] == var_name:
+				return v["variable_example"]
+		else:
+			if v.variable_name == var_name:
+				return v.variable_example
 	return var_name
 
 
+def _build_example(variable_format: str, variables, var_names: list[str]) -> dict:
+	is_positional = variable_format == "positional"
+	if is_positional:
+		return {"body_text": [[_find_example(variables, v) for v in var_names]]}
+	return {
+		"body_text_named_params": [
+			{"param_name": v, "example": _find_example(variables, v)} for v in var_names
+		]
+	}
+
+
+def _build_header_example(variable_format: str, variables, var_names: list[str]) -> dict:
+	is_positional = variable_format == "positional"
+	if is_positional:
+		return {"header_text": [_find_example(variables, v) for v in var_names]}
+	return {
+		"header_text_named_params": [
+			{"param_name": v, "example": _find_example(variables, v)} for v in var_names
+		]
+	}
+
+
 def build_create_template_payload(doc) -> CreateTemplatePayload:
+	variable_format = getattr(doc, "variable_format", None) or "named"
 	components = []
 
 	if doc.header_type:
@@ -71,23 +99,17 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 			header["text"] = doc.header_text
 			header_vars = get_template_variables(doc.header_text)
 			if header_vars:
-				header["example"] = {
-					"header_text_named_params": [
-						{"param_name": v, "example": _find_example(doc.template_variables, v)}
-						for v in header_vars
-					]
-				}
+				header["example"] = _build_header_example(
+					variable_format, doc.template_variables, header_vars
+				)
+		elif doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and doc.header_media_handle:
+			header["example"] = {"header_handle": [doc.header_media_handle]}
 		components.append(header)
 
 	body = {"type": "BODY", "text": doc.message}
 	body_vars = get_template_variables(doc.message)
 	if body_vars:
-		body["example"] = {
-			"body_text_named_params": [
-				{"param_name": v, "example": _find_example(doc.template_variables, v)}
-				for v in body_vars
-			]
-		}
+		body["example"] = _build_example(variable_format, doc.template_variables, body_vars)
 	components.append(body)
 
 	if doc.footer:
@@ -107,12 +129,17 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 		if buttons_payload:
 			components.append({"type": "BUTTONS", "buttons": buttons_payload})
 
-	return {
+	payload = {
 		"name": doc.template_name,
 		"language": doc.language,
 		"category": doc.template_type,
 		"components": components,
 	}
+
+	if variable_format == "named":
+		payload["parameter_format"] = "named"
+
+	return payload
 
 
 def _resolve_examples(text: str, comp: dict) -> list[tuple[str, str]]:
@@ -155,6 +182,7 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 
 	header_type = ""
 	header_text = ""
+	header_media_handle = ""
 	message = ""
 	footer = ""
 	buttons = []
@@ -168,6 +196,11 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 			if header_type.upper() == "TEXT":
 				header_text = comp.get("text", "")
 				variable_rows.extend(_resolve_examples(header_text, comp))
+			elif header_type.upper() in ("IMAGE", "DOCUMENT", "VIDEO", "GIF"):
+				example = comp.get("example", {}) or {}
+				handles = example.get("header_handle", [])
+				if handles:
+					header_media_handle = handles[0]
 
 		elif comp_type == "BODY":
 			message = comp.get("text", "")
@@ -194,9 +227,17 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 
 	doc["header_type"] = header_type
 	doc["header_text"] = header_text
+	doc["header_media_handle"] = header_media_handle
 	doc["message"] = message
 	doc["footer"] = footer
 	doc["buttons"] = buttons
+
+	variable_format = "named"
+	if variable_rows:
+		all_digit = all(v[0].isdigit() for v in variable_rows)
+		if all_digit:
+			variable_format = "positional"
+	doc["variable_format"] = variable_format
 
 	seen = set()
 	unique_vars = []
@@ -233,6 +274,11 @@ def build_template_message_payload(
 	components = []
 
 	if header_parameters is not None and template_doc.header_type:
+		if isinstance(header_parameters, str):
+			import json
+
+			header_parameters = json.loads(header_parameters)
+
 		if template_doc.header_type == "TEXT":
 			header_vars = get_template_variables(template_doc.header_text)
 			param_name = header_vars[0] if header_vars else "1"

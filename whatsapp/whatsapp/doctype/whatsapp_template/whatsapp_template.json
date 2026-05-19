@@ -6,31 +6,34 @@
  "creation": "2026-05-13 17:18:40.436320",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "template_label",
-  "template_name",
-  "column_break_hcvk",
-  "template_type",
-  "language",
-  "template_data_section",
-  "header_text",
-  "header_media",
-  "column_break_ijfh",
-  "header_type",
-  "section_break_snmo",
-  "message",
-  "footer",
-  "section_break_ohbb",
-  "reference_doctype",
-  "template_variables",
-  "section_break_ghcu",
-  "buttons",
-  "api_related_items_tab",
-  "whatsapp_template_id",
-  "column_break_jcgd",
-  "status"
- ],
- "fields": [
+  "field_order": [
+   "template_label",
+   "template_name",
+   "column_break_hcvk",
+   "template_type",
+   "language",
+   "template_data_section",
+   "header_text",
+   "header_media",
+   "column_break_ijfh",
+   "header_type",
+   "section_break_snmo",
+   "message",
+   "footer",
+   "section_break_ohbb",
+   "reference_doctype",
+   "template_variables",
+   "section_break_ghcu",
+   "buttons",
+   "api_related_items_tab",
+    "whatsapp_account",
+    "whatsapp_template_id",
+    "column_break_jcgd",
+    "status",
+    "variable_format",
+    "header_media_handle"
+   ],
+  "fields": [
   {
    "fieldname": "template_label",
    "fieldtype": "Data",
@@ -158,14 +161,38 @@
    "label": "Reference DocType",
    "options": "DocType"
   },
-  {
-   "fieldname": "api_related_items_tab",
-   "fieldtype": "Tab Break",
-   "label": "API Related Items"
+   {
+    "fieldname": "api_related_items_tab",
+    "fieldtype": "Tab Break",
+    "label": "API Related Items"
+   },
+   {
+    "fieldname": "whatsapp_account",
+    "fieldtype": "Link",
+    "label": "WhatsApp Account",
+    "options": "Whatsapp Account"
+   },
+    {
+     "fieldname": "column_break_jcgd",
+     "fieldtype": "Column Break"
+    },
+   {
+    "default": "named",
+    "fieldname": "variable_format",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Variable Format",
+   "no_copy": 1,
+   "options": "named\npositional",
+   "read_only": 1
   },
   {
-   "fieldname": "column_break_jcgd",
-   "fieldtype": "Column Break"
+   "fieldname": "header_media_handle",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Header Media Handle",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -191,9 +218,27 @@
    "write": 1
   }
  ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "creation",
- "sort_order": "DESC",
- "states": []
+  "row_format": "Dynamic",
+  "rows_threshold_for_grid_search": 20,
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "states": [
+   {
+    "color": "Green",
+    "title": "APPROVED"
+   },
+   {
+    "color": "Red",
+    "title": "REJECTED"
+   },
+   {
+    "color": "Orange",
+    "title": "PENDING"
+   },
+   {
+    "color": "Gray",
+    "title": "DELETED"
+   }
+  ],
+  "status_field": "status"
 }

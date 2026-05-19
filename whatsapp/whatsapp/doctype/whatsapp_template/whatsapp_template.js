@@ -2,7 +2,15 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Whatsapp Template", {
-	refresh: function (frm) {},
+	refresh: function (frm) {
+		if (frm.doc.whatsapp_template_id && !frm.doc.__islocal) {
+			frm.set_indicator(__("Already on Meta"), "orange");
+			frm.dashboard.clear_headline();
+			frm.dashboard.set_headline(
+				__("This template is already on Meta. Clear the WhatsApp Template ID to re-push.")
+			);
+		}
+	},
 
 	update_variable_field_options: function (frm) {
 		if (!frm.doc.reference_doctype) return;
@@ -75,5 +83,5 @@ frappe.ui.form.on("Template Variable", {
 
 function get_template_variables(text) {
 	if (!text) return [];
-	return text.match(/\{\{(\w+)\}\}/g) || [];
+	return (text.match(/\{\{(\w+)\}\}/g) || []).map((v) => v.replace(/[{}]/g, ""));
 }
