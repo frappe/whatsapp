@@ -1,6 +1,8 @@
 # Copyright (c) 2026, pratham@frappe.io and Contributors
 # See license.txt
 
+import logging
+
 import requests
 
 
@@ -22,7 +24,15 @@ class Whatsapp:
 		if "headers" in kwargs:
 			headers.update(kwargs.pop("headers"))
 		resp = requests.request(method, url, headers=headers, **kwargs)
-		resp.raise_for_status()
+		try:
+			resp.raise_for_status()
+		except requests.HTTPError:
+			body = resp.text
+			logging.getLogger("whatsapp").error(
+				"Meta API error | status=%s url=%s body=%s", resp.status_code, url, body
+			)
+			error_msg = _extract_meta_error(body)
+			raise requests.HTTPError(error_msg)
 		return resp.json()
 
 	def get_template(self, template_id):
@@ -37,9 +47,27 @@ class Whatsapp:
 	def create_template(self, data):
 		return self._request("POST", f"{self.business_id}/message_templates", json=data)
 
+	def update_template(self, template_id, data):
+		return self._request("POST", f"{template_id}", json=data)
+
 	def delete_template(self, template_id):
 		return self._request("DELETE", f"{template_id}")
 
 	def send_message(self, payload):
 		payload.setdefault("messaging_product", "whatsapp")
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)
+
+
+def _extract_meta_error(body: str) -> str:
+	try:
+		data = requests.json_decoder.decode(body)
+		error = data.get("error", {})
+		if error.get("error_user_msg"):
+			return error["error_user_msg"]
+		if error.get("error_user_title"):
+			return error["error_user_title"]
+		if error.get("message"):
+			return f"Code {error['code']}: {error['message']}"
+	except Exception:
+		pass
+	return body

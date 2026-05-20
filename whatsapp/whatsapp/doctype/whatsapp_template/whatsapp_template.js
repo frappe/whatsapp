@@ -3,12 +3,16 @@
 
 frappe.ui.form.on("Whatsapp Template", {
 	refresh: function (frm) {
-		if (frm.doc.whatsapp_template_id && !frm.doc.__islocal) {
-			frm.set_indicator(__("Already on Meta"), "orange");
-			frm.dashboard.clear_headline();
-			frm.dashboard.set_headline(
-				__("This template is already on Meta. Clear the WhatsApp Template ID to re-push.")
-			);
+		console.log("WhatsApp Template refresh | template_variables:", frm.doc.template_variables);
+		console.log("WhatsApp Template refresh | template_variables length:", frm.doc.template_variables?.length);
+		console.log("WhatsApp Template refresh | __islocal:", frm.doc.__islocal);
+		console.log("WhatsApp Template refresh | whatsapp_template_id:", frm.doc.whatsapp_template_id);
+
+		if (frm.doc.template_variables?.length) {
+			console.log("WhatsApp Template refresh | unhiding template_variables");
+			frm.set_df_property("template_variables", "hidden", 0);
+		} else {
+			console.log("WhatsApp Template refresh | no template_variables found, keeping hidden");
 		}
 	},
 
