@@ -3,17 +3,7 @@
 
 frappe.ui.form.on("Whatsapp Template", {
 	refresh: function (frm) {
-		console.log("WhatsApp Template refresh | template_variables:", frm.doc.template_variables);
-		console.log("WhatsApp Template refresh | template_variables length:", frm.doc.template_variables?.length);
-		console.log("WhatsApp Template refresh | __islocal:", frm.doc.__islocal);
-		console.log("WhatsApp Template refresh | whatsapp_template_id:", frm.doc.whatsapp_template_id);
-
-		if (frm.doc.template_variables?.length) {
-			console.log("WhatsApp Template refresh | unhiding template_variables");
-			frm.set_df_property("template_variables", "hidden", 0);
-		} else {
-			console.log("WhatsApp Template refresh | no template_variables found, keeping hidden");
-		}
+		frm.trigger("template_variable_added");
 	},
 
 	update_variable_field_options: function (frm) {
@@ -26,11 +16,14 @@ frappe.ui.form.on("Whatsapp Template", {
 			})
 			.then((r) => {
 				const options = r.message || [];
-				const grid = frm.fields_dict.template_variables?.grid;
-				if (grid?.cgrid?.fields_map?.variable_field) {
-					grid.cgrid.fields_map.variable_field.df.options = options.join("\n");
-					grid.cgrid.fields_map.variable_field.df.refresh();
-				}
+
+				frm.set_df_property(
+					"template_variables",
+					"options",
+					options,
+					cur_frm.docname,
+					"variable_field",
+				);
 			});
 	},
 
@@ -50,11 +43,18 @@ frappe.ui.form.on("Whatsapp Template", {
 
 		if (variables.length) {
 			frm.set_df_property("template_variables", "hidden", 0);
+
+			let existing = {};
+			(frm.doc.template_variables || []).forEach((row) => {
+				existing[row.variable_name] = row;
+			});
+
 			frm.set_value(
 				"template_variables",
 				variables.map((v) => ({
 					variable_name: v,
-					variable_example: "",
+					variable_example: existing[v]?.variable_example || "",
+					variable_field: existing[v]?.variable_field || "",
 				})),
 			);
 			frm.trigger("update_variable_field_options");
