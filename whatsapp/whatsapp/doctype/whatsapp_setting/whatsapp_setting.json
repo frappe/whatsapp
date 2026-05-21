@@ -17,16 +17,18 @@
     "fieldname": "column_break_hpwl",
     "fieldtype": "Column Break"
    },
-   {
-    "fieldname": "whatsapp_api_url",
-    "fieldtype": "Data",
-    "label": "API url"
-   },
-   {
-    "fieldname": "whatsapp_api_version",
-    "fieldtype": "Data",
-    "label": "API version"
-   },
+    {
+     "default": "https://graph.facebook.com",
+     "fieldname": "whatsapp_api_url",
+     "fieldtype": "Data",
+     "label": "API url"
+    },
+    {
+     "default": "v23.0",
+     "fieldname": "whatsapp_api_version",
+     "fieldtype": "Data",
+     "label": "API version"
+    },
    {
     "fieldname": "webhook_verify_token",
     "fieldtype": "Data",

@@ -7,15 +7,14 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-   "account_name",
-   "status",
-   "app_id",
-   "column_break_pwlz",
-   "businesss_id",
-   "business_id",
-   "phone_id",
-   "access_token"
-  ],
+  "account_name",
+  "status",
+  "app_id",
+  "column_break_pwlz",
+  "business_id",
+  "phone_id",
+  "access_token"
+ ],
  "fields": [
   {
    "fieldname": "account_name",
@@ -39,11 +38,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "businesss_id",
-   "fieldtype": "Data",
-   "label": "Businesss ID"
-  },
-  {
    "fieldname": "business_id",
    "fieldtype": "Data",
    "label": "Business ID"
@@ -63,7 +57,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-18 17:27:49.209777",
+ "modified": "2026-05-21 17:05:42.516163",
  "modified_by": "Administrator",
  "module": "Whatsapp",
  "name": "Whatsapp Account",

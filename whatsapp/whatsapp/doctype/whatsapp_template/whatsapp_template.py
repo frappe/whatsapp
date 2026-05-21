@@ -236,7 +236,7 @@ def get_active_accounts() -> list[WhatsappAccount]:
 	accounts = frappe.get_all(
 		"Whatsapp Account",
 		filters={"status": "Active"},
-		fields=["name", "account_name", "businesss_id", "business_id"],
+		fields=["name", "account_name", "business_id"],
 	)
 	return [
 		cast(
@@ -244,7 +244,7 @@ def get_active_accounts() -> list[WhatsappAccount]:
 			{
 				"name": acc.name,
 				"account_name": acc.account_name,
-				"business_id": acc.business_id or acc.businesss_id,
+				"business_id": acc.business_id,
 			},
 		)
 		for acc in accounts
@@ -256,7 +256,7 @@ def _get_whatsapp_client(account_name: str) -> Whatsapp:
 	account = frappe.get_doc("Whatsapp Account", account_name)
 	return Whatsapp(
 		args=frappe._dict(
-			business_id=account.business_id or account.businesss_id,
+			business_id=account.business_id,
 			app_id=account.app_id or "",
 			access_token=account.access_token,
 			phone_number_id=account.phone_id,
@@ -282,7 +282,7 @@ def _iter_templates(whatsapp: Whatsapp) -> Iterator[dict]:
 			break
 
 
-def _upsert_template(template_data: dict) -> tuple[str, bool]:
+def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]:
 	whatsapp_template_id = template_data.get("id", "")
 	parsed = parse_whatsapp_template_to_doc(template_data)
 
@@ -295,6 +295,7 @@ def _upsert_template(template_data: dict) -> tuple[str, bool]:
 
 	if existing:
 		doc = frappe.get_doc("Whatsapp Template", existing[0])
+		doc.whatsapp_account = account_name
 		doc.status = parsed.get("status", "PENDING")
 		doc.template_type = parsed["template_type"]
 		doc.header_type = parsed.get("header_type", "TEXT")
@@ -315,6 +316,7 @@ def _upsert_template(template_data: dict) -> tuple[str, bool]:
 			"doctype": "Whatsapp Template",
 			"template_label": parsed["template_name"],
 			"template_name": parsed["template_name"],
+			"whatsapp_account": account_name,
 			"whatsapp_template_id": whatsapp_template_id,
 			"status": parsed.get("status", "PENDING"),
 			"template_type": parsed["template_type"],
@@ -353,7 +355,7 @@ def sync_from_account(account_name: str) -> dict:
 
 	for template_data in _iter_templates(whatsapp):
 		meta_template_names.add(template_data.get("name", ""))
-		name, is_new = _upsert_template(template_data)
+		name, is_new = _upsert_template(template_data, account_name)
 		if is_new:
 			synced.append(name)
 		else:
@@ -400,6 +402,8 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 				).format(doc.template_label, doc.whatsapp_template_id)
 			)
 		doc.update(doc_data)
+
+	doc.whatsapp_account = account_name
 
 	whatsapp = _get_whatsapp_client(account_name)
 

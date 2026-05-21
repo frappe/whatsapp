@@ -24,24 +24,24 @@ frappe.listview_settings["Whatsapp Template"] = {
 									args: { account_name: account_name },
 									callback: function (res) {
 										d.hide();
-										listview.refresh();
 										frappe.msgprint(
 											__(
-												`Synced ${res.message.total_synced} templates, skipped ${res.message.total_skipped}`
-											)
+												`Synced ${res.message.total_synced} templates, skipped ${res.message.total_skipped}`,
+											),
 										);
+										listview.refresh();
 									},
 								});
 							},
 						});
 						d.show();
 					} else if (r.message?.total_synced !== undefined) {
-						listview.refresh();
 						frappe.msgprint(
 							__(
-								`Synced ${r.message.total_synced} templates, skipped ${r.message.total_skipped}`
-							)
+								`Synced ${r.message.total_synced} templates, skipped ${r.message.total_skipped}`,
+							),
 						);
+						listview.refresh();
 					}
 				},
 			});

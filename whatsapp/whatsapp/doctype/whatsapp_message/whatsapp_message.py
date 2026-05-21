@@ -139,7 +139,7 @@ class WhatsappMessage(Document):
 def _get_whatsapp_client(account, settings) -> Whatsapp:
 	return Whatsapp(
 		args=frappe._dict(
-			business_id=account.get("business_id") or account.get("businesss_id"),
+			business_id=account.get("business_id"),
 			app_id=account.get("app_id") or "",
 			access_token=account.get("access_token"),
 			phone_number_id=account.get("phone_id"),

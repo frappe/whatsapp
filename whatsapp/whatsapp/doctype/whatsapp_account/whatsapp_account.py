@@ -16,7 +16,8 @@ class WhatsappAccount(Document):
 
 		access_token: DF.LongText | None
 		account_name: DF.Data | None
-		businesss_id: DF.Data | None
+		app_id: DF.Data | None
+		business_id: DF.Data | None
 		phone_id: DF.Data | None
 		status: DF.Literal["Active", "Inactive"]
 	# end: auto-generated types

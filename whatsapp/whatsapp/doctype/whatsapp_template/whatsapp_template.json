@@ -12,6 +12,7 @@
   "column_break_hcvk",
   "template_type",
   "language",
+  "whatsapp_account",
   "template_data_section",
   "header_text",
   "header_media",
@@ -19,6 +20,7 @@
   "header_type",
   "section_break_snmo",
   "message",
+  "footer_section",
   "footer",
   "section_break_ohbb",
   "reference_doctype",
@@ -26,12 +28,11 @@
   "section_break_ghcu",
   "buttons",
   "api_related_items_tab",
-  "whatsapp_account",
   "whatsapp_template_id",
+  "header_media_handle",
   "column_break_jcgd",
   "status",
-  "variable_format",
-  "header_media_handle"
+  "variable_format"
  ],
  "fields": [
   {
@@ -89,9 +90,10 @@
    "set_only_once": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "template_data_section",
    "fieldtype": "Section Break",
-   "label": "Template Data"
+   "label": "Header"
   },
   {
    "description": "To add parameters add template strings that look like {{1}} or {{name}}. Make sure all the template strings you added have a example",
@@ -127,11 +129,14 @@
   },
   {
    "fieldname": "section_break_snmo",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Body"
   },
   {
+   "collapsible": 1,
    "fieldname": "section_break_ghcu",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Buttons"
   },
   {
    "fieldname": "buttons",
@@ -140,8 +145,10 @@
    "options": "Whatsapp Template Button"
   },
   {
+   "collapsible": 1,
    "fieldname": "section_break_ohbb",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Template Parameters"
   },
   {
    "description": "Variable field is the field of the connecting doctype that you want. Use doctype field name like first_name and not contact.first_name",
@@ -165,7 +172,7 @@
   {
    "fieldname": "api_related_items_tab",
    "fieldtype": "Tab Break",
-   "label": "API Related Items"
+   "label": "API Items"
   },
   {
    "fieldname": "whatsapp_account",
@@ -194,12 +201,18 @@
    "label": "Header Media Handle",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "footer_section",
+   "fieldtype": "Section Break",
+   "label": "Footer"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-21 16:24:19.606807",
+ "modified": "2026-05-21 17:24:54.550585",
  "modified_by": "Administrator",
  "module": "Whatsapp",
  "name": "Whatsapp Template",
