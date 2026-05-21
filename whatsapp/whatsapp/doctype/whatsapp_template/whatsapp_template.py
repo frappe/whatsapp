@@ -239,7 +239,7 @@ def get_active_accounts() -> list[WhatsappAccount]:
 	accounts = frappe.get_all(
 		"Whatsapp Account",
 		filters={"status": "Active"},
-		fields=["name", "account_name", "businesss_id"],
+		fields=["name", "account_name", "businesss_id", "business_id"],
 	)
 	return [
 		cast(
@@ -247,7 +247,7 @@ def get_active_accounts() -> list[WhatsappAccount]:
 			{
 				"name": acc.name,
 				"account_name": acc.account_name,
-				"business_id": acc.businesss_id,
+				"business_id": acc.business_id or acc.businesss_id,
 			},
 		)
 		for acc in accounts
@@ -259,8 +259,8 @@ def _get_whatsapp_client(account_name: str) -> Whatsapp:
 	account = frappe.get_doc("Whatsapp Account", account_name)
 	return Whatsapp(
 		args=frappe._dict(
-			business_id=account.businesss_id,
-			app_id="",
+			business_id=account.business_id or account.businesss_id,
+			app_id=account.app_id or "",
 			access_token=account.access_token,
 			phone_number_id=account.phone_id,
 			base_url=settings.whatsapp_api_url,

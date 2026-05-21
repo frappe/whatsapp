@@ -7,13 +7,15 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "account_name",
-  "status",
-  "column_break_pwlz",
-  "businesss_id",
-  "phone_id",
-  "access_token"
- ],
+   "account_name",
+   "status",
+   "app_id",
+   "column_break_pwlz",
+   "businesss_id",
+   "business_id",
+   "phone_id",
+   "access_token"
+  ],
  "fields": [
   {
    "fieldname": "account_name",
@@ -28,6 +30,11 @@
    "options": "Active\nInactive"
   },
   {
+   "fieldname": "app_id",
+   "fieldtype": "Data",
+   "label": "App ID"
+  },
+  {
    "fieldname": "column_break_pwlz",
    "fieldtype": "Column Break"
   },
@@ -35,6 +42,11 @@
    "fieldname": "businesss_id",
    "fieldtype": "Data",
    "label": "Businesss ID"
+  },
+  {
+   "fieldname": "business_id",
+   "fieldtype": "Data",
+   "label": "Business ID"
   },
   {
    "fieldname": "phone_id",

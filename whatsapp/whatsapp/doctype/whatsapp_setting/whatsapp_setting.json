@@ -8,24 +8,36 @@
  "field_order": [
   "whatsapp_api_url",
   "column_break_hpwl",
-  "whatsapp_api_version"
- ],
- "fields": [
-  {
-   "fieldname": "column_break_hpwl",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "whatsapp_api_url",
-   "fieldtype": "Data",
-   "label": "API url"
-  },
-  {
-   "fieldname": "whatsapp_api_version",
-   "fieldtype": "Data",
-   "label": "API version"
-  }
- ],
+   "whatsapp_api_version",
+   "webhook_verify_token",
+   "webhook_secret"
+  ],
+  "fields": [
+   {
+    "fieldname": "column_break_hpwl",
+    "fieldtype": "Column Break"
+   },
+   {
+    "fieldname": "whatsapp_api_url",
+    "fieldtype": "Data",
+    "label": "API url"
+   },
+   {
+    "fieldname": "whatsapp_api_version",
+    "fieldtype": "Data",
+    "label": "API version"
+   },
+   {
+    "fieldname": "webhook_verify_token",
+    "fieldtype": "Data",
+    "label": "Webhook Verify Token"
+   },
+   {
+    "fieldname": "webhook_secret",
+    "fieldtype": "Data",
+    "label": "Webhook Secret"
+   }
+  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,

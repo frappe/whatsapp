@@ -325,3 +325,17 @@ def build_template_message_payload(
 		payload["template"]["components"] = components
 
 	return cast(TemplateMessagePayload, payload)
+
+
+def build_text_message_payload(
+	to: str,
+	text: str,
+	preview_url: bool = False,
+) -> dict:
+	return {
+		"messaging_product": "whatsapp",
+		"recipient_type": "individual",
+		"to": to,
+		"type": "text",
+		"text": {"preview_url": preview_url, "body": text},
+	}

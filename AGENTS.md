@@ -40,9 +40,152 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
 
 ## Testing
 
-- Tests use `frappe.tests.IntegrationTestCase`
-- Test records are auto-generated from DocType JSON definitions
-- Run via Frappe bench: `bench run-tests --app whatsapp`
+### Running tests
+
+```bash
+bench run-tests --app whatsapp               # all tests
+bench run-tests --app whatsapp --doctype "WhatsappTemplate"   # single doctype
+bench run-tests --app whatsapp --test test_validation_method   # single test method
+bench run-tests --app whatsapp --module "whatsapp.api"        # module outside doctype dir
+bench run-tests --app whatsapp --profile                      # with profiling
+```
+
+### Test base classes (from `frappe.tests`)
+
+| Class | Purpose |
+|---|---|
+| **`IntegrationTestCase`** | **Primary class for doctype tests.** Auto-creates test records from `test_records.json`, manages DB (auto-rollback via `addClassCleanup`), provides query/Redis counters. |
+| **`UnitTestCase`** | Lightweight, no DB setup beyond site init. For isolated unit tests. |
+| **`MockedRequestTestCase`** | Same as `IntegrationTestCase` with `responses.RequestsMock` auto-managed for HTTP mocking. |
+
+### Test file structure
+
+```
+whatsapp/doctype/<name>/
+  __init__.py
+  <name>.py                       # Document controller
+  <name>.json                     # DocType definition
+  test_<name>.py                  # Test file — class name: IntegrationTest<Name>
+  test_records.json               # (optional) Fixture records for integration tests
+```
+
+Test files live inside the doctype folder. The doctype is auto-detected from the module path by walking up `cls.__module__.split(".")` until `"doctype"` is found, then reading the adjacent `*.json` for the `"name"` field.
+
+### Test records / fixtures
+
+Test records are resolved in this priority order:
+1. `_make_test_records()` generator function in the test module
+2. `test_records` list in `.py` (deprecated)
+3. **`test_records.json`** in doctype folder (preferred)
+4. `test_records.toml` (future)
+
+**Dependency control** — module-level constants in the test file:
+```python
+EXTRA_TEST_RECORD_DEPENDENCIES = []    # additional doctypes to create records for
+IGNORE_TEST_RECORD_DEPENDENCIES = []   # link-field doctypes to skip
+```
+
+Dependency resolution is automatic and depth-first — it reads Link fields from DocType meta and recurses via `get_missing_records_doctypes()`.
+
+### Patterns for creating docs in tests
+
+```python
+# Dict-based (most common)
+doc = frappe.get_doc({"doctype": "ToDo", "description": "test"}).insert()
+
+# Kwargs-based (concise)
+doc = frappe.get_doc(doctype="ToDo", description="test").insert()
+
+# new_doc-based
+doc = frappe.new_doc("ToDo")
+doc.description = "test"
+doc.insert()
+```
+
+### Assertions
+
+**Standard unittest:**
+```python
+self.assertTrue(cond); self.assertFalse(cond)
+self.assertEqual(a, b)
+self.assertIn(item, collection)
+self.assertRaises(frappe.ValidationError, doc.save)
+```
+
+**Frappe-specific (from `UnitTestCase`):**
+```python
+self.assertDocumentEqual({"subject": "test", "status": "Open"}, doc)
+self.assertQueryEqual(sql_a, sql_b)
+self.assertSequenceSubset(larger, smaller)
+```
+
+**Query counters (context managers on `IntegrationTestCase`):**
+```python
+with self.assertQueryCount(5):
+    doc.reload()
+
+with self.assertRowsRead(10):
+    frappe.get_all("ToDo")
+```
+
+### Lifecycle
+
+```python
+class TestToDo(IntegrationTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()   # creates test records, inits site
+
+    def setUp(self):
+        super().setUp()
+        frappe.set_user("Administrator")
+        frappe.db.delete("ToDo")  # clean slate per test
+
+    def tearDown(self):
+        frappe.set_user("Administrator")
+        super().tearDown()
+```
+
+DB auto-rolls back via `addClassCleanup` — no explicit cleanup needed unless targeting a clean slate per test.
+
+### Useful utilities
+
+```python
+frappe.set_user("test@example.com")          # switch user
+IntegrationTestCase.change_settings("System Settings", {"logout_on_password_reset": 1})  # temp config
+self.freeze_time(datetime(...))              # freeze time within test
+frappe.db.exists("ToDo", name)               # existence check
+frappe.delete_doc_if_exists("ToDo", name)    # safe deletion
+frappe.clear_cache(doctype="ToDo")           # clear cached meta
+frappe.generate_hash()                       # unique string for test data
+frappe.in_test                               # bool check if running in test mode
+```
+
+### Writing tests for utility functions (no DB needed)
+
+Use plain classes with plain `assert` — no base class required:
+```python
+class TestUtils:
+    def test_some_function(self):
+        result = my_function("input")
+        assert result == "expected"
+```
+
+### Integration test records (`test_records.json`)
+
+```json
+[
+    {
+        "doctype": "WhatsappTemplate",
+        "template_name": "_Test Template",
+        "language": "en_US",
+        "template_type": "UTILITY",
+        "message": "Hello {{1}}"
+    }
+]
+```
+
+The test runner loads these automatically when the test class extends `IntegrationTestCase`. Place the file in the same doctype directory as `test_<name>.py`.
 
 ## Installation (for reference)
 
@@ -50,6 +193,10 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
 bench get-app <repo-url> --branch main
 bench install-app whatsapp
 ```
+
+## Reference source
+
+**The canonical Frappe framework lives at `~/Dev/frappe-bench/apps/frappe/`. When in doubt about ANY Frappe API, convention, DocType definition, or testing pattern, refer directly to the source code there — it supersedes ALL documentation. Always look there first before asking questions.**
 
 ## Key notes
 

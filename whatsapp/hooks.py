@@ -149,23 +149,11 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"whatsapp.tasks.all"
-# 	],
-# 	"daily": [
-# 		"whatsapp.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"whatsapp.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"whatsapp.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"whatsapp.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"hourly": [
+		"whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.sync_all"
+	],
+}
 
 # Testing
 # -------
