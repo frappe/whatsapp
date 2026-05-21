@@ -1,6 +1,6 @@
 ### Whatsapp
 
-> [!WARNING] 
+> [!WARNING]
 > WIP 🚧: Not meant for use yet!
 
 Official whatsapp integration for frappe crm
@@ -30,6 +30,19 @@ Pre-commit is configured to use the following tools for checking and formatting 
 - eslint
 - prettier
 - pyupgrade
+
+### Features Supported
+
+- Creation of whatsapp template
+- Sending whatsapp template and normal messages ( [under normal conversation window](https://github.com/ps173/frappe-whatsapp/blob/main/whatsapp/whatsapp) )
+
+### Upcoming Features (Priority Order)
+
+- Bulk Sending
+- Catalog Upload + Catalog Based Templates
+- Media messages (non template)
+- Group management
+- Calling features
 
 ### License
 

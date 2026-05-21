@@ -199,7 +199,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-20 11:06:56.393345",
+ "modified": "2026-05-21 16:24:19.606807",
  "modified_by": "Administrator",
  "module": "Whatsapp",
  "name": "Whatsapp Template",
@@ -240,5 +240,6 @@
    "color": "Gray",
    "title": "DELETED"
   }
- ]
+ ],
+ "track_changes": 1
 }

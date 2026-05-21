@@ -2,16 +2,18 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "hash",
  "creation": "2026-05-14 16:11:29.498448",
  "doctype": "DocType",
  "engine": "InnoDB",
- "is_submittable": 1,
  "field_order": [
+  "section_break_recipient",
   "to",
   "direction",
-  "status",
-  "column_break_lmtc",
+  "column_break_recipient",
   "from",
+  "whatsapp_account",
+  "section_break_content",
   "message",
   "is_template",
   "whatsapp_template",
@@ -19,13 +21,34 @@
   "reference_docname",
   "template_body_parameters",
   "template_header_parameters",
-  "whatsapp_account"
+  "section_break_delivery",
+  "status",
+  "message_id",
+  "timestamp",
+  "conversation_id",
+  "context_message_id",
+  "column_break_delivery",
+  "media_id",
+  "media_url",
+  "mime_type",
+  "section_break_errors",
+  "error_code",
+  "error_message",
+  "amended_from",
+  "api_items_tab",
+  "column_break_lpta"
  ],
  "fields": [
+  {
+   "fieldname": "section_break_recipient",
+   "fieldtype": "Section Break",
+   "label": "Recipient"
+  },
   {
    "fieldname": "to",
    "fieldtype": "Data",
    "label": "To",
+   "options": "Phone",
    "reqd": 1
   },
   {
@@ -37,16 +60,7 @@
    "reqd": 1
   },
   {
-   "default": "Pending",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Status",
-   "options": "Pending\nSent\nDelivered\nRead\nFailed",
-   "read_only": 1
-  },
-  {
-   "fieldname": "column_break_lmtc",
+   "fieldname": "column_break_recipient",
    "fieldtype": "Column Break"
   },
   {
@@ -54,6 +68,18 @@
    "fieldtype": "Data",
    "label": "From",
    "read_only": 1
+  },
+  {
+   "fieldname": "whatsapp_account",
+   "fieldtype": "Link",
+   "label": "Whatsapp Account",
+   "options": "Whatsapp Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
   },
   {
    "depends_on": "eval:!Boolean(doc.is_template)",
@@ -104,11 +130,18 @@
    "read_only": 1
   },
   {
-   "fieldname": "whatsapp_account",
-   "fieldtype": "Link",
-   "label": "Whatsapp Account",
-   "options": "Whatsapp Account",
-   "reqd": 1
+   "fieldname": "section_break_delivery",
+   "fieldtype": "Section Break",
+   "label": "Delivery Info"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nSent\nDelivered\nRead\nFailed",
+   "read_only": 1
   },
   {
    "fieldname": "message_id",
@@ -116,6 +149,57 @@
    "label": "Message ID",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "label": "Timestamp",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "conversation_id",
+   "fieldtype": "Data",
+   "label": "Conversation ID",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "context_message_id",
+   "fieldtype": "Data",
+   "label": "Context Message ID",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_delivery",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "media_id",
+   "fieldtype": "Data",
+   "label": "Media ID",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "media_url",
+   "fieldtype": "Data",
+   "label": "Media URL",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mime_type",
+   "fieldtype": "Data",
+   "label": "MIME Type",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_errors",
+   "fieldtype": "Section Break",
+   "label": "Errors"
   },
   {
    "fieldname": "error_code",
@@ -130,15 +214,36 @@
    "label": "Error Message",
    "no_copy": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Whatsapp Message",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "api_items_tab",
+   "fieldtype": "Tab Break",
+   "label": "API Items"
+  },
+  {
+   "fieldname": "column_break_lpta",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2026-05-14 16:36:17.476770",
+ "modified": "2026-05-21 16:47:09.262425",
  "modified_by": "Administrator",
  "module": "Whatsapp",
  "name": "Whatsapp Message",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {
@@ -162,10 +267,25 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [
-  {"color": "Blue", "title": "Sent"},
-  {"color": "Green", "title": "Delivered"},
-  {"color": "Purple", "title": "Read"},
-  {"color": "Orange", "title": "Pending"},
-  {"color": "Red", "title": "Failed"}
+  {
+   "color": "Blue",
+   "title": "Sent"
+  },
+  {
+   "color": "Green",
+   "title": "Delivered"
+  },
+  {
+   "color": "Purple",
+   "title": "Read"
+  },
+  {
+   "color": "Orange",
+   "title": "Pending"
+  },
+  {
+   "color": "Red",
+   "title": "Failed"
+  }
  ]
 }

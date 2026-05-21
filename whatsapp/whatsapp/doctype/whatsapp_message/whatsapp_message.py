@@ -7,6 +7,7 @@ import frappe
 import requests
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import now_datetime
 
 from whatsapp.whatsapp.api.utils import (
 	build_template_message_payload,
@@ -24,6 +25,7 @@ class WhatsappMessage(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		amended_from: DF.Link | None
 		direction: DF.Literal["Outgoing", "Incoming"]
 		error_code: DF.Data | None
 		error_message: DF.LongText | None
@@ -35,8 +37,8 @@ class WhatsappMessage(Document):
 		status: DF.Literal["Pending", "Sent", "Delivered", "Read", "Failed"]
 		template_body_parameters: DF.Code | None
 		template_header_parameters: DF.Code | None
-		to: DF.Data | None
-		whatsapp_account: DF.Link | None
+		to: DF.Data
+		whatsapp_account: DF.Link
 		whatsapp_template: DF.Link | None
 	# end: auto-generated types
 
@@ -113,6 +115,7 @@ class WhatsappMessage(Document):
 			result = client.send_message(payload)
 			messages = result.get("messages", [])
 			self.message_id = messages[0].get("id") if messages else None
+			self.timestamp = now_datetime()
 			self.status = "Sent"
 		except requests.HTTPError as e:
 			self.status = "Failed"

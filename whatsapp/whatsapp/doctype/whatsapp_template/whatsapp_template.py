@@ -26,11 +26,8 @@ class WhatsappTemplate(Document):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
-
 		from whatsapp.whatsapp.doctype.template_variable.template_variable import TemplateVariable
-		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import (
-			WhatsappTemplateButton,
-		)
+		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import WhatsappTemplateButton
 
 		buttons: DF.Table[WhatsappTemplateButton]
 		footer: DF.Data | None

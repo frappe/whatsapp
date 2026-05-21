@@ -1,6 +1,7 @@
 # Copyright (c) 2026, pratham@frappe.io and contributors
 # For license information, please see license.txt
 
+import datetime
 import hashlib
 import hmac
 import json
@@ -85,7 +86,31 @@ def _handle_messages(value: dict) -> None:
 
 
 def _create_incoming_message(msg: dict, account_name: str) -> None:
-	content = msg.get("text", {}).get("body", "") if msg.get("type") == "text" else ""
+	msg_type = msg.get("type", "text")
+
+	if msg_type == "text":
+		content = msg.get("text", {}).get("body", "")
+	elif msg_type == "button":
+		content = msg.get("button", {}).get("text", "")
+	elif msg_type == "interactive":
+		content = msg.get("interactive", {}).get("button_reply", {}).get("title", "")
+	else:
+		content = ""
+
+	media_fields = {}
+	if msg_type in ("image", "audio", "document", "video", "sticker"):
+		media = msg.get(msg_type, {})
+		media_fields = {
+			"media_id": media.get("id"),
+			"mime_type": media.get("mime_type"),
+		}
+		if msg_type == "document":
+			media_fields["media_url"] = media.get("filename", "")
+
+	timestamp_val = None
+	raw_ts = msg.get("timestamp")
+	if raw_ts:
+		timestamp_val = datetime.datetime.fromtimestamp(int(raw_ts))
 
 	doc = frappe.get_doc(
 		{
@@ -97,6 +122,9 @@ def _create_incoming_message(msg: dict, account_name: str) -> None:
 			"direction": "Incoming",
 			"status": "Sent",
 			"message_id": msg.get("id"),
+			"timestamp": timestamp_val,
+			"context_message_id": msg.get("context", {}).get("id") if msg.get("context") else None,
+			**media_fields,
 		}
 	)
 	doc.insert(ignore_permissions=True)
@@ -115,16 +143,17 @@ def _update_message_status(status: dict) -> None:
 	}
 	new_status = status_map.get(status.get("status"), "Pending")
 
-	frappe.db.set_value("Whatsapp Message", {"message_id": message_id}, "status", new_status)
+	updates = {"status": new_status}
+
+	conversation = status.get("conversation", {})
+	if conversation.get("id"):
+		updates["conversation_id"] = conversation["id"]
 
 	errors = status.get("errors", [])
 	if errors:
-		frappe.db.set_value(
-			"Whatsapp Message",
-			{"message_id": message_id},
-			"error_message",
-			json.dumps(errors),
-		)
+		updates["error_message"] = json.dumps(errors)
+
+	frappe.db.set_value("Whatsapp Message", {"message_id": message_id}, updates)
 
 
 def _handle_template_status(value: dict) -> None:
