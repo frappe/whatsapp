@@ -1,0 +1,28 @@
+<h4>{{ _("WhatsApp Template Rejected") }}</h4>
+
+<table style="margin-bottom: 1rem; width: 70%">
+    <tr>
+        <td style="font-weight:bold; width: 30%">{{ _("Template Name") }}</td>
+        <td>{{ doc.template_label or doc.template_name }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Language") }}</td>
+        <td>{{ doc.language }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Category") }}</td>
+        <td>{{ doc.template_type }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Account") }}</td>
+        <td>{{ doc.whatsapp_account }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Status") }}</td>
+        <td><span style="color: #e74c3c;">{{ doc.status }}</span></td>
+    </tr>
+</table>
+
+<p class="text-muted text-small" style="margin-top: 16px;">
+    {{ _("This is an automated notification from {0}").format(frappe.utils.get_host_name()) }}.
+</p>

@@ -128,6 +128,7 @@ def _create_incoming_message(msg: dict, account_name: str) -> None:
 		}
 	)
 	doc.insert(ignore_permissions=True)
+	doc.run_notifications("on_receive")
 
 
 def _update_message_status(status: dict) -> None:
@@ -153,7 +154,17 @@ def _update_message_status(status: dict) -> None:
 	if errors:
 		updates["error_message"] = json.dumps(errors)
 
-	frappe.db.set_value("Whatsapp Message", {"message_id": message_id}, updates)
+	name = frappe.db.get_value("Whatsapp Message", {"message_id": message_id}, "name")
+	if not name:
+		return
+
+	old_status = frappe.db.get_value("Whatsapp Message", name, "status")
+	if old_status == new_status:
+		return
+
+	frappe.db.set_value("Whatsapp Message", name, updates)
+	doc = frappe.get_doc("Whatsapp Message", name)
+	doc.run_notifications("on_status_update")
 
 
 def _handle_template_status(value: dict) -> None:
@@ -169,6 +180,18 @@ def _handle_template_status(value: dict) -> None:
 		"PENDING_DELETION": "PENDING",
 	}
 	local_status = status_map.get(api_status, "PENDING")
-	frappe.db.set_value(
-		"Whatsapp Template", {"whatsapp_template_id": template_id}, "status", local_status
-	)
+
+	name = frappe.db.get_value("Whatsapp Template", {"whatsapp_template_id": template_id}, "name")
+	if not name:
+		return
+
+	old_status = frappe.db.get_value("Whatsapp Template", name, "status")
+	if old_status == local_status:
+		return
+
+	frappe.db.set_value("Whatsapp Template", name, "status", local_status)
+	doc = frappe.get_doc("Whatsapp Template", name)
+	if local_status == "APPROVED":
+		doc.run_notifications("on_template_approved")
+	elif local_status == "REJECTED":
+		doc.run_notifications("on_template_rejected")

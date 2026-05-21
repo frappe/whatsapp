@@ -53,6 +53,10 @@ class WhatsappMessage(Document):
 		if self.direction == "Outgoing":
 			self._send()
 
+	def on_submit(self) -> None:
+		if self.direction == "Outgoing" and self.status == "Sent":
+			self.run_notifications("on_send")
+
 	def _validate_outgoing(self) -> None:
 		if not self.to:
 			frappe.throw(_("Recipient is required"))
@@ -121,6 +125,9 @@ class WhatsappMessage(Document):
 			self.status = "Failed"
 			self.error_message = str(e)
 			frappe.logger("whatsapp").error("Message send failed", exc_info=True)
+			self.db_set("status", "Failed")
+			self.db_set("error_message", str(e))
+			self.run_notifications("on_send_failed")
 			frappe.throw(_("Failed to send message: {0}").format(str(e)))
 
 	def _build_payload(self) -> dict:

@@ -250,6 +250,40 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertNotIn("name", body)
 
 	# -------------------------------------------------------------------------
+	# submit / send — notification events
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_on_submit_fires_on_send(self, mock_send, mock_run_notif):
+		mock_send.return_value = {"messages": [{"id": "wa_msg_on_send"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(message="Hello from on_send test!")
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		mock_run_notif.assert_any_call("on_send")
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_send_failure_fires_on_send_failed(self, mock_send, mock_run_notif):
+		from requests import HTTPError
+
+		mock_send.side_effect = HTTPError("API Error: Rate limit exceeded")
+		self._make_setting()
+
+		data = self._make_outgoing(message="Hello from failure test!")
+		doc = frappe.get_doc(data)
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		mock_run_notif.assert_any_call("on_send_failed")
+
+	# -------------------------------------------------------------------------
 	# submit / send
 	# -------------------------------------------------------------------------
 

@@ -1,0 +1,27 @@
+<h4>{{ _("WhatsApp Message Send Failed") }}</h4>
+
+<table style="margin-bottom: 1rem; width: 70%">
+    <tr>
+        <td style="font-weight:bold; width: 30%">{{ _("To") }}</td>
+        <td>{{ doc.to }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Account") }}</td>
+        <td>{{ doc.whatsapp_account }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Status") }}</td>
+        <td><span style="color: #e74c3c;">{{ doc.status }}</span></td>
+    </tr>
+</table>
+
+{% if doc.error_message %}
+<div style="margin-top: 12px;">
+    <strong>{{ _("Error Details") }}:</strong>
+    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #fdf0ef; padding: 8px; border: 1px solid #e74c3c;">{{ doc.error_message }}</pre>
+</div>
+{% endif %}
+
+<p class="text-muted text-small" style="margin-top: 16px;">
+    {{ _("This is an automated notification from {0}").format(frappe.utils.get_host_name()) }}.
+</p>

@@ -1,0 +1,31 @@
+<h4>{{ _("WhatsApp Message Received") }}</h4>
+
+<table style="margin-bottom: 1rem; width: 70%">
+    <tr>
+        <td style="font-weight:bold; width: 30%">{{ _("From") }}</td>
+        <td>{{ doc.from or doc.to }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Account") }}</td>
+        <td>{{ doc.whatsapp_account }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Status") }}</td>
+        <td>{{ doc.status }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Received At") }}</td>
+        <td>{{ frappe.utils.format_datetime(doc.timestamp) if doc.timestamp else "" }}</td>
+    </tr>
+</table>
+
+{% if doc.message %}
+<div style="margin-top: 12px;">
+    <strong>{{ _("Message") }}:</strong>
+    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #f8f8f8; padding: 8px; border: 1px solid #ddd;">{{ doc.message }}</pre>
+</div>
+{% endif %}
+
+<p class="text-muted text-small" style="margin-top: 16px;">
+    {{ _("This is an automated notification from {0}").format(frappe.utils.get_host_name()) }}.
+</p>

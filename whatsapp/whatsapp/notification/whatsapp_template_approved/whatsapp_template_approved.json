@@ -1,0 +1,22 @@
+{
+ "attach_print": 0,
+ "channel": "System Notification",
+ "docstatus": 0,
+ "doctype": "Notification",
+ "document_type": "Whatsapp Template",
+ "enabled": 0,
+ "event": "Method",
+ "is_standard": 1,
+ "message_type": "HTML",
+ "method": "on_template_approved",
+ "module": "Whatsapp",
+ "name": "WhatsApp Template Approved",
+ "recipients": [
+  {
+   "receiver_by_role": "System Manager"
+  }
+ ],
+ "send_system_notification": 0,
+ "send_to_all_assignees": 0,
+ "subject": "WhatsApp Template Approved - {{ doc.template_label or doc.template_name }}"
+}
