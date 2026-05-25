@@ -8,8 +8,10 @@ import frappe
 from frappe import _
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
+
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account", "Whatsapp Template"]
+IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account", "Whatsapp Template", "Whatsapp Profile"]
 
 
 class IntegrationTestWhatsappMessage(IntegrationTestCase):
@@ -36,6 +38,13 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		).insert()
 		return doc.name
 
+	def _make_profile(self, phone: str, account: str, profile_name: str | None = None) -> str:
+		return get_or_create_profile(
+			phone_number=phone,
+			account_name=account,
+			profile_name=profile_name or phone,
+		)
+
 	def _make_template(self, **overrides) -> str:
 		uid = frappe.generate_hash(length=6)
 		acc = self._make_account()
@@ -57,12 +66,16 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	def _make_outgoing(self, **overrides) -> dict:
 		acc = overrides.pop("account", None) or self._make_account()
 		from_val = overrides.pop("from_", None)
+		phone = overrides.get("_phone", "+1234567890")
 		data = dict(
 			doctype="Whatsapp Message",
-			to="+1234567890",
 			direction="Outgoing",
 			whatsapp_account=acc,
 		)
+		if "to" in overrides:
+			data["to"] = overrides.pop("to")
+		else:
+			data["to"] = self._make_profile(phone, acc)
 		if from_val is not None:
 			data["from"] = from_val
 		data.update(overrides)
@@ -94,11 +107,21 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	def test_validate_skipped_for_incoming(self):
 		doc = frappe.get_doc(
 			doctype="Whatsapp Message",
-			to="+1234567890",
 			direction="Incoming",
 			**{"from": "+0987654321"},
 		)
 		doc.validate()  # no exception
+
+	def test_outgoing_fails_for_blocked_profile(self):
+		acc = self._make_account()
+		profile = self._make_profile("+1234567890", acc, "Blocked User")
+		frappe.db.set_value("Whatsapp Profile", profile, "status", "Blocked")
+		data = self._make_outgoing(account=acc)
+		data["to"] = profile
+		doc = frappe.get_doc(data)
+		with self.assertRaises(frappe.ValidationError) as cm:
+			doc.validate()
+		self.assertIn("blocked profile", str(cm.exception).lower())
 
 	# -------------------------------------------------------------------------
 	# from auto-fill
@@ -345,9 +368,10 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 	def test_submit_skipped_for_incoming(self):
 		acc = self._make_account()
+		profile = self._make_profile("+1234567890", acc)
 		doc = frappe.get_doc(
 			doctype="Whatsapp Message",
-			to="+1234567890",
+			to=profile,
 			direction="Incoming",
 			whatsapp_account=acc,
 			**{"from": "+0987654321"},

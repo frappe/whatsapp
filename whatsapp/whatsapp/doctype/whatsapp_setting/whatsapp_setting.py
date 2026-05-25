@@ -14,6 +14,9 @@ class WhatsappSetting(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		default_account: DF.Link | None
+		webhook_secret: DF.Data | None
+		webhook_verify_token: DF.Data | None
 		whatsapp_api_url: DF.Data | None
 		whatsapp_api_version: DF.Data | None
 	# end: auto-generated types

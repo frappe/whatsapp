@@ -1,16 +1,23 @@
 {
  "attach_print": 0,
  "channel": "System Notification",
+ "creation": "2026-05-22 12:06:49.895550",
+ "days_in_advance": 0,
  "docstatus": 0,
  "doctype": "Notification",
  "document_type": "Whatsapp Template",
- "enabled": 0,
+ "enabled": 1,
  "event": "Method",
+ "idx": 0,
  "is_standard": 1,
  "message_type": "HTML",
  "method": "on_template_approved",
+ "minutes_offset": 0,
+ "modified": "2026-05-22 15:53:51.386128",
+ "modified_by": "test@example.com",
  "module": "Whatsapp",
  "name": "WhatsApp Template Approved",
+ "owner": "Administrator",
  "recipients": [
   {
    "receiver_by_role": "System Manager"

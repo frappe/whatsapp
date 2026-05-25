@@ -6,6 +6,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
 from whatsapp.whatsapp.webhook import (
 	_create_incoming_message,
 	_handle_template_status,
@@ -37,14 +38,24 @@ class TestWebhookNotifications(IntegrationTestCase):
 		).insert()
 		return doc.name
 
+	def _make_profile(self, phone: str, account: str, profile_name: str | None = None) -> str:
+		return get_or_create_profile(
+			phone_number=phone,
+			account_name=account,
+			profile_name=profile_name or phone,
+		)
+
 	def _make_outgoing(self, account: str, **overrides) -> str:
+		phone = overrides.pop("_phone", "+1234567890")
 		data = dict(
 			doctype="Whatsapp Message",
-			to="+1234567890",
 			direction="Outgoing",
 			whatsapp_account=account,
-			message="Test message",
 		)
+		if "to" in overrides:
+			data["to"] = overrides.pop("to")
+		else:
+			data["to"] = self._make_profile(phone, account)
 		data.update(overrides)
 		doc = frappe.get_doc(data).insert()
 		return doc.name

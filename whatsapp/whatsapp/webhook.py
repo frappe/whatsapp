@@ -9,6 +9,15 @@ import json
 import frappe
 from frappe import _
 
+from frappe.core.doctype.server_script.server_script_utils import (
+	run_server_script_for_doc_event,
+)
+
+from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
+	get_or_create_profile,
+	update_profile_activity,
+)
+
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
 
 
@@ -72,20 +81,38 @@ def _handle_messages(value: dict) -> None:
 
 	account_name = frappe.db.get_value("Whatsapp Account", {"phone_id": phone_number_id}, "name")
 	if not account_name:
-		frappe.log_error(
-			title="WhatsApp Webhook",
-			message=f"No account found for phone_number_id={phone_number_id}",
-		)
-		return
+		default_account = frappe.db.get_single_value("Whatsapp Setting", "default_account")
+		if default_account:
+			account_name = default_account
+		else:
+			frappe.log_error(
+				title="WhatsApp Webhook",
+				message=f"No account found for phone_number_id={phone_number_id} and no default account set",
+			)
+			return
+
+	contacts = value.get("contacts", [])
+	contact_profile = contacts[0].get("profile", {}) if contacts else {}
 
 	for msg in value.get("messages", []):
-		_create_incoming_message(msg, account_name)
+		_create_incoming_message(msg, account_name, contact_profile)
 
 	for status in value.get("statuses", []):
 		_update_message_status(status)
 
 
-def _create_incoming_message(msg: dict, account_name: str) -> None:
+def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict | None = None) -> None:
+	wa_id = msg.get("from", "")
+	profile_name = (contact_profile or {}).get("name", "")
+
+	profile = get_or_create_profile(
+		phone_number=wa_id,
+		account_name=account_name,
+		profile_name=profile_name or None,
+		wa_id=wa_id,
+	)
+	update_profile_activity(profile)
+
 	msg_type = msg.get("type", "text")
 
 	if msg_type == "text":
@@ -115,7 +142,7 @@ def _create_incoming_message(msg: dict, account_name: str) -> None:
 	doc = frappe.get_doc(
 		{
 			"doctype": "Whatsapp Message",
-			"to": msg.get("from"),
+			"to": profile,
 			"from": msg.get("to"),
 			"message": content,
 			"whatsapp_account": account_name,
@@ -165,6 +192,7 @@ def _update_message_status(status: dict) -> None:
 	frappe.db.set_value("Whatsapp Message", name, updates)
 	doc = frappe.get_doc("Whatsapp Message", name)
 	doc.run_notifications("on_status_update")
+	run_server_script_for_doc_event(doc, "on_update")
 
 
 def _handle_template_status(value: dict) -> None:
@@ -195,3 +223,4 @@ def _handle_template_status(value: dict) -> None:
 		doc.run_notifications("on_template_approved")
 	elif local_status == "REJECTED":
 		doc.run_notifications("on_template_rejected")
+	run_server_script_for_doc_event(doc, "on_update")

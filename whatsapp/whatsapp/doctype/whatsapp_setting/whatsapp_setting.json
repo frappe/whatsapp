@@ -10,7 +10,9 @@
   "column_break_hpwl",
    "whatsapp_api_version",
    "webhook_verify_token",
-   "webhook_secret"
+   "webhook_secret",
+   "column_break_default",
+   "default_account"
   ],
   "fields": [
    {
@@ -34,12 +36,23 @@
     "fieldtype": "Data",
     "label": "Webhook Verify Token"
    },
-   {
-    "fieldname": "webhook_secret",
-    "fieldtype": "Data",
-    "label": "Webhook Secret"
-   }
-  ],
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Data",
+   "label": "Webhook Secret"
+  },
+  {
+   "fieldname": "column_break_default",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The primary WhatsApp account used for sending outgoing messages and receiving incoming messages. When creating a new outgoing message, this account is auto-selected. Incoming webhook messages that cannot be matched to a specific phone number fall back to this account.",
+   "fieldname": "default_account",
+   "fieldtype": "Link",
+   "label": "Default Account",
+   "options": "Whatsapp Account"
+  }
+ ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,

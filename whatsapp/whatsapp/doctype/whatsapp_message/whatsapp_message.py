@@ -26,21 +26,33 @@ class WhatsappMessage(Document):
 		from frappe.types import DF
 
 		amended_from: DF.Link | None
+		context_message_id: DF.Data | None
+		conversation_id: DF.Data | None
 		direction: DF.Literal["Outgoing", "Incoming"]
 		error_code: DF.Data | None
 		error_message: DF.LongText | None
 		is_template: DF.Check
+		media_id: DF.Data | None
+		media_url: DF.Data | None
 		message: DF.LongText | None
 		message_id: DF.Data | None
+		mime_type: DF.Data | None
 		reference_docname: DF.DynamicLink | None
 		reference_doctype: DF.Link | None
 		status: DF.Literal["Pending", "Sent", "Delivered", "Read", "Failed"]
 		template_body_parameters: DF.Code | None
 		template_header_parameters: DF.Code | None
-		to: DF.Data
+		timestamp: DF.Datetime | None
+		to: DF.Link
 		whatsapp_account: DF.Link
 		whatsapp_template: DF.Link | None
 	# end: auto-generated types
+
+	def before_insert(self) -> None:
+		if self.direction == "Outgoing" and not self.whatsapp_account:
+			default_account = frappe.db.get_single_value("Whatsapp Setting", "default_account")
+			if default_account:
+				self.whatsapp_account = default_account
 
 	def validate(self) -> None:
 		if self.direction == "Outgoing":
@@ -62,8 +74,16 @@ class WhatsappMessage(Document):
 			frappe.throw(_("Recipient is required"))
 		if not self.whatsapp_account:
 			frappe.throw(_("WhatsApp Account is required"))
+		self._check_profile_blocked()
 		if self.is_template and self.whatsapp_template:
 			self._validate_template_reference()
+
+	def _check_profile_blocked(self) -> None:
+		profile = frappe.get_cached_doc("Whatsapp Profile", self.to)
+		if profile.status == "Blocked":
+			frappe.throw(
+				_("Cannot send message to blocked profile: {0}").format(profile.profile_name)
+			)
 
 	def _set_from_number(self) -> None:
 		if not self.get("from") and self.whatsapp_account:
@@ -101,13 +121,9 @@ class WhatsappMessage(Document):
 			else:
 				body_params[var.variable_name] = str(value or "")
 
-
-
 		self.template_body_parameters = json.dumps(body_params)
 		if header_params:
 			self.template_header_parameters = json.dumps(next(iter(header_params.values())))
-
-
 
 	def _send(self) -> None:
 		account = frappe.get_doc("Whatsapp Account", self.whatsapp_account)
@@ -131,16 +147,19 @@ class WhatsappMessage(Document):
 			frappe.throw(_("Failed to send message: {0}").format(str(e)))
 
 	def _build_payload(self) -> dict:
+		profile = frappe.get_cached_doc("Whatsapp Profile", self.to)
+		to_phone = profile.phone_number
+
 		if self.is_template:
 			template_doc = frappe.get_doc("Whatsapp Template", self.whatsapp_template)
 			body_params = json.loads(self.template_body_parameters or "{}")
 			return build_template_message_payload(
-				to=self.to,
+				to=to_phone,
 				template_doc=template_doc,
 				body_parameters=body_params,
 				header_parameters=self.template_header_parameters,
 			)
-		return build_text_message_payload(to=self.to, text=self.message or "")
+		return build_text_message_payload(to=to_phone, text=self.message or "")
 
 
 def _get_whatsapp_client(account, settings) -> Whatsapp:

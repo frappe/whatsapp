@@ -6,13 +6,13 @@
  "creation": "2026-05-14 16:11:29.498448",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "section_break_recipient",
-  "to",
-  "direction",
-  "column_break_recipient",
-  "from",
-  "whatsapp_account",
+  "field_order": [
+    "section_break_recipient",
+    "to",
+    "direction",
+    "column_break_recipient",
+    "from",
+    "whatsapp_account",
   "section_break_content",
   "message",
   "is_template",
@@ -46,9 +46,9 @@
   },
   {
    "fieldname": "to",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "label": "To",
-   "options": "Phone",
+   "options": "Whatsapp Profile",
    "reqd": 1
   },
   {

@@ -34,6 +34,7 @@ class WhatsappTemplate(Document):
 		header_media: DF.Attach | None
 		header_media_handle: DF.Data | None
 		header_text: DF.Data | None
+		mime_type: DF.Data | None
 		header_type: DF.Literal["TEXT", "IMAGE", "DOCUMENT", "GIF", "VIDEO"]
 		language: DF.Literal["en_UK", "en_US", "en"]
 		message: DF.Code
@@ -88,6 +89,36 @@ class WhatsappTemplate(Document):
 			if variable.variable_name not in variables:
 				frappe.throw(f"Variable {variable.variable_name} not found in message")
 
+	def _set_mime_type(self) -> None:
+		if not self.header_media:
+			self.mime_type = None
+			return
+
+		if self.mime_type and not self.has_value_changed("header_media"):
+			return
+
+		try:
+			file_doc = frappe.get_doc("File", {"file_url": self.header_media})
+			if file_doc.content_type:
+				self.mime_type = file_doc.content_type
+				return
+		except frappe.DoesNotExistError:
+			pass
+
+		ext = self.header_media.rsplit(".", 1)[-1].lower() if "." in self.header_media else ""
+		mime_map = {
+			"jpg": "image/jpeg",
+			"jpeg": "image/jpeg",
+			"png": "image/png",
+			"gif": "image/gif",
+			"pdf": "application/pdf",
+			"mp4": "video/mp4",
+			"webm": "video/webm",
+			"mp3": "audio/mpeg",
+			"ogg": "audio/ogg",
+		}
+		self.mime_type = mime_map.get(ext, "")
+
 	def validate_template_name(self) -> None:
 		if not self.template_name:
 			frappe.throw("Template name is required")
@@ -125,6 +156,7 @@ class WhatsappTemplate(Document):
 			)
 
 		self._sync_template_variables()
+		self._set_mime_type()
 
 		if not self.whatsapp_template_id:
 			logger.info("before_save | no whatsapp_template_id, proceeding to push to Meta")

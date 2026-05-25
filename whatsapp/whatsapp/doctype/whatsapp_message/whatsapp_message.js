@@ -4,6 +4,11 @@
 frappe.ui.form.on("Whatsapp Message", {
 	refresh: function (frm) {
 		frm.trigger("is_template");
+		if (frm.is_new() && frm.doc.direction === "Outgoing" && !frm.doc.whatsapp_account) {
+			frappe.db.get_single_value("Whatsapp Setting", "default_account").then((account) => {
+				if (account) frm.set_value("whatsapp_account", account);
+			});
+		}
 	},
 
 	is_template: function (frm) {
