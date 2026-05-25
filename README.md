@@ -31,18 +31,26 @@ Pre-commit is configured to use the following tools for checking and formatting 
 - prettier
 - pyupgrade
 
-### Features Supported
+### Features
 
-- Creation of whatsapp template
-- Sending whatsapp template and normal messages ( [under normal conversation window](https://github.com/ps173/frappe-whatsapp/blob/main/whatsapp/whatsapp) )
+- Receive incoming messages via Meta webhook (text, buttons, interactive, images, audio, documents, video, stickers)
+- Auto-create WhatsApp Profiles for new contacts
+- Send outgoing template and text messages
+- Message status tracking (Sent, Delivered, Read, Failed)
+- WhatsApp Template management (create, sync, push to Meta)
+- Multiple WhatsApp Business Accounts
+- 6 built-in Frappe Notifications (message received/sent/failed, status updated, template approved/rejected)
+- Server Script hooks via standard Frappe lifecycle (after_insert, after_save, etc. on Whatsapp Message)
 
-### Upcoming Features (Priority Order)
+### Planned
 
 - Bulk Sending
 - Catalog Upload + Catalog Based Templates
-- Media messages (non template)
 - Group management
 - Calling features
+- Reaction support
+- Attach field for outgoing media messages
+- Auto-block profile after N consecutive failed messages
 
 ### License
 
