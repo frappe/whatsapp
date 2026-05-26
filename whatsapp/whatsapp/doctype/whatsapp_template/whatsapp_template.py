@@ -158,6 +158,12 @@ class WhatsappTemplate(Document):
 		self._sync_template_variables()
 		self._set_mime_type()
 
+		if self.flags.get("from_sync"):
+			logger.info(
+				"before_save | from_sync flag set, skipping Meta API calls"
+			)
+			return
+
 		if not self.whatsapp_template_id:
 			logger.info("before_save | no whatsapp_template_id, proceeding to push to Meta")
 			self._push_to_meta()
@@ -315,6 +321,17 @@ def _iter_templates(whatsapp: Whatsapp) -> Iterator[dict]:
 
 
 def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]:
+	logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
+
+	category = template_data.get("category", "")
+	if category == "SAMPLE":
+		logger.warning(
+			"Skipping SAMPLE template | name=%s id=%s",
+			template_data.get("name"),
+			template_data.get("id"),
+		)
+		return template_data.get("name", ""), False
+
 	whatsapp_template_id = template_data.get("id", "")
 	parsed = parse_whatsapp_template_to_doc(template_data)
 
@@ -327,6 +344,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 
 	if existing:
 		doc = frappe.get_doc("Whatsapp Template", existing[0])
+		doc.flags.from_sync = True
 		doc.whatsapp_account = account_name
 		doc.status = parsed.get("status", "PENDING")
 		doc.template_type = parsed["template_type"]
