@@ -6,25 +6,19 @@ frappe.ui.form.on("Whatsapp Template", {
 		frm.trigger("template_variable_added");
 	},
 
-	update_variable_field_options: function (frm) {
+	update_variable_field_options: async function (frm) {
 		if (!frm.doc.reference_doctype) return;
 
-		frappe
-			.call({
-				method: "whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.get_doctype_columns",
-				args: { doctype: frm.doc.reference_doctype },
-			})
-			.then((r) => {
-				const options = r.message || [];
-
-				frm.set_df_property(
-					"template_variables",
-					"options",
-					options,
-					cur_frm.docname,
-					"variable_field",
-				);
-			});
+		const response = await frappe.call({
+			method: "whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.get_doctype_columns",
+			args: { doctype: frm.doc.reference_doctype },
+		});
+		const options = response.message || [];
+		frm.fields_dict.template_variables.grid.update_docfield_property(
+			"variable_field",
+			"options",
+			options.join("\n"),
+		);
 	},
 
 	reference_doctype: function (frm) {
@@ -49,14 +43,21 @@ frappe.ui.form.on("Whatsapp Template", {
 				existing[row.variable_name] = row;
 			});
 
-			frm.set_value(
-				"template_variables",
-				variables.map((v) => ({
-					variable_name: v,
-					variable_example: existing[v]?.variable_example || "",
-					variable_field: existing[v]?.variable_field || "",
-				})),
-			);
+			let current_names = Object.keys(existing);
+			let needs_update =
+				current_names.length !== variables.length || !variables.every((v) => existing[v]);
+
+			if (needs_update) {
+				frm.set_value(
+					"template_variables",
+					variables.map((v) => ({
+						variable_name: v,
+						variable_example: existing[v]?.variable_example || "",
+						variable_field: existing[v]?.variable_field || "",
+					})),
+				);
+			}
+
 			frm.trigger("update_variable_field_options");
 		} else {
 			frm.set_df_property("template_variables", "hidden", 1);
