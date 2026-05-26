@@ -14,8 +14,13 @@ class WhatsappAccount(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		from whatsapp.whatsapp.doctype.whatsapp_account_append.whatsapp_account_append import (
+			WhatsappAccountAppend,
+		)
+
 		access_token: DF.LongText | None
 		account_name: DF.Data | None
+		append_actions: DF.Table[WhatsappAccountAppend]
 		app_id: DF.Data | None
 		business_id: DF.Data | None
 		phone_id: DF.Data | None

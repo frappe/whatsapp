@@ -13,6 +13,9 @@ from frappe.core.doctype.server_script.server_script_utils import (
 	run_server_script_for_doc_event,
 )
 
+from whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message import (
+	process_append_actions,
+)
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
 	get_or_create_profile,
 	update_profile_activity,
@@ -155,6 +158,7 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 		}
 	)
 	doc.insert(ignore_permissions=True)
+	process_append_actions(doc, trigger_on="Incoming", sender_phone=wa_id, sender_name=profile_name)
 	doc.run_notifications("on_receive")
 
 

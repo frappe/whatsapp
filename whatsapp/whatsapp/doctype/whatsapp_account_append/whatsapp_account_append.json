@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "creation": "2026-05-26 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "append_to",
+  "trigger_on",
+  "section_break_field_mapping",
+  "message_field",
+  "sender_field",
+  "column_break_field",
+  "sender_name_field",
+  "timestamp_field"
+ ],
+ "fields": [
+  {
+   "fieldname": "append_to",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Append To",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "default": "Incoming",
+   "fieldname": "trigger_on",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Trigger On",
+   "options": "Incoming\nOutgoing\nBoth",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_field_mapping",
+   "fieldtype": "Section Break",
+   "label": "Field Mapping"
+  },
+   {
+    "description": "Field on target DocType to store the message text",
+    "fieldname": "message_field",
+    "fieldtype": "Data",
+    "in_list_view": 1,
+    "label": "Message Field"
+   },
+   {
+    "description": "Field on target DocType to store the sender's phone number",
+    "fieldname": "sender_field",
+    "fieldtype": "Select",
+    "in_list_view": 1,
+    "label": "Sender Field"
+   },
+   {
+    "fieldname": "column_break_field",
+    "fieldtype": "Column Break"
+   },
+   {
+    "description": "Field on target DocType to store the sender's profile name",
+    "fieldname": "sender_name_field",
+    "fieldtype": "Select",
+    "label": "Sender Name Field"
+   },
+  {
+   "description": "Field on target DocType to store the message timestamp",
+   "fieldname": "timestamp_field",
+   "fieldtype": "Data",
+   "label": "Timestamp Field"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Whatsapp",
+ "name": "Whatsapp Account Append",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

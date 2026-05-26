@@ -67,6 +67,7 @@ class WhatsappMessage(Document):
 
 	def on_submit(self) -> None:
 		if self.direction == "Outgoing" and self.status == "Sent":
+			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
 
 	def _validate_outgoing(self) -> None:
@@ -160,6 +161,52 @@ class WhatsappMessage(Document):
 				header_parameters=self.template_header_parameters,
 			)
 		return build_text_message_payload(to=to_phone, text=self.message or "")
+
+
+def process_append_actions(
+	doc, trigger_on: str, sender_phone: str | None = None, sender_name: str | None = None
+) -> None:
+	"""Create linked documents from the message based on the account's append actions."""
+	account = frappe.get_cached_doc("Whatsapp Account", doc.whatsapp_account)
+	actions = account.get("append_actions", [])
+	if not actions:
+		return
+
+	for action in actions:
+		if action.trigger_on not in (trigger_on, "Both"):
+			continue
+		if not action.append_to:
+			continue
+
+		try:
+			new_doc = frappe.new_doc(action.append_to)
+
+			if action.message_field and doc.message:
+				new_doc.set(action.message_field, doc.message)
+
+			sender = sender_phone or doc.get("from")
+			if action.sender_field and sender:
+				new_doc.set(action.sender_field, sender)
+
+			if action.sender_name_field and sender_name:
+				new_doc.set(action.sender_name_field, sender_name)
+
+			if action.timestamp_field and doc.timestamp:
+				new_doc.set(action.timestamp_field, doc.timestamp)
+
+			new_doc.insert(ignore_permissions=True)
+
+			doc.reference_doctype = action.append_to
+			doc.reference_docname = new_doc.name
+		except Exception:
+			frappe.log_error(
+				title="WhatsApp Append Action Failed",
+				message=f"Failed to create {action.append_to} from message {doc.name}: {frappe.get_traceback()}",
+			)
+
+	if doc.reference_doctype:
+		doc.db_set("reference_doctype", doc.reference_doctype)
+		doc.db_set("reference_docname", doc.reference_docname)
 
 
 def _get_whatsapp_client(account, settings) -> Whatsapp:

@@ -12,9 +12,11 @@
   "app_id",
   "column_break_pwlz",
   "business_id",
-  "phone_id",
-  "access_token"
- ],
+   "phone_id",
+   "access_token",
+   "append_actions_section",
+   "append_actions"
+  ],
  "fields": [
   {
    "fieldname": "account_name",
@@ -52,8 +54,20 @@
    "fieldtype": "Long Text",
    "label": "Access token",
    "max_height": "100px"
-  }
- ],
+   },
+   {
+    "fieldname": "append_actions_section",
+    "fieldtype": "Section Break",
+    "label": "Append Actions"
+   },
+   {
+    "description": "Auto-create documents in linked DocTypes when messages are received or sent",
+    "fieldname": "append_actions",
+    "fieldtype": "Table",
+    "label": "Append Actions",
+    "options": "Whatsapp Account Append"
+   }
+  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],

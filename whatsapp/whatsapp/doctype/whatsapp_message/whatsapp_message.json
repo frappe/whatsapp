@@ -100,21 +100,18 @@
    "label": "Whatsapp Template",
    "options": "Whatsapp Template"
   },
-  {
-   "depends_on": "eval:doc.is_template",
-   "fieldname": "reference_doctype",
-   "fieldtype": "Link",
-   "label": "Reference DocType",
-   "options": "DocType",
-   "read_only": 1
-  },
-  {
-   "depends_on": "eval:doc.is_template",
-   "fieldname": "reference_docname",
-   "fieldtype": "Dynamic Link",
-   "label": "Reference Document",
-   "options": "reference_doctype"
-  },
+   {
+    "fieldname": "reference_doctype",
+    "fieldtype": "Link",
+    "label": "Reference DocType",
+    "options": "DocType"
+   },
+   {
+    "fieldname": "reference_docname",
+    "fieldtype": "Dynamic Link",
+    "label": "Reference Document",
+    "options": "reference_doctype"
+   },
   {
    "depends_on": "eval:doc.is_template",
    "fieldname": "template_body_parameters",
