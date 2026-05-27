@@ -1,15 +1,12 @@
 # Copyright (c) 2026, pratham@frappe.io and Contributors
 # See license.txt
 
+import secrets
+
 import frappe
 from frappe.tests import IntegrationTestCase
 
-
-# On IntegrationTestCase, the doctype test records and all
-# link-field test record dependencies are recursively loaded
-# Use these module variables to add/remove to/from that list
-EXTRA_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
-IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
+from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
 
 
 class IntegrationTestWhatsappSetting(IntegrationTestCase):
@@ -28,9 +25,11 @@ class IntegrationTestWhatsappSetting(IntegrationTestCase):
 		).insert()
 		frappe.db.set_single_value("Whatsapp Setting", "default_account", account.name)
 
+		phone = f"+1{secrets.randbelow(10**10):010d}"
+		get_or_create_profile(phone, account.name, phone)
 		msg = frappe.get_doc(
 			doctype="Whatsapp Message",
-			to="+15551234567",
+			to=phone,
 			direction="Outgoing",
 		)
 		msg.insert()

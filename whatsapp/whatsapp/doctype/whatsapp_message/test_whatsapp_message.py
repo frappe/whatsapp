@@ -2,6 +2,7 @@
 # See license.txt
 
 import json
+import secrets
 from unittest.mock import patch
 
 import frappe
@@ -66,7 +67,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	def _make_outgoing(self, **overrides) -> dict:
 		acc = overrides.pop("account", None) or self._make_account()
 		from_val = overrides.pop("from_", None)
-		phone = overrides.get("_phone", "+1234567890")
+		phone = overrides.pop("_phone", None) or f"+1{secrets.randbelow(10**10):010d}"
 		data = dict(
 			doctype="Whatsapp Message",
 			direction="Outgoing",
@@ -88,6 +89,15 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		sett.webhook_verify_token = "test_verify"
 		sett.webhook_secret = "test_secret"
 		sett.save()
+
+	def _make_file(self, file_name: str = "test.png", content: bytes = b"fake_content") -> str:
+		file_doc = frappe.get_doc(
+			doctype="File",
+			file_name=file_name,
+			is_private=0,
+			content=content,
+		).insert(ignore_permissions=True)
+		return file_doc.name
 
 	# -------------------------------------------------------------------------
 	# validate — outgoing
@@ -368,7 +378,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 	def test_submit_skipped_for_incoming(self):
 		acc = self._make_account()
-		profile = self._make_profile("+1234567890", acc)
+		profile = self._make_profile(f"+1{secrets.randbelow(10**10):010d}", acc)
 		doc = frappe.get_doc(
 			doctype="Whatsapp Message",
 			to=profile,
@@ -420,3 +430,478 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		# In-memory values set by _send before frappe.throw
 		self.assertEqual(doc.status, "Failed")
 		self.assertIn("Rate limit exceeded", doc.error_message)
+
+	# -------------------------------------------------------------------------
+	# reply-to / context
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_reply_to_message_resolves_context(self, mock_send):
+		"""reply_to_message Link auto-fills context_message_id from the quoted message."""
+		mock_send.return_value = {"messages": [{"id": "wa_reply_ctx"}]}
+		self._make_setting()
+
+		replied = frappe.get_doc(self._make_outgoing(message="Original", message_id="wamid.orig"))
+		replied.insert()
+		replied.submit()
+
+		data = self._make_outgoing(message="Reply", reply_to_message=replied.name)
+		doc = frappe.get_doc(data)
+		doc.validate()
+		self.assertEqual(doc.context_message_id, "wamid.orig")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_context_included_in_outgoing_payload(self, mock_send):
+		"""context.message_id is added to the send payload when context_message_id is set."""
+		mock_send.return_value = {"messages": [{"id": "wa_ctx_001"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(
+			message="Hello with context",
+			context_message_id="wamid.prev",
+		)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertIn("context", payload)
+		self.assertEqual(payload["context"]["message_id"], "wamid.prev")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_context_omitted_when_not_set(self, mock_send):
+		"""Outgoing payload has no context key when context_message_id is empty."""
+		mock_send.return_value = {"messages": [{"id": "wa_noctx_001"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(message="No context")
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertNotIn("context", payload)
+
+	# -------------------------------------------------------------------------
+	# reactions
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_reaction_sends_reaction_payload(self, mock_send):
+		"""Outgoing reaction with emoji sends type=reaction payload."""
+		mock_send.return_value = {"messages": [{"id": "wa_rxn_001"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(
+			reaction="👍",
+			context_message_id="wamid.target",
+		)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "reaction")
+		self.assertEqual(payload["reaction"]["emoji"], "👍")
+		self.assertEqual(payload["reaction"]["message_id"], "wamid.target")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_reaction_without_emoji_sends_unreact(self, mock_send):
+		"""Empty reaction string sends un-react (no emoji key)."""
+		mock_send.return_value = {"messages": [{"id": "wa_rxn_002"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(
+			reaction="",
+			context_message_id="wamid.target",
+		)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "reaction")
+		self.assertNotIn("emoji", payload["reaction"])
+		self.assertEqual(payload["reaction"]["message_id"], "wamid.target")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_reaction_without_context_falls_to_text(self, mock_send):
+		"""Reaction without context_message_id falls through to text message."""
+		mock_send.return_value = {"messages": [{"id": "wa_rxn_003"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(reaction="👍", message="Just text")
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "text")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_reaction_with_template_falls_to_template(self, mock_send):
+		"""Reaction with is_template sends template, not reaction."""
+		mock_send.return_value = {"messages": [{"id": "wa_rxn_004"}]}
+		self._make_setting()
+
+		tmpl = self._make_template(template_label="_Test Tmpl Rxn", template_name="_test_tmpl_rxn",
+									 message="Template body")
+		data = self._make_outgoing(
+			is_template=1,
+			whatsapp_template=tmpl,
+			reaction="👍",
+			context_message_id="wamid.target",
+		)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "template")
+
+	# -------------------------------------------------------------------------
+	# media messages
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_media_message_uploads_and_sends(self, mock_send, mock_upload):
+		"""Media message uploads file then sends with correct media type."""
+		mock_upload.return_value = {"id": "media_uploaded_001"}
+		mock_send.return_value = {"messages": [{"id": "wa_med_001"}]}
+		self._make_setting()
+
+		file_name = self._make_file("photo.png", b"png_bytes")
+		data = self._make_outgoing(attach=file_name)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		mock_upload.assert_called_once()
+		self.assertEqual(doc.media_id, "media_uploaded_001")
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "image")
+		self.assertEqual(payload["image"]["id"], "media_uploaded_001")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_media_message_caption_in_payload(self, mock_send, mock_upload):
+		"""Message field becomes caption in media payload."""
+		mock_upload.return_value = {"id": "media_cap_001"}
+		mock_send.return_value = {"messages": [{"id": "wa_med_002"}]}
+		self._make_setting()
+
+		file_name = self._make_file("document.bin", b"bin_bytes")
+		data = self._make_outgoing(attach=file_name, message="Check this out")
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "document")
+		self.assertEqual(payload["document"]["caption"], "Check this out")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	def test_media_upload_failure_fails_send(self, mock_upload):
+		"""Upload failure sets status=Failed and raises."""
+		from requests import HTTPError
+
+		mock_upload.side_effect = HTTPError("Upload rejected")
+		self._make_setting()
+
+		file_name = self._make_file("bad.bin", b"bad_bytes")
+		data = self._make_outgoing(attach=file_name)
+		doc = frappe.get_doc(data)
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		self.assertEqual(doc.status, "Failed")
+		self.assertIn("Upload rejected", doc.error_message)
+
+	def test_get_mime_type_maps_correctly(self):
+		"""_get_mime_type returns correct MIME for known and unknown extensions."""
+		doc = frappe.get_doc(doctype="Whatsapp Message", direction="Incoming", **{"from": "+1"})
+		self.assertEqual(doc._get_mime_type("photo.jpg"), "image/jpeg")
+		self.assertEqual(doc._get_mime_type("photo.jpeg"), "image/jpeg")
+		self.assertEqual(doc._get_mime_type("photo.png"), "image/png")
+		self.assertEqual(doc._get_mime_type("photo.webp"), "image/webp")
+		self.assertEqual(doc._get_mime_type("video.mp4"), "video/mp4")
+		self.assertEqual(doc._get_mime_type("audio.mp3"), "audio/mpeg")
+		self.assertEqual(doc._get_mime_type("doc.pdf"), "application/pdf")
+		self.assertEqual(doc._get_mime_type("doc.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+		self.assertEqual(doc._get_mime_type("unknown.xyz"), "application/octet-stream")
+		self.assertEqual(doc._get_mime_type("noext"), "application/octet-stream")
+
+	# -------------------------------------------------------------------------
+	# template header media upload
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_template_header_media_uploaded_when_missing(self, mock_send, mock_upload):
+		"""Template header media is uploaded on first send when handle missing."""
+		mock_upload.return_value = {"id": "h_handle_001"}
+		mock_send.return_value = {"messages": [{"id": "wa_th_001"}]}
+		self._make_setting()
+
+		file_name = self._make_file("header.png", b"header_bytes")
+		tmpl = self._make_template(
+			template_label="_Test Thm",
+			template_name="_test_thm",
+			header_type="IMAGE",
+			header_media=file_name,
+		)
+		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		mock_upload.assert_called_once()
+		handle = frappe.db.get_value("Whatsapp Template", tmpl, "header_media_handle")
+		self.assertEqual(handle, "h_handle_001")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_template_header_media_skipped_when_cached(self, mock_send, mock_upload):
+		"""Template header media is NOT re-uploaded when handle already cached."""
+		mock_send.return_value = {"messages": [{"id": "wa_th_002"}]}
+		self._make_setting()
+
+		file_name = self._make_file("header2.png", b"more_bytes")
+		tmpl = self._make_template(
+			template_label="_Test Thm2",
+			template_name="_test_thm2",
+			header_type="IMAGE",
+			header_media=file_name,
+			header_media_handle="existing_handle",
+		)
+		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		mock_upload.assert_not_called()
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	def test_template_header_media_upload_failure_fails_send(self, mock_upload):
+		"""Template header media upload failure sets status=Failed and raises."""
+		from requests import HTTPError
+
+		mock_upload.side_effect = HTTPError("Header upload rejected")
+		self._make_setting()
+
+		file_name = self._make_file("fail.png", b"fail_bytes")
+		tmpl = self._make_template(
+			template_label="_Test Thm3",
+			template_name="_test_thm3",
+			header_type="IMAGE",
+			header_media=file_name,
+		)
+		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
+		doc = frappe.get_doc(data)
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		self.assertEqual(doc.status, "Failed")
+		self.assertIn("Header upload rejected", doc.error_message)
+
+	# -------------------------------------------------------------------------
+	# interactive messages
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_interactive_buttons_payload(self, mock_send):
+		"""Interactive buttons produce correct payload structure."""
+		mock_send.return_value = {"messages": [{"id": "wa_btn_001"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(message="Pick one")
+		data["interactive_buttons"] = [
+			{"title": "Yes", "button_id": "btn_yes"},
+			{"title": "No", "button_id": "btn_no"},
+		]
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "interactive")
+		self.assertEqual(payload["interactive"]["type"], "button")
+		self.assertEqual(len(payload["interactive"]["action"]["buttons"]), 2)
+		self.assertEqual(payload["interactive"]["action"]["buttons"][0]["reply"]["title"], "Yes")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_interactive_list_payload(self, mock_send):
+		"""Interactive list produces correct payload structure."""
+		mock_send.return_value = {"messages": [{"id": "wa_list_001"}]}
+		self._make_setting()
+
+		data = self._make_outgoing(message="Select from list")
+		data["interactive_list_items"] = [
+			{"title": "Option A", "description": "First option", "list_item_id": "opt_a"},
+			{"title": "Option B", "description": "Second option", "list_item_id": "opt_b"},
+		]
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "interactive")
+		self.assertEqual(payload["interactive"]["type"], "list")
+		rows = payload["interactive"]["action"]["sections"][0]["rows"]
+		self.assertEqual(len(rows), 2)
+		self.assertEqual(rows[0]["title"], "Option A")
+
+	def test_interactive_buttons_and_list_conflict(self):
+		"""Setting both buttons and list items raises ValidationError."""
+		data = self._make_outgoing(message="Conflict")
+		data["interactive_buttons"] = [{"title": "Yes", "button_id": "y"}]
+		data["interactive_list_items"] = [{"title": "A", "list_item_id": "a"}]
+		doc = frappe.get_doc(data)
+		with self.assertRaises(frappe.ValidationError) as cm:
+			doc.validate()
+		self.assertIn("Cannot have both", str(cm.exception))
+
+	def test_interactive_max_buttons_exceeded(self):
+		"""More than 3 buttons raises ValidationError."""
+		data = self._make_outgoing(message="Too many")
+		data["interactive_buttons"] = [
+			{"title": f"B{i}", "button_id": f"b{i}"} for i in range(4)
+		]
+		doc = frappe.get_doc(data)
+		with self.assertRaises(frappe.ValidationError) as cm:
+			doc.validate()
+		self.assertIn("Maximum 3", str(cm.exception))
+
+	def test_interactive_max_list_items_exceeded(self):
+		"""More than 10 list items raises ValidationError."""
+		data = self._make_outgoing(message="Too many items")
+		data["interactive_list_items"] = [
+			{"title": f"I{i}", "list_item_id": f"i{i}"} for i in range(11)
+		]
+		doc = frappe.get_doc(data)
+		with self.assertRaises(frappe.ValidationError) as cm:
+			doc.validate()
+		self.assertIn("Maximum 10", str(cm.exception))
+
+	def test_interactive_max_buttons_allowed(self):
+		"""Exactly 3 buttons passes validation."""
+		data = self._make_outgoing(message="Three buttons")
+		data["interactive_buttons"] = [
+			{"title": f"B{i}", "button_id": f"b{i}"} for i in range(3)
+		]
+		doc = frappe.get_doc(data)
+		doc.validate()  # no exception
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	def test_interactive_buttons_with_template_falls_through(self, mock_send):
+		"""Buttons with is_template sends template, not interactive."""
+		mock_send.return_value = {"messages": [{"id": "wa_int_tmpl"}]}
+		self._make_setting()
+
+		tmpl = self._make_template(
+			template_label="_Test IntTmpl",
+			template_name="_test_inttmpl",
+			message="Template body",
+		)
+		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
+		data["interactive_buttons"] = [{"title": "B1", "button_id": "b1"}]
+		doc = frappe.get_doc(data)
+		doc.insert()
+		doc.submit()
+
+		payload = mock_send.call_args[0][0]
+		self.assertEqual(payload["type"], "template")
+
+
+class TestUtils:
+	"""Tests for utility payload builders (no DB needed)."""
+
+	def test_build_reaction_payload_with_emoji(self):
+		from whatsapp.whatsapp.api.utils import build_reaction_message_payload
+
+		result = build_reaction_message_payload(to="+123", message_id="wamid.x", emoji="🔥")
+		assert result["type"] == "reaction"
+		assert result["reaction"]["emoji"] == "🔥"
+		assert result["reaction"]["message_id"] == "wamid.x"
+
+	def test_build_reaction_payload_without_emoji(self):
+		from whatsapp.whatsapp.api.utils import build_reaction_message_payload
+
+		result = build_reaction_message_payload(to="+123", message_id="wamid.y", emoji=None)
+		assert result["type"] == "reaction"
+		assert "emoji" not in result["reaction"]
+
+	def test_build_media_payload_image(self):
+		from whatsapp.whatsapp.api.utils import build_media_message_payload
+
+		result = build_media_message_payload(to="+123", media_id="mid_1", mime_type="image/png", caption="Nice pic")
+		assert result["type"] == "image"
+		assert result["image"]["id"] == "mid_1"
+		assert result["image"]["caption"] == "Nice pic"
+
+	def test_build_media_payload_document(self):
+		from whatsapp.whatsapp.api.utils import build_media_message_payload
+
+		result = build_media_message_payload(to="+123", media_id="mid_2", mime_type="application/pdf",
+											 caption="Read this", file_name="report.pdf")
+		assert result["type"] == "document"
+		assert result["document"]["id"] == "mid_2"
+		assert result["document"]["filename"] == "report.pdf"
+
+	def test_build_media_payload_audio_no_caption(self):
+		from whatsapp.whatsapp.api.utils import build_media_message_payload
+
+		result = build_media_message_payload(to="+123", media_id="mid_3", mime_type="audio/mpeg")
+		assert result["type"] == "audio"
+		assert "caption" not in result["audio"]
+		assert result["audio"]["id"] == "mid_3"
+
+	def test_build_interactive_buttons_payload(self):
+		from whatsapp.whatsapp.api.utils import build_interactive_buttons_payload
+
+		result = build_interactive_buttons_payload(
+			to="+123", body_text="Choose:",
+			buttons=[{"id": "b1", "title": "One"}, {"id": "b2", "title": "Two"}],
+		)
+		assert result["type"] == "interactive"
+		assert result["interactive"]["type"] == "button"
+		assert len(result["interactive"]["action"]["buttons"]) == 2
+		assert result["interactive"]["action"]["buttons"][0]["reply"]["id"] == "b1"
+
+	def test_build_interactive_buttons_payload_with_footer(self):
+		from whatsapp.whatsapp.api.utils import build_interactive_buttons_payload
+
+		result = build_interactive_buttons_payload(
+			to="+123", body_text="Choose:",
+			buttons=[{"id": "b1", "title": "One"}],
+			footer="Footer text",
+		)
+		assert result["interactive"]["footer"]["text"] == "Footer text"
+
+	def test_build_interactive_list_payload(self):
+		from whatsapp.whatsapp.api.utils import build_interactive_list_payload
+
+		result = build_interactive_list_payload(
+			to="+123", body_text="Pick:",
+			items=[{"id": "i1", "title": "Item 1", "description": "Desc 1"}],
+		)
+		assert result["type"] == "interactive"
+		assert result["interactive"]["type"] == "list"
+		rows = result["interactive"]["action"]["sections"][0]["rows"]
+		assert len(rows) == 1
+		assert rows[0]["id"] == "i1"
+
+	def test_build_interactive_list_payload_with_header(self):
+		from whatsapp.whatsapp.api.utils import build_interactive_list_payload
+
+		result = build_interactive_list_payload(
+			to="+123", body_text="Pick:", header_text="Menu",
+			items=[{"id": "i1", "title": "Item 1", "description": ""}],
+		)
+		assert result["interactive"]["header"]["text"] == "Menu"

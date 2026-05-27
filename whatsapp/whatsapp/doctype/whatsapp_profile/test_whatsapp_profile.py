@@ -61,12 +61,14 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 			doctype="Whatsapp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
+			profile_name="Duplicate Test",
 		).insert()
 		with self.assertRaises(frappe.ValidationError):
 			frappe.get_doc(
 				doctype="Whatsapp Profile",
 				phone_number="+1234567890",
 				whatsapp_account=acc,
+				profile_name="Duplicate Test 2",
 			).insert()
 
 	def test_get_or_create_profile(self):
@@ -90,6 +92,7 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 			doctype="Whatsapp Profile",
 			phone_number="+9999999999",
 			whatsapp_account=acc,
+			profile_name="+9999999999",
 		).insert()
 
 		found = resolve_profile_by_phone("+9999999999", acc)
