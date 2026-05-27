@@ -7,16 +7,18 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "account_name",
-  "status",
-  "app_id",
-  "column_break_pwlz",
-  "business_id",
-   "phone_id",
-   "access_token",
-   "append_actions_section",
-   "append_actions"
-  ],
+   "account_name",
+   "status",
+   "app_id",
+   "column_break_pwlz",
+   "business_id",
+    "phone_id",
+    "access_token",
+    "read_receipts_sb",
+    "auto_read_receipts",
+    "append_actions_section",
+    "append_actions"
+   ],
  "fields": [
   {
    "fieldname": "account_name",
@@ -55,11 +57,22 @@
    "label": "Access token",
    "max_height": "100px"
    },
-   {
-    "fieldname": "append_actions_section",
-    "fieldtype": "Section Break",
-    "label": "Append Actions"
-   },
+    {
+     "fieldname": "read_receipts_sb",
+     "fieldtype": "Section Break",
+     "label": "Read Receipts"
+    },
+    {
+     "default": "0",
+     "fieldname": "auto_read_receipts",
+     "fieldtype": "Check",
+     "label": "Auto Send Read Receipts"
+    },
+    {
+     "fieldname": "append_actions_section",
+     "fieldtype": "Section Break",
+     "label": "Append Actions"
+    },
    {
     "description": "Auto-create documents in linked DocTypes when messages are received or sent",
     "fieldname": "append_actions",
