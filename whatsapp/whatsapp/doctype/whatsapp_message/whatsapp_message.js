@@ -4,6 +4,7 @@
 frappe.ui.form.on("Whatsapp Message", {
 	refresh: function (frm) {
 		frm.trigger("is_template");
+		frm.trigger("direction");
 		if (frm.is_new() && frm.doc.direction === "Outgoing" && !frm.doc.whatsapp_account) {
 			frappe.db.get_single_value("Whatsapp Setting", "default_account").then((account) => {
 				if (account) frm.set_value("whatsapp_account", account);
@@ -12,11 +13,15 @@ frappe.ui.form.on("Whatsapp Message", {
 	},
 
 	is_template: function (frm) {
-		frm.toggle_reqd("message", !frm.doc.is_template);
+		frm.toggle_reqd("message", !frm.doc.is_template && !frm.doc.attach);
 		frm.toggle_reqd("whatsapp_template", frm.doc.is_template);
 		if (!frm.doc.is_template) {
 			frm.toggle_reqd("reference_docname", false);
 		}
+	},
+
+	attach: function (frm) {
+		frm.trigger("is_template");
 	},
 
 	whatsapp_template: function (frm) {
@@ -42,6 +47,17 @@ frappe.ui.form.on("Whatsapp Message", {
 	direction: function (frm) {
 		if (frm.doc.direction == "Incoming") {
 			frm.set_read_only();
+		}
+		frm.toggle_display("reply_to_message", frm.doc.direction === "Outgoing");
+	},
+
+	reply_to_message: function (frm) {
+		if (frm.doc.reply_to_message) {
+			frappe.db.get_value("Whatsapp Message", frm.doc.reply_to_message, "message_id", (r) => {
+				frm.set_value("context_message_id", r.message_id || null);
+			});
+		} else if (!frm.doc.context_message_id) {
+			frm.set_value("context_message_id", null);
 		}
 	},
 });

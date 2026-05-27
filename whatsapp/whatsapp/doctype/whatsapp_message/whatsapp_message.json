@@ -14,20 +14,27 @@
     "from",
     "whatsapp_account",
   "section_break_content",
-  "message",
-  "is_template",
+   "message",
+   "attach",
+   "is_template",
   "whatsapp_template",
   "reference_doctype",
   "reference_docname",
   "template_body_parameters",
   "template_header_parameters",
+  "interactive_buttons_section",
+  "interactive_buttons",
+  "interactive_list_section",
+  "interactive_list_items",
   "section_break_delivery",
   "status",
   "message_id",
   "timestamp",
   "conversation_id",
-  "context_message_id",
-  "column_break_delivery",
+   "context_message_id",
+    "reply_to_message",
+    "reaction",
+    "column_break_delivery",
   "media_id",
   "media_url",
   "mime_type",
@@ -86,10 +93,15 @@
    "fieldname": "message",
    "fieldtype": "Long Text",
    "label": "Message"
-  },
-  {
-   "default": "0",
-   "fieldname": "is_template",
+   },
+   {
+    "fieldname": "attach",
+    "fieldtype": "Attach",
+    "label": "Attach File"
+   },
+   {
+    "default": "0",
+    "fieldname": "is_template",
    "fieldtype": "Check",
    "label": "Is Template"
   },
@@ -126,11 +138,37 @@
    "label": "Template Header Parameters",
    "read_only": 1
   },
-  {
-   "fieldname": "section_break_delivery",
-   "fieldtype": "Section Break",
-   "label": "Delivery Info"
-  },
+   {
+    "collapsible": 1,
+    "fieldname": "interactive_buttons_section",
+    "fieldtype": "Section Break",
+    "label": "Interactive Buttons"
+   },
+   {
+    "depends_on": "eval:!doc.is_template",
+    "fieldname": "interactive_buttons",
+    "fieldtype": "Table",
+    "label": "Buttons",
+    "options": "Whatsapp Message Interactive Button"
+   },
+   {
+    "collapsible": 1,
+    "fieldname": "interactive_list_section",
+    "fieldtype": "Section Break",
+    "label": "Interactive List"
+   },
+   {
+    "depends_on": "eval:!doc.is_template",
+    "fieldname": "interactive_list_items",
+    "fieldtype": "Table",
+    "label": "List Items",
+    "options": "Whatsapp Message List Item"
+   },
+   {
+    "fieldname": "section_break_delivery",
+    "fieldtype": "Section Break",
+    "label": "Delivery Info"
+   },
   {
    "default": "Pending",
    "fieldname": "status",
@@ -161,13 +199,25 @@
    "no_copy": 1,
    "read_only": 1
   },
-  {
-   "fieldname": "context_message_id",
-   "fieldtype": "Data",
-   "label": "Context Message ID",
-   "no_copy": 1,
-   "read_only": 1
-  },
+   {
+    "fieldname": "context_message_id",
+    "fieldtype": "Data",
+    "label": "Context Message ID",
+    "no_copy": 1
+   },
+   {
+    "fieldname": "reply_to_message",
+    "fieldtype": "Link",
+    "label": "Reply to Message",
+    "no_copy": 1,
+    "options": "Whatsapp Message"
+   },
+   {
+    "fieldname": "reaction",
+    "fieldtype": "Data",
+    "label": "Reaction",
+    "no_copy": 1
+   },
   {
    "fieldname": "column_break_delivery",
    "fieldtype": "Column Break"

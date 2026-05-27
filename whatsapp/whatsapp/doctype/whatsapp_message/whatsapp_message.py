@@ -10,6 +10,10 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 
 from whatsapp.whatsapp.api.utils import (
+	build_interactive_buttons_payload,
+	build_interactive_list_payload,
+	build_media_message_payload,
+	build_reaction_message_payload,
 	build_template_message_payload,
 	build_text_message_payload,
 	log,
@@ -59,6 +63,8 @@ class WhatsappMessage(Document):
 		if self.direction == "Outgoing":
 			self._validate_outgoing()
 			self._set_from_number()
+			self._resolve_reply_to_context()
+			self._validate_interactive()
 			if self.is_template and self.reference_docname:
 				self._populate_template_parameters()
 
@@ -91,6 +97,21 @@ class WhatsappMessage(Document):
 		if not self.get("from") and self.whatsapp_account:
 			account = frappe.get_cached_doc("Whatsapp Account", self.whatsapp_account)
 			self.set("from", account.phone_id)
+
+	def _validate_interactive(self) -> None:
+		buttons = self.get("interactive_buttons") or []
+		list_items = self.get("interactive_list_items") or []
+		if buttons and list_items:
+			frappe.throw(_("Cannot have both interactive buttons and list items"))
+		if len(buttons) > 3:
+			frappe.throw(_("Maximum 3 interactive buttons allowed"))
+		if len(list_items) > 10:
+			frappe.throw(_("Maximum 10 list items allowed"))
+
+	def _resolve_reply_to_context(self) -> None:
+		if self.reply_to_message:
+			replied = frappe.get_doc("Whatsapp Message", self.reply_to_message)
+			self.context_message_id = replied.message_id
 
 	def _validate_template_reference(self) -> None:
 		template = frappe.get_cached_doc("Whatsapp Template", self.whatsapp_template)
@@ -127,10 +148,78 @@ class WhatsappMessage(Document):
 		if header_params:
 			self.template_header_parameters = json.dumps(next(iter(header_params.values())))
 
+	def _get_mime_type(self, file_name: str) -> str:
+		ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+		mime_map = {
+			"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+			"gif": "image/gif", "webp": "image/webp",
+			"mp4": "video/mp4", "3gp": "video/3gp",
+			"mp3": "audio/mpeg", "ogg": "audio/ogg",
+			"pdf": "application/pdf", "doc": "application/msword",
+			"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		}
+		return mime_map.get(ext, "application/octet-stream")
+
 	def _send(self) -> None:
 		account = frappe.get_doc("Whatsapp Account", self.whatsapp_account)
 		settings = frappe.get_single("Whatsapp Setting")
 		client = _get_whatsapp_client(account, settings)
+
+		if self.attach and not self.is_template:
+			file_doc = frappe.get_doc("File", self.attach)
+			file_content = file_doc.get_content()
+			file_name = file_doc.file_name
+			mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
+			try:
+				media_result = client.upload_media(file_content, mime_type, file_name)
+				self.media_id = media_result.get("id")
+				self.mime_type = mime_type
+			except requests.HTTPError as e:
+				self.status = "Failed"
+				self.error_message = str(e)
+				log(
+					"Error", "Message",
+					f"Media upload failed for {self.to}: {e}",
+					account=self.whatsapp_account,
+					reference_doctype="Whatsapp Message",
+					reference_docname=self.name,
+					traceback=frappe.get_traceback(),
+				)
+				self.db_set("status", "Failed")
+				self.db_set("error_message", str(e))
+				self.run_notifications("on_send_failed")
+				frappe.throw(_("Failed to upload media: {0}").format(str(e)))
+
+		if self.is_template and self.whatsapp_template:
+			template_doc = frappe.get_doc("Whatsapp Template", self.whatsapp_template)
+			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media:
+				if not template_doc.header_media_handle:
+					file_doc = frappe.get_doc("File", template_doc.header_media)
+					file_content = file_doc.get_content()
+					file_name = file_doc.file_name
+					mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
+					try:
+						media_result = client.upload_media(file_content, mime_type, file_name)
+						handle = media_result.get("id")
+						frappe.db.set_value("Whatsapp Template", template_doc.name, "header_media_handle", handle)
+						template_doc.header_media_handle = handle
+						template_doc.mime_type = mime_type
+						frappe.db.set_value("Whatsapp Template", template_doc.name, "mime_type", mime_type)
+					except requests.HTTPError as e:
+						self.status = "Failed"
+						self.error_message = str(e)
+						log(
+							"Error", "Message",
+							f"Template header media upload failed for {self.to}: {e}",
+							account=self.whatsapp_account,
+							reference_doctype="Whatsapp Message",
+							reference_docname=self.name,
+							traceback=frappe.get_traceback(),
+						)
+						self.db_set("status", "Failed")
+						self.db_set("error_message", str(e))
+						self.run_notifications("on_send_failed")
+						frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
 
 		payload = self._build_payload()
 		try:
@@ -144,7 +233,7 @@ class WhatsappMessage(Document):
 			)
 			result = client.send_message(payload)
 			messages = result.get("messages", [])
-			self.message_id = messages[0].get("id") if messages else None
+			self.message_id = self.message_id or (messages[0].get("id") if messages else None)
 			self.timestamp = now_datetime()
 			self.status = "Sent"
 			log(
@@ -178,16 +267,60 @@ class WhatsappMessage(Document):
 		profile = frappe.get_cached_doc("Whatsapp Profile", self.to)
 		to_phone = profile.phone_number
 
+		buttons = self.get("interactive_buttons") or []
+		list_items = self.get("interactive_list_items") or []
+
+		if self.reaction is not None and self.context_message_id and not self.is_template:
+			return build_reaction_message_payload(
+				to=to_phone,
+				message_id=self.context_message_id,
+				emoji=self.reaction or None,
+			)
+
+		if buttons and not self.is_template:
+			return build_interactive_buttons_payload(
+				to=to_phone,
+				body_text=self.message or "",
+				buttons=[{"title": b.title, "id": b.button_id} for b in buttons],
+			)
+		if list_items and not self.is_template:
+			return build_interactive_list_payload(
+				to=to_phone,
+				body_text=self.message or "",
+				items=[{"title": i.title, "description": i.description, "id": i.list_item_id} for i in list_items],
+			)
+
+		if self.attach and not self.is_template and self.media_id:
+			return build_media_message_payload(
+				to=to_phone,
+				media_id=self.media_id,
+				mime_type=self.mime_type,
+				caption=self.message or None,
+				file_name=frappe.db.get_value("File", self.attach, "file_name"),
+			)
+
 		if self.is_template:
-			template_doc = frappe.get_doc("Whatsapp Template", self.whatsapp_template)
+			template_doc = frappe.get_cached_doc("Whatsapp Template", self.whatsapp_template)
 			body_params = json.loads(self.template_body_parameters or "{}")
-			return build_template_message_payload(
+
+			header_params = self.template_header_parameters
+			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media_handle:
+				if not header_params:
+					header_params = json.dumps({"id": template_doc.header_media_handle})
+
+			payload = build_template_message_payload(
 				to=to_phone,
 				template_doc=template_doc,
 				body_parameters=body_params,
-				header_parameters=self.template_header_parameters,
+				header_parameters=header_params,
 			)
-		return build_text_message_payload(to=to_phone, text=self.message or "")
+		else:
+			payload = build_text_message_payload(to=to_phone, text=self.message or "")
+
+		if self.context_message_id:
+			payload["context"] = {"message_id": self.context_message_id}
+
+		return payload
 
 
 def process_append_actions(
