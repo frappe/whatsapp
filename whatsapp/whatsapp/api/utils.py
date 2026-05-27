@@ -343,6 +343,124 @@ def build_text_message_payload(
 	}
 
 
+def build_reaction_message_payload(
+	to: str,
+	message_id: str,
+	emoji: str | None = None,
+) -> dict:
+	payload = {
+		"messaging_product": "whatsapp",
+		"recipient_type": "individual",
+		"to": to,
+		"type": "reaction",
+		"reaction": {"message_id": message_id},
+	}
+	if emoji:
+		payload["reaction"]["emoji"] = emoji
+	return payload
+
+
+def build_interactive_buttons_payload(
+	to: str,
+	body_text: str,
+	buttons: list[dict],
+	footer: str | None = None,
+) -> dict:
+	payload = {
+		"messaging_product": "whatsapp",
+		"recipient_type": "individual",
+		"to": to,
+		"type": "interactive",
+		"interactive": {
+			"type": "button",
+			"body": {"text": body_text},
+			"action": {
+				"buttons": [
+					{"type": "reply", "reply": {"id": b["id"], "title": b["title"]}}
+					for b in buttons
+				]
+			},
+		},
+	}
+	if footer:
+		payload["interactive"]["footer"] = {"text": footer}
+	return payload
+
+
+def build_interactive_list_payload(
+	to: str,
+	body_text: str,
+	items: list[dict],
+	button_text: str = "Options",
+	footer: str | None = None,
+	header_text: str | None = None,
+) -> dict:
+	payload = {
+		"messaging_product": "whatsapp",
+		"recipient_type": "individual",
+		"to": to,
+		"type": "interactive",
+		"interactive": {
+			"type": "list",
+			"body": {"text": body_text},
+			"action": {
+				"button": button_text,
+				"sections": [
+					{
+						"title": "Options",
+						"rows": [
+							{
+								"id": i["id"],
+								"title": i["title"],
+								"description": i.get("description", ""),
+							}
+							for i in items
+						],
+					}
+				],
+			},
+		},
+	}
+	if footer:
+		payload["interactive"]["footer"] = {"text": footer}
+	if header_text:
+		payload["interactive"]["header"] = {"type": "text", "text": header_text}
+	return payload
+
+
+def build_media_message_payload(
+	to: str,
+	media_id: str,
+	mime_type: str,
+	caption: str | None = None,
+	file_name: str | None = None,
+) -> dict:
+	if mime_type.startswith("image/"):
+		media_type = "image"
+	elif mime_type.startswith("video/"):
+		media_type = "video"
+	elif mime_type.startswith("audio/"):
+		media_type = "audio"
+	else:
+		media_type = "document"
+
+	payload = {
+		"messaging_product": "whatsapp",
+		"recipient_type": "individual",
+		"to": to,
+		"type": media_type,
+	}
+
+	media_obj = {"id": media_id}
+	if caption:
+		media_obj["caption"] = caption
+	if media_type == "document" and file_name:
+		media_obj["filename"] = file_name
+
+	payload[media_type] = media_obj
+	return payload
+
+
 @frappe.whitelist()
 def get_logs(
 	event_type: str | None = None,
