@@ -16,6 +16,7 @@ from frappe.core.doctype.server_script.server_script_utils import (
 from whatsapp.whatsapp.api.utils import log
 from whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message import (
 	process_append_actions,
+	_get_whatsapp_client,
 )
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
 	get_or_create_profile,
@@ -125,17 +126,25 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 
 	msg_type = msg.get("type", "text")
 
-	if msg_type == "text":
-		content = msg.get("text", {}).get("body", "")
-	elif msg_type == "button":
-		content = msg.get("button", {}).get("text", "")
-	elif msg_type == "interactive":
-		interactive = msg.get("interactive", {})
-		button_reply = interactive.get("button_reply", {})
-		list_reply = interactive.get("list_reply", {})
-		content = button_reply.get("title", "") or list_reply.get("title", "")
+	if msg_type == "reaction":
+		reaction_data = msg.get("reaction", {})
+		content = reaction_data.get("emoji", "")
+		context_id = reaction_data.get("message_id")
+		reaction_emoji_val = content
 	else:
-		content = ""
+		if msg_type == "text":
+			content = msg.get("text", {}).get("body", "")
+		elif msg_type == "button":
+			content = msg.get("button", {}).get("text", "")
+		elif msg_type == "interactive":
+			interactive = msg.get("interactive", {})
+			button_reply = interactive.get("button_reply", {})
+			list_reply = interactive.get("list_reply", {})
+			content = button_reply.get("title", "") or list_reply.get("title", "")
+		else:
+			content = ""
+		context_id = msg.get("context", {}).get("id") if msg.get("context") else None
+		reaction_emoji_val = None
 
 	media_fields = {}
 	if msg_type in ("image", "audio", "document", "video", "sticker"):
@@ -163,13 +172,28 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			"status": "Sent",
 			"message_id": msg.get("id"),
 			"timestamp": timestamp_val,
-			"context_message_id": msg.get("context", {}).get("id") if msg.get("context") else None,
+			"reaction": reaction_emoji_val,
+			"context_message_id": context_id,
 			**media_fields,
 		}
 	)
 	doc.insert(ignore_permissions=True)
 	process_append_actions(doc, trigger_on="Incoming", sender_phone=wa_id, sender_name=profile_name)
 	doc.run_notifications("on_receive")
+
+	account_doc = frappe.get_cached_doc("Whatsapp Account", account_name)
+	if account_doc.get("auto_read_receipts") and doc.get("message_id"):
+		settings = frappe.get_single("Whatsapp Setting")
+		try:
+			client = _get_whatsapp_client(account_doc, settings)
+			client.mark_as_read(doc.message_id)
+		except Exception:
+			log("Warning", "Webhook", f"Failed to send read receipt for {doc.message_id}",
+				account=account_name,
+				reference_doctype="Whatsapp Message",
+				reference_docname=doc.name,
+				traceback=frappe.get_traceback(),
+			)
 
 	log(
 		"Info", "Webhook",

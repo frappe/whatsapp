@@ -3,6 +3,8 @@
 
 from unittest.mock import patch
 
+import secrets
+
 import frappe
 from frappe.tests import IntegrationTestCase
 
@@ -46,7 +48,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 		)
 
 	def _make_outgoing(self, account: str, **overrides) -> str:
-		phone = overrides.pop("_phone", "+1234567890")
+		phone = overrides.pop("_phone", None) or f"+1{secrets.randbelow(10**10):010d}"
 		data = dict(
 			doctype="Whatsapp Message",
 			direction="Outgoing",
@@ -191,3 +193,135 @@ class TestWebhookNotifications(IntegrationTestCase):
 		calls = [c.args[0] for c in mock_run_notif.call_args_list]
 		self.assertNotIn("on_template_approved", calls)
 		self.assertNotIn("on_template_rejected", calls)
+
+	# -------------------------------------------------------------------------
+	# incoming context_message_id
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_incoming_context_message_id_from_context(self, mock_run_notif):
+		"""Incoming message with context.id sets context_message_id on doc."""
+		acc = self._make_account()
+
+		msg = {
+			"from": "+1111111112",
+			"id": "wa_msg_ctx_001",
+			"timestamp": "1700000000",
+			"type": "text",
+			"text": {"body": "Reply to something"},
+			"context": {"id": "wamid.parent"},
+		}
+		_create_incoming_message(msg, acc)
+
+		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_msg_ctx_001"}, "name")
+		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		self.assertEqual(doc.context_message_id, "wamid.parent")
+
+	# -------------------------------------------------------------------------
+	# read receipts
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_read_receipt_sent_when_enabled(self, mock_run_notif, mock_mark_read):
+		"""auto_read_receipts=True triggers mark_as_read for incoming messages."""
+		acc = self._make_account()
+		frappe.db.set_value("Whatsapp Account", acc, "auto_read_receipts", 1)
+
+		msg = {
+			"from": "+12223334444",
+			"id": "wa_rr_001",
+			"timestamp": "1700000000",
+			"type": "text",
+			"text": {"body": "Hello"},
+		}
+		_create_incoming_message(msg, acc)
+
+		mock_mark_read.assert_called_once()
+		# Verify it was called with the correct message_id
+		args, _ = mock_mark_read.call_args
+		self.assertEqual(args[0], "wa_rr_001")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_read_receipt_not_sent_when_disabled(self, mock_run_notif, mock_mark_read):
+		"""auto_read_receipts=False (default) does NOT call mark_as_read."""
+		acc = self._make_account()
+		# auto_read_receipts defaults to 0
+
+		msg = {
+			"from": "+12223334445",
+			"id": "wa_rr_002",
+			"timestamp": "1700000000",
+			"type": "text",
+			"text": {"body": "Hello"},
+		}
+		_create_incoming_message(msg, acc)
+
+		mock_mark_read.assert_not_called()
+
+	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_read_receipt_failure_does_not_raise(self, mock_run_notif, mock_mark_read):
+		"""read receipt failure is logged but does not propagate."""
+		mock_mark_read.side_effect = Exception("Connection error")
+		acc = self._make_account()
+		frappe.db.set_value("Whatsapp Account", acc, "auto_read_receipts", 1)
+
+		msg = {
+			"from": "+12223334446",
+			"id": "wa_rr_003",
+			"timestamp": "1700000000",
+			"type": "text",
+			"text": {"body": "Hello"},
+		}
+		# Should not raise
+		_create_incoming_message(msg, acc)
+
+	# -------------------------------------------------------------------------
+	# incoming reactions
+	# -------------------------------------------------------------------------
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_incoming_reaction_creates_reaction_message(self, mock_run_notif):
+		"""Incoming reaction webhook creates message with reaction field and context_message_id."""
+		acc = self._make_account()
+
+		msg = {
+			"from": "+15556667777",
+			"id": "wa_reaction_001",
+			"timestamp": "1700000000",
+			"type": "reaction",
+			"reaction": {
+				"message_id": "wamid.target_msg",
+				"emoji": "👍",
+			},
+		}
+		_create_incoming_message(msg, acc)
+
+		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_reaction_001"}, "name")
+		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		self.assertEqual(doc.reaction, "👍")
+		self.assertEqual(doc.context_message_id, "wamid.target_msg")
+		self.assertEqual(doc.message, "👍")
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	def test_incoming_reaction_without_emoji(self, mock_run_notif):
+		"""Incoming reaction without emoji still creates message with reaction set."""
+		acc = self._make_account()
+
+		msg = {
+			"from": "+15556667778",
+			"id": "wa_reaction_002",
+			"timestamp": "1700000000",
+			"type": "reaction",
+			"reaction": {
+				"message_id": "wamid.target_msg2",
+			},
+		}
+		_create_incoming_message(msg, acc)
+
+		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_reaction_002"}, "name")
+		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		self.assertEqual(doc.reaction, "")
+		self.assertEqual(doc.context_message_id, "wamid.target_msg2")
