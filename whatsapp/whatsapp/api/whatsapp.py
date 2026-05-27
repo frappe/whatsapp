@@ -103,6 +103,33 @@ class Whatsapp:
 		payload.setdefault("messaging_product", "whatsapp")
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)
 
+	def mark_as_read(self, message_id: str) -> dict:
+		payload = {
+			"messaging_product": "whatsapp",
+			"status": "read",
+			"message_id": message_id,
+		}
+		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)
+
+	def upload_media(self, file_content: bytes, mime_type: str, file_name: str) -> dict:
+		url = f"{self.base_url}/{self.api_version}/{self.phone_number_id}/media"
+		headers = {"Authorization": f"Bearer {self.access_token}"}
+		files = {
+			"file": (file_name, file_content, mime_type),
+			"type": (None, mime_type),
+			"messaging_product": (None, "whatsapp"),
+		}
+		resp = requests.post(url, headers=headers, files=files)
+		try:
+			resp.raise_for_status()
+		except requests.HTTPError:
+			error_msg = _extract_meta_error(resp.text)
+			self._log_api_error("POST", url, {"file": file_name, "type": mime_type}, resp)
+			raise requests.HTTPError(error_msg)
+		result = resp.json()
+		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, result)
+		return result
+
 
 def _extract_meta_error(body: str) -> str:
 	try:
