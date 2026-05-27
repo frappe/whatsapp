@@ -41,6 +41,11 @@ Pre-commit is configured to use the following tools for checking and formatting 
 - Multiple WhatsApp Business Accounts
 - 6 built-in Frappe Notifications (message received/sent/failed, status updated, template approved/rejected)
 - Server Script hooks via standard Frappe lifecycle (after_insert, after_save, etc. on Whatsapp Message)
+- Browsable audit log (Whatsapp Log) capturing all webhook events, API calls, template operations, and message sends
+
+
+### Need to test
+Webhook related features
 
 ### Planned
 

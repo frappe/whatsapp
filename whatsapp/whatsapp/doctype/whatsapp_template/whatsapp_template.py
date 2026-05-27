@@ -11,6 +11,7 @@ from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.utils import (
 	build_create_template_payload,
+	log,
 	parse_whatsapp_template_to_doc,
 )
 from whatsapp.whatsapp.api.whatsapp import Whatsapp
@@ -189,6 +190,7 @@ class WhatsappTemplate(Document):
 
 		if not self.whatsapp_account:
 			logger.error("_push_to_meta | whatsapp_account is not set")
+			log("Error", "Template", "Cannot push template: WhatsApp Account not set", account=self.whatsapp_account)
 			frappe.throw(_("WhatsApp Account is required to push template to Meta"))
 
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
@@ -205,17 +207,44 @@ class WhatsappTemplate(Document):
 			logger.info("_push_to_meta | Meta API response | result=%s", result)
 		except Exception as e:
 			logger.error("_push_to_meta | Meta API call failed | error=%s", e, exc_info=True)
+			log(
+				"Error", "Template",
+				f"Failed to push template {self.template_label} to Meta: {e}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Template",
+				reference_docname=self.name,
+				request_data=payload,
+				traceback=frappe.get_traceback(),
+			)
 			frappe.throw(_("Failed to push template to Meta: {0}").format(str(e)))
 
 		template_id = result.get("id")
 		if not template_id:
 			logger.error("_push_to_meta | Meta API returned no id | full_response=%s", result)
+			log(
+				"Error", "Template",
+				f"Meta API returned no template ID for {self.template_label}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Template",
+				reference_docname=self.name,
+				request_data=payload,
+				response_data=result,
+			)
 			frappe.throw(_("Meta API did not return a template ID"))
 
 		self.whatsapp_template_id = template_id
 		self.status = result.get("status", "PENDING")
 		logger.info(
 			"_push_to_meta | success | whatsapp_template_id=%s status=%s", template_id, self.status
+		)
+		log(
+			"Info", "Template",
+			f"Template {self.template_label} pushed to Meta, id={template_id}, status={self.status}",
+			account=self.whatsapp_account,
+			reference_doctype="Whatsapp Template",
+			reference_docname=self.name,
+			request_data=payload,
+			response_data=result,
 		)
 
 	def _update_in_meta(self) -> None:
@@ -228,6 +257,7 @@ class WhatsappTemplate(Document):
 
 		if not self.whatsapp_account:
 			logger.error("_update_in_meta | whatsapp_account is not set")
+			log("Error", "Template", "Cannot update template: WhatsApp Account not set", account=self.whatsapp_account)
 			frappe.throw(_("WhatsApp Account is required to update template in Meta"))
 
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
@@ -246,10 +276,28 @@ class WhatsappTemplate(Document):
 			logger.info("_update_in_meta | Meta API response | result=%s", result)
 		except Exception as e:
 			logger.error("_update_in_meta | Meta API call failed | error=%s", e, exc_info=True)
+			log(
+				"Error", "Template",
+				f"Failed to update template {self.template_label} in Meta: {e}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Template",
+				reference_docname=self.name,
+				request_data=payload,
+				traceback=frappe.get_traceback(),
+			)
 			frappe.throw(_("Failed to update template in Meta: {0}").format(str(e)))
 
 		self.status = result.get("status", "PENDING")
 		logger.info("_update_in_meta | success | status=%s", self.status)
+		log(
+			"Info", "Template",
+			f"Template {self.template_label} updated in Meta, status={self.status}",
+			account=self.whatsapp_account,
+			reference_doctype="Whatsapp Template",
+			reference_docname=self.name,
+			request_data=payload,
+			response_data=result,
+		)
 
 
 def normalize_string(s: str) -> str:
@@ -300,6 +348,7 @@ def _get_whatsapp_client(account_name: str) -> Whatsapp:
 			phone_number_id=account.phone_id,
 			base_url=settings.whatsapp_api_url,
 			api_version=settings.whatsapp_api_version,
+			account_name=account_name,
 		)
 	)
 
@@ -359,6 +408,13 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		if whatsapp_template_id and not doc.whatsapp_template_id:
 			doc.whatsapp_template_id = whatsapp_template_id
 		doc.save()
+		log(
+			"Info", "Template",
+			f"Synced existing template {parsed['template_name']} (status={parsed.get('status')})",
+			account=account_name,
+			reference_doctype="Whatsapp Template",
+			reference_docname=doc.name,
+		)
 		return parsed["template_name"], False
 
 	doc = frappe.get_doc(
@@ -382,10 +438,17 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		}
 	)
 	doc.insert()
+	log(
+		"Info", "Template",
+		f"Created new template {parsed['template_name']} from sync (status={parsed.get('status')})",
+		account=account_name,
+		reference_doctype="Whatsapp Template",
+		reference_docname=doc.name,
+	)
 	return parsed["template_name"], True
 
 
-def _mark_deleted_templates(meta_template_names: set[str]) -> None:
+def _mark_deleted_templates(meta_template_names: set[str], account_name: str | None = None) -> None:
 	local_templates = frappe.get_all(
 		"Whatsapp Template",
 		fields=["name", "template_name"],
@@ -393,6 +456,13 @@ def _mark_deleted_templates(meta_template_names: set[str]) -> None:
 	for local in local_templates:
 		if local.template_name not in meta_template_names:
 			frappe.db.set_value("Whatsapp Template", local.name, "status", "DELETED")
+			log(
+				"Info", "Template",
+				f"Template {local.template_name} marked as DELETED (not found in Meta)",
+				reference_doctype="Whatsapp Template",
+				reference_docname=local.name,
+				account=account_name,
+			)
 
 
 @frappe.whitelist()
@@ -411,8 +481,14 @@ def sync_from_account(account_name: str) -> dict:
 		else:
 			skipped.append(name)
 
-	_mark_deleted_templates(meta_template_names)
+	_mark_deleted_templates(meta_template_names, account_name)
 	frappe.db.commit()
+
+	log(
+		"Info", "Template",
+		f"Sync completed for account {account_name}: {len(synced)} new, {len(skipped)} updated",
+		account=account_name,
+	)
 
 	return {
 		"synced": synced,
@@ -461,10 +537,24 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 	try:
 		result = whatsapp.create_template(payload)
 	except Exception as e:
+		log(
+			"Error", "Template",
+			f"Failed to create and push template: {e}",
+			account=account_name,
+			request_data=payload,
+			traceback=frappe.get_traceback(),
+		)
 		frappe.throw(_("Failed to push template to Meta: {0}").format(str(e)))
 
 	template_id = result.get("id", None)
 	if not template_id:
+		log(
+			"Error", "Template",
+			"Meta API returned no template ID during create_and_push",
+			account=account_name,
+			request_data=payload,
+			response_data=result,
+		)
 		frappe.throw(_("Meta API did not return a template ID"))
 
 	doc.whatsapp_template_id = template_id
@@ -475,6 +565,16 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 	else:
 		doc.save()
 
+	log(
+		"Info", "Template",
+		f"Created and pushed template {doc.template_label}, id={template_id}, status={doc.status}",
+		account=account_name,
+		reference_doctype="Whatsapp Template",
+		reference_docname=doc.name,
+		request_data=payload,
+		response_data=result,
+	)
+
 	return {"name": doc.name, "whatsapp_template_id": template_id}
 
 
@@ -484,14 +584,17 @@ def sync_all() -> dict:
 	settings = get_settings()
 
 	if not settings:
+		log("Error", "Template", "Sync failed: Whatsapp Settings not found")
 		frappe.throw(_("Whatsapp Settings not found. Please create a settings first."))
 
 	if not accounts:
+		log("Error", "Template", "Sync failed: No active WhatsApp accounts found")
 		frappe.throw(_("No active WhatsApp accounts found. Please create an account first."))
 
 	if len(accounts) == 1:
 		return sync_from_account(accounts[0]["name"])
 
+	log("Info", "Template", "Scheduled sync found multiple accounts, prompting user to select")
 	frappe.msgprint(
 		_("Multiple accounts found. Please select an account to sync from."),
 		title=_("Select Account"),

@@ -1,6 +1,8 @@
 import re
 from typing import TypedDict, cast
 
+import frappe
+
 
 class TemplateVariableRow(TypedDict):
 	variable_name: str
@@ -339,3 +341,66 @@ def build_text_message_payload(
 		"type": "text",
 		"text": {"preview_url": preview_url, "body": text},
 	}
+
+
+@frappe.whitelist()
+def get_logs(
+	event_type: str | None = None,
+	level: str | None = None,
+	account: str | None = None,
+	limit: int = 100,
+) -> list[dict]:
+	filters = {}
+	if event_type:
+		filters["event_type"] = event_type
+	if level:
+		filters["level"] = level
+	if account:
+		filters["account"] = account
+	return frappe.get_all(
+		"Whatsapp Log",
+		filters=filters or None,
+		fields=["name", "level", "event_type", "message", "account", "timestamp", "reference_doctype", "reference_docname"],
+		order_by="creation desc",
+		limit=limit,
+	)
+
+
+def log(
+	level: str,
+	event_type: str,
+	message: str,
+	*,
+	account: str | None = None,
+	reference_doctype: str | None = None,
+	reference_docname: str | None = None,
+	request_data: str | dict | None = None,
+	response_data: str | dict | None = None,
+	traceback: str | None = None,
+) -> str | None:
+	try:
+		if isinstance(request_data, dict):
+			request_data = frappe.as_json(request_data)
+		if isinstance(response_data, dict):
+			response_data = frappe.as_json(response_data)
+		doc = frappe.get_doc(
+			{
+				"doctype": "Whatsapp Log",
+				"level": level,
+				"event_type": event_type,
+				"message": message,
+				"account": account,
+				"reference_doctype": reference_doctype,
+				"reference_docname": reference_docname,
+				"request_data": request_data,
+				"response_data": response_data,
+				"traceback": traceback or frappe.get_traceback() if level == "Error" else None,
+				"timestamp": frappe.utils.now_datetime(),
+			}
+		)
+		doc.flags.ignore_permissions = True
+		doc.insert()
+		return doc.name
+	except Exception:
+		frappe.logger("whatsapp").error("Failed to create Whatsapp Log entry", exc_info=True)
+		return None

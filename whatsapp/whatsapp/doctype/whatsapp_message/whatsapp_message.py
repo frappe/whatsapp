@@ -12,6 +12,7 @@ from frappe.utils import now_datetime
 from whatsapp.whatsapp.api.utils import (
 	build_template_message_payload,
 	build_text_message_payload,
+	log,
 )
 from whatsapp.whatsapp.api.whatsapp import Whatsapp
 
@@ -133,14 +134,40 @@ class WhatsappMessage(Document):
 
 		payload = self._build_payload()
 		try:
+			log(
+				"Info", "Message",
+				f"Sending {self.direction} message to {self.to}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Message",
+				reference_docname=self.name,
+				request_data=payload,
+			)
 			result = client.send_message(payload)
 			messages = result.get("messages", [])
 			self.message_id = messages[0].get("id") if messages else None
 			self.timestamp = now_datetime()
 			self.status = "Sent"
+			log(
+				"Info", "Message",
+				f"Message sent successfully to {self.to}, id={self.message_id}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Message",
+				reference_docname=self.name,
+				response_data=result,
+			)
 		except requests.HTTPError as e:
 			self.status = "Failed"
 			self.error_message = str(e)
+			log(
+				"Error", "Message",
+				f"Message send failed to {self.to}: {e}",
+				account=self.whatsapp_account,
+				reference_doctype="Whatsapp Message",
+				reference_docname=self.name,
+				request_data=payload,
+				response_data=getattr(e, "response", None) and e.response.text,
+				traceback=frappe.get_traceback(),
+			)
 			frappe.logger("whatsapp").error("Message send failed", exc_info=True)
 			self.db_set("status", "Failed")
 			self.db_set("error_message", str(e))
@@ -199,6 +226,14 @@ def process_append_actions(
 			doc.reference_doctype = action.append_to
 			doc.reference_docname = new_doc.name
 		except Exception:
+			log(
+				"Error", "Message",
+				f"Append action failed: could not create {action.append_to} from message",
+				account=doc.whatsapp_account,
+				reference_doctype="Whatsapp Message",
+				reference_docname=doc.name,
+				traceback=frappe.get_traceback(),
+			)
 			frappe.log_error(
 				title="WhatsApp Append Action Failed",
 				message=f"Failed to create {action.append_to} from message {doc.name}: {frappe.get_traceback()}",
@@ -218,5 +253,6 @@ def _get_whatsapp_client(account, settings) -> Whatsapp:
 			phone_number_id=account.get("phone_id"),
 			base_url=settings.get("whatsapp_api_url"),
 			api_version=settings.get("whatsapp_api_version"),
+			account_name=account.get("name"),
 		)
 	)

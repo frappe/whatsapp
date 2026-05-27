@@ -7,9 +7,9 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
 ## Repo structure
 
 - `whatsapp/` — Frappe app package
-  - `whatsapp/doctype/` — DocTypes: `WhatsappSetting`, `WhatsappAccount`, `WhatsappMessage`, `WhatsappTemplate`, `TemplateVariable`, `WhatsappTemplateButton`
+  - `whatsapp/doctype/` — DocTypes: `WhatsappSetting`, `WhatsappAccount`, `WhatsappMessage`, `WhatsappTemplate`, `WhatsappLog`, `TemplateVariable`, `WhatsappTemplateButton`, `WhatsappAccountAppend`
   - `whatsapp/api/whatsapp.py` — `Whatsapp` class wrapping Facebook Graph API calls
-  - `whatsapp/api/utils.py` — Template payload builders/parsers, `{{var}}` interpolation helpers
+  - `whatsapp/api/utils.py` — Template payload builders/parsers, `{{var}}` interpolation helpers, `log()` utility, `get_logs()` whitelisted API
   - `hooks.py` — Frappe hooks (most commented out; early stage)
   - `modules.txt` — Single module: `Whatsapp`
 
@@ -197,6 +197,55 @@ bench install-app whatsapp
 ## Reference source
 
 **The canonical Frappe framework lives at `~/Dev/frappe-bench/apps/frappe/`. When in doubt about ANY Frappe API, convention, DocType definition, or testing pattern, refer directly to the source code there — it supersedes ALL documentation. Always look there first before asking questions.**
+
+## Logging
+
+All significant events MUST be recorded via the `log()` function from `whatsapp.whatsapp.api.utils`. This creates a browsable `Whatsapp Log` record in the desk UI, unlike `frappe.logger()` which writes to log files only.
+
+### log() signature
+
+```python
+log(
+    level: str,          # "Info" | "Warning" | "Error" | "Debug"
+    event_type: str,     # "Webhook" | "Template" | "Message" | "API" | "System"
+    message: str,        # Human-readable summary
+    account: str,        # Optional — link to Whatsapp Account
+    reference_doctype: str,  # Optional — e.g. "Whatsapp Message"
+    reference_docname: str,  # Optional — the document name
+    request_data: str|dict, # Optional — request/outgoing payload
+    response_data: str|dict, # Optional — response/incoming data
+    traceback: str,      # Optional — auto-populated if level="Error"
+)
+```
+
+### When to log
+
+| Event Point | Level | Event Type |
+|---|---|---|
+| Webhook received | Info | Webhook |
+| Incoming message created | Info | Webhook |
+| Message status changed (delivered/read) | Info | Webhook |
+| Message status changed (failed) | Warning | Webhook |
+| Template approved/rejected via webhook | Info | Webhook |
+| Unknown message_id in status update | Warning | Webhook |
+| Unknown template_id in status update | Warning | Webhook |
+| Missing account for webhook | Error | Webhook |
+| HMAC verification failure | Error | Webhook |
+| Outgoing message sent | Info | Message |
+| Outgoing message send failed | Error | Message |
+| Append action failed | Error | Message |
+| Template pushed to Meta | Info | Template |
+| Template updated in Meta | Info | Template |
+| Template push/update failed | Error | Template |
+| Sync completed | Info | Template |
+| Template marked DELETED | Info | Template |
+| Template skipped (SAMPLE) | Debug | Template |
+| API request succeeded | Debug | API |
+| API request failed | Error | API |
+
+### Log retention
+
+`Whatsapp Log` uses `track_changes = 1` and `naming_rule = "Random"`. There is no built-in cleanup — add a scheduled automation or `frappe.desk.doctype.tag.tag.remove_tags()` if log rotation is needed.
 
 ## Key notes
 

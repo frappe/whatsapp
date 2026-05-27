@@ -3,6 +3,7 @@
 
 import logging
 
+import frappe
 import requests
 
 
@@ -14,6 +15,7 @@ class Whatsapp:
 		self.phone_number_id = args.phone_number_id
 		self.base_url = getattr(args, "base_url", "https://graph.facebook.com")
 		self.api_version = getattr(args, "api_version", "v23.0")
+		self.account_name = getattr(args, "account_name", None)
 
 	def _request(self, method, endpoint, **kwargs):
 		url = f"{self.base_url}/{self.api_version}/{endpoint}"
@@ -32,8 +34,52 @@ class Whatsapp:
 				"Meta API error | status=%s url=%s body=%s", resp.status_code, url, body
 			)
 			error_msg = _extract_meta_error(body)
+			self._log_api_error(method, url, kwargs.get("json"), resp)
 			raise requests.HTTPError(error_msg)
-		return resp.json()
+		result = resp.json()
+		self._log_api_success(method, url, kwargs.get("json"), result)
+		return result
+
+	def _log_api_error(self, method: str, url: str, payload: dict | None, resp: requests.Response) -> None:
+		try:
+			event_type = "API"
+			if "message_templates" in url or "/templates" in url:
+				event_type = "Template"
+			elif "/messages" in url:
+				event_type = "Message"
+
+			import frappe
+			from whatsapp.whatsapp.api.utils import log
+
+			log(
+				"Error", event_type,
+				f"Meta API {method} {url.rsplit('/', 1)[-1][:60]} failed: HTTP {resp.status_code}",
+				account=self.account_name,
+				request_data=payload,
+				response_data=resp.text[:5000],
+			)
+		except Exception:
+			pass
+
+	def _log_api_success(self, method: str, url: str, payload: dict | None, result: dict) -> None:
+		try:
+			event_type = "API"
+			if "message_templates" in url or "/templates" in url:
+				event_type = "Template"
+			elif "/messages" in url:
+				event_type = "Message"
+
+			from whatsapp.whatsapp.api.utils import log
+
+			log(
+				"Debug", event_type,
+				f"Meta API {method} {url.rsplit('/', 1)[-1][:60]} succeeded",
+				account=self.account_name,
+				request_data=payload,
+				response_data=result,
+			)
+		except Exception:
+			pass
 
 	def get_template(self, template_id):
 		return self._request("GET", f"{template_id}")

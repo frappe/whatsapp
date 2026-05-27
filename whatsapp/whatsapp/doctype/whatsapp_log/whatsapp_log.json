@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2026-05-27 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "level",
+  "event_type",
+  "timestamp",
+  "column_break_identity",
+  "account",
+  "reference_doctype",
+  "reference_docname",
+  "section_break_message",
+  "message",
+  "traceback",
+  "section_break_data",
+  "request_data",
+  "response_data"
+ ],
+ "fields": [
+  {
+   "default": "Info",
+   "fieldname": "level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Level",
+   "options": "Info\nWarning\nError\nDebug"
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "\nWebhook\nTemplate\nMessage\nAPI\nSystem"
+  },
+  {
+   "fieldname": "timestamp",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Timestamp"
+  },
+  {
+   "fieldname": "column_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "account",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Account",
+   "options": "Whatsapp Account"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_docname",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Document",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "section_break_message",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Text",
+   "in_list_view": 1,
+   "label": "Message",
+   "reqd": 1
+  },
+  {
+   "fieldname": "traceback",
+   "fieldtype": "Code",
+   "label": "Traceback"
+  },
+  {
+   "fieldname": "section_break_data",
+   "fieldtype": "Section Break",
+   "label": "Payload Data"
+  },
+  {
+   "fieldname": "request_data",
+   "fieldtype": "Code",
+   "label": "Request Data"
+  },
+  {
+   "fieldname": "response_data",
+   "fieldtype": "Code",
+   "label": "Response Data"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-27 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Whatsapp",
+ "name": "Whatsapp Log",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Green",
+   "title": "Info"
+  },
+  {
+   "color": "Orange",
+   "title": "Warning"
+  },
+  {
+   "color": "Red",
+   "title": "Error"
+  },
+  {
+   "color": "Blue",
+   "title": "Debug"
+  }
+ ],
+ "track_changes": 1
+}
