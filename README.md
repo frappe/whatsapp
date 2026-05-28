@@ -99,6 +99,10 @@ These are operational issues in the current implementation that should be addres
 - CRM chat-style UI in Frappe Desk
 - WhatsApp preview for templates in desk
 
+### Design Decisions
+
+See [DESIGN_DECISIONS.md](DESIGN_DECISIONS.md) for intentional product constraints (e.g. named-only template variables, reference-DocType-driven parameters).
+
 ### License
 
 mit
