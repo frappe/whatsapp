@@ -113,6 +113,16 @@ def _handle_messages(value: dict) -> None:
 
 
 def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict | None = None) -> None:
+	message_id = msg.get("id")
+	if message_id and frappe.db.exists("Whatsapp Message", {"message_id": message_id}):
+		log(
+			"Info", "Webhook",
+			f"Duplicate webhook delivery for message_id={message_id} ignored",
+			account=account_name,
+			request_data=msg,
+		)
+		return
+
 	wa_id = msg.get("from", "")
 	profile_name = (contact_profile or {}).get("name", "")
 
@@ -170,7 +180,7 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			"whatsapp_account": account_name,
 			"direction": "Incoming",
 			"status": "Sent",
-			"message_id": msg.get("id"),
+			"message_id": message_id,
 			"timestamp": timestamp_val,
 			"reaction": reaction_emoji_val,
 			"context_message_id": context_id,

@@ -81,8 +81,6 @@ These features are planned but not yet implemented. They are tracked as GitHub i
 
 These are operational issues in the current implementation that should be addressed before a stable public release:
 
-- **[P0] [#8](https://github.com/ps173/frappe-whatsapp/issues/8) Webhook deduplication** — Meta retries failed webhook deliveries; the same `message_id` can be processed more than once, creating duplicate `Whatsapp Message` records and double-firing Append Actions. Fix: check for existing doc by `message_id` before inserting.
-- **[P0] [#9](https://github.com/ps173/frappe-whatsapp/issues/9) Log retention policy** — `Whatsapp Log` grows unbounded. The `default_log_clearing_doctypes` block in `hooks.py` is commented out. Wire it up (suggested: 30–90 days) to prevent table bloat in production.
 - **[P1] [#10](https://github.com/ps173/frappe-whatsapp/issues/10) Role-based permissions** — all operations require System Manager. Production deployments need per-role read/write control on `Whatsapp Message`, `Whatsapp Profile`, and `Whatsapp Template` so non-admin users (e.g. support agents) can use the app safely.
 - **[P1] [#11](https://github.com/ps173/frappe-whatsapp/issues/11) App screen / home page** — `add_to_apps_screen` in `hooks.py` is commented out. The app has no dedicated UI entry point in Frappe Desk.
 - **[P2] [#12](https://github.com/ps173/frappe-whatsapp/issues/12) No contact enrichment** — `Whatsapp Profile` only stores phone number and display name. No fetch of Meta profile photo, email, or other contact metadata.
