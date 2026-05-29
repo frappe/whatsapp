@@ -80,7 +80,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 		self.addCleanup(_cleanup)
 
 	def test_handler_get_verification_echoes_challenge(self):
-		"""GET handler must echo back hub.challenge when token matches."""
+		"""GET handler must return raw text/plain Werkzeug Response with the challenge."""
 		token = f"verify_{secrets.token_hex(8)}"
 		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", token)
 
@@ -92,10 +92,12 @@ class TestWebhookNotifications(IntegrationTestCase):
 		self._bind_request("GET")
 		result = handler()
 
-		self.assertEqual(result, "challenge_abc")
+		self.assertEqual(result.status_code, 200)
+		self.assertEqual(result.mimetype, "text/plain")
+		self.assertEqual(result.get_data(as_text=True), "challenge_abc")
 
 	def test_handler_get_verification_rejects_bad_token(self):
-		"""GET handler returns 403 when verify token doesn't match."""
+		"""GET handler returns 403 text/plain when verify token doesn't match."""
 		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", "correct_token")
 
 		frappe.form_dict = frappe._dict({
@@ -106,9 +108,9 @@ class TestWebhookNotifications(IntegrationTestCase):
 		self._bind_request("GET")
 		result = handler()
 
-		self.assertEqual(result, "token mismatch")
-		self.assertEqual(frappe.response.http_status_code, 403)
-		frappe.response.http_status_code = 200
+		self.assertEqual(result.status_code, 403)
+		self.assertEqual(result.mimetype, "text/plain")
+		self.assertEqual(result.get_data(as_text=True), "token mismatch")
 
 	# -------------------------------------------------------------------------
 	# on_receive

@@ -8,6 +8,7 @@ import json
 
 import frappe
 from frappe import _
+from werkzeug.wrappers import Response
 
 from frappe.core.doctype.server_script.server_script_utils import (
 	run_server_script_for_doc_event,
@@ -34,28 +35,31 @@ def handler():
 	return _receive()
 
 
-def _verify() -> str:
-	"""Verify webhook with Meta challenge-response."""
+def _verify() -> Response:
+	"""Verify webhook with Meta challenge-response.
+
+	Meta requires the raw hub.challenge string as the response body. Returning
+	a werkzeug Response bypasses Frappe's default as_json() builder, which
+	would otherwise emit {"message": "<challenge>"} with Content-Type
+	application/json and fail Meta's exact-match check.
+	"""
 	mode = frappe.form_dict.get("hub.mode")
 	token = frappe.form_dict.get("hub.verify_token")
 	challenge = frappe.form_dict.get("hub.challenge")
 
 	if mode != "subscribe" or not token or not challenge:
-		frappe.response.http_status_code = 403
-		return "invalid request"
+		return Response("invalid request", status=403, mimetype="text/plain")
 
 	settings = frappe.get_single("Whatsapp Setting")
 	if token != (settings.get("webhook_verify_token") or ""):
-		frappe.response.http_status_code = 403
-		return "token mismatch"
+		return Response("token mismatch", status=403, mimetype="text/plain")
 
 	log("Info", "Webhook", "Webhook verified successfully")
-	frappe.response["content_type"] = "text/plain"
-	return challenge
+	return Response(challenge, status=200, mimetype="text/plain")
 
 
-def _receive() -> dict:
-	"""Receive incoming webhook events from Meta."""
+def _receive() -> str:
+	"""Receive incoming webhook events from Meta. Always 200 + Content-Type: text/plain."""
 	payload = frappe.local.form_dict
 
 	settings = frappe.get_single("Whatsapp Setting")
@@ -79,7 +83,9 @@ def _receive() -> dict:
 			elif field == "message_template_status_update":
 				_handle_template_status(value)
 
-	return {"status": "ok"}
+	frappe.response.http_status_code = 200
+	frappe.response["content_type"] = "text/plain"
+	return "ok"
 
 
 def _verify_signature(secret: str) -> None:
