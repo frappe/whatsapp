@@ -6,6 +6,14 @@ frappe.ui.form.on("WhatsApp Template", {
 		frm.trigger("template_variable_added");
 	},
 
+	template_label: function (frm) {
+		if (frm.doc.whatsapp_template_id) return;
+		const derived = normalize_template_name(frm.doc.template_label || "");
+		if (derived !== frm.doc.template_name) {
+			frm.set_value("template_name", derived);
+		}
+	},
+
 	update_variable_field_options: async function (frm) {
 		if (!frm.doc.reference_doctype) return;
 
@@ -89,4 +97,12 @@ frappe.ui.form.on("Template Variable", {
 function get_template_variables(text) {
 	if (!text) return [];
 	return (text.match(/\{\{(\w+)\}\}/g) || []).map((v) => v.replace(/[{}]/g, ""));
+}
+
+function normalize_template_name(s) {
+	return s
+		.trim()
+		.replace(/[^\w\s]/g, "_")
+		.replace(/\s+/g, "_")
+		.toLowerCase();
 }
