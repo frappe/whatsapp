@@ -150,7 +150,7 @@ app_license = "mit"
 # ---------------
 
 scheduler_events = {
-	"hourly": ["whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.sync_all"],
+	"daily": ["whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.sync_all"],
 }
 
 # Testing
