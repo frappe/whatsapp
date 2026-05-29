@@ -132,6 +132,24 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_receive")
 
+	def test_incoming_message_is_submitted(self):
+		"""Incoming messages are submitted (docstatus=1), not left as drafts."""
+		acc = self._make_account()
+
+		msg = {
+			"from": "+1222222222",
+			"id": "wa_msg_submit_001",
+			"timestamp": "1700000000",
+			"type": "text",
+			"text": {"body": "Submit me"},
+		}
+		_create_incoming_message(msg, acc)
+
+		docstatus = frappe.db.get_value(
+			"Whatsapp Message", {"message_id": "wa_msg_submit_001"}, "docstatus"
+		)
+		self.assertEqual(docstatus, 1)
+
 	# -------------------------------------------------------------------------
 	# on_status_update
 	# -------------------------------------------------------------------------

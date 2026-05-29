@@ -199,7 +199,13 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			**media_fields,
 		}
 	)
-	doc.insert(ignore_permissions=True)
+	# Submit incoming messages (don't leave them as drafts) so docstatus is consistent
+	# with outgoing messages. before_submit/_send only act on Outgoing, so submitting an
+	# incoming message never triggers an API send. Submitting a brand-new doc inserts it
+	# as submitted in a single save, which fires on_update exactly once — inserting then
+	# submitting would fire it twice and duplicate the CRM integration's agent notification.
+	doc.flags.ignore_permissions = True
+	doc.submit()
 	process_append_actions(doc, trigger_on="Incoming", sender_phone=wa_id, sender_name=profile_name)
 	doc.run_notifications("on_receive")
 
