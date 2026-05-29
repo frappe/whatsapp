@@ -54,7 +54,7 @@
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "Account",
-   "options": "Whatsapp Account"
+   "options": "WhatsApp Account"
   },
   {
    "fieldname": "reference_doctype",
@@ -106,8 +106,8 @@
  "links": [],
  "modified": "2026-05-27 12:00:00.000000",
  "modified_by": "Administrator",
- "module": "Whatsapp",
- "name": "Whatsapp Log",
+ "module": "WhatsApp",
+ "name": "WhatsApp Log",
  "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [

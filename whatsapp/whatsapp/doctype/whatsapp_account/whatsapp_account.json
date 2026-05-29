@@ -78,7 +78,7 @@
     "fieldname": "append_actions",
     "fieldtype": "Table",
     "label": "Append Actions",
-    "options": "Whatsapp Account Append"
+    "options": "WhatsApp Account Append"
    }
   ],
  "grid_page_length": 50,
@@ -86,8 +86,8 @@
  "links": [],
  "modified": "2026-05-21 17:05:42.516163",
  "modified_by": "Administrator",
- "module": "Whatsapp",
- "name": "Whatsapp Account",
+ "module": "WhatsApp",
+ "name": "WhatsApp Account",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [

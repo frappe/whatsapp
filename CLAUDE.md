@@ -15,7 +15,7 @@ Frappe app providing WhatsApp Business Cloud API (Graph API v22.0) integration. 
 bench run-tests --app whatsapp
 
 # Run tests for a single doctype
-bench run-tests --app whatsapp --doctype "Whatsapp Message"
+bench run-tests --app whatsapp --doctype "WhatsApp Message"
 
 # Run a single test method
 bench run-tests --app whatsapp --test test_method_name
@@ -41,7 +41,7 @@ Pre-commit enforces ruff, eslint, prettier, and pyupgrade — run `pre-commit in
 whatsapp/whatsapp/
   webhook.py                    # Meta webhook entry point — validates HMAC, routes to handlers
   api/
-    whatsapp.py                 # Whatsapp class — wraps all Facebook Graph API calls
+    whatsapp.py                 # WhatsApp class — wraps all Facebook Graph API calls
     utils.py                    # Template payload builders, {{var}} interpolation, log() utility
   doctype/
     whatsapp_account/           # Per-account config (phone_number_id, token, auto_read_receipts)
@@ -58,15 +58,15 @@ whatsapp/whatsapp/
   notification/                 # 6 built-in Frappe Notifications (received, sent, failed, etc.)
 ```
 
-**Message flow (inbound):** Meta → `webhook.py` → creates `Whatsapp Message` + `Whatsapp Profile` → triggers Append Actions → fires Frappe Notifications.
+**Message flow (inbound):** Meta → `webhook.py` → creates `WhatsApp Message` + `WhatsApp Profile` → triggers Append Actions → fires Frappe Notifications.
 
-**Message flow (outbound):** Caller creates `Whatsapp Message` doc → `whatsapp_message.py` `after_insert` → `Whatsapp` API class → logs result in `Whatsapp Log`.
+**Message flow (outbound):** Caller creates `WhatsApp Message` doc → `whatsapp_message.py` `after_insert` → `WhatsApp` API class → logs result in `WhatsApp Log`.
 
 **Template sync:** `whatsapp_template.sync_all` runs hourly via scheduler hooks. Sample templates are flagged and skipped to avoid unnecessary Meta API calls.
 
 ## Key Conventions
 
-**Logging:** All significant events MUST use `log()` from `whatsapp.whatsapp.api.utils` — this creates browsable `Whatsapp Log` records. `frappe.logger()` writes to files only and is not sufficient.
+**Logging:** All significant events MUST use `log()` from `whatsapp.whatsapp.api.utils` — this creates browsable `WhatsApp Log` records. `frappe.logger()` writes to files only and is not sufficient.
 
 ```python
 from whatsapp.whatsapp.api.utils import log
@@ -75,8 +75,8 @@ log(
     level="Info",          # Info | Warning | Error | Debug
     event_type="Message",  # Webhook | Template | Message | API | System
     message="...",
-    account="...",         # optional Whatsapp Account name
-    reference_doctype="Whatsapp Message",
+    account="...",         # optional WhatsApp Account name
+    reference_doctype="WhatsApp Message",
     reference_docname=doc.name,
     request_data={...},    # outgoing payload
     response_data={...},   # API response
@@ -101,7 +101,7 @@ Examples:
 ```
 feat(message): add reply-to support for outbound messages
 fix(webhook): handle missing account gracefully
-feat!: rename WhatsappSetting fields
+feat!: rename WhatsAppSettings fields
 ```
 
 ## Testing Patterns
@@ -111,9 +111,9 @@ Tests extend `frappe.tests.IntegrationTestCase` (auto-rollback, test records) or
 ```python
 from frappe.tests import IntegrationTestCase
 
-class TestWhatsappMessage(IntegrationTestCase):
+class TestWhatsAppMessage(IntegrationTestCase):
     def test_something(self):
-        doc = frappe.get_doc({"doctype": "Whatsapp Message", ...}).insert()
+        doc = frappe.get_doc({"doctype": "WhatsApp Message", ...}).insert()
         self.assertEqual(doc.status, "Sent")
 ```
 

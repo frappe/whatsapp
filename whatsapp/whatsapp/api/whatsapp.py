@@ -7,7 +7,7 @@ import frappe
 import requests
 
 
-class Whatsapp:
+class WhatsApp:
 	def __init__(self, args):
 		self.business_id = args.business_id
 		self.app_id = args.app_id

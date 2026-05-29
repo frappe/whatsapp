@@ -31,7 +31,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	def _make_account(self) -> str:
 		uid = frappe.generate_hash(length=6)
 		doc = frappe.get_doc(
-			doctype="Whatsapp Account",
+			doctype="WhatsApp Account",
 			account_name=f"_Test Wh Acc {uid}",
 			status="Active",
 			phone_id=f"phone_{uid}",
@@ -51,7 +51,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	def _make_outgoing(self, account: str, **overrides) -> str:
 		phone = overrides.pop("_phone", None) or f"+1{secrets.randbelow(10**10):010d}"
 		data = dict(
-			doctype="Whatsapp Message",
+			doctype="WhatsApp Message",
 			direction="Outgoing",
 			whatsapp_account=account,
 		)
@@ -82,7 +82,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	def test_handler_get_verification_echoes_challenge(self):
 		"""GET handler must return raw text/plain Werkzeug Response with the challenge."""
 		token = f"verify_{secrets.token_hex(8)}"
-		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", token)
+		frappe.db.set_single_value("WhatsApp Settings", "webhook_verify_token", token)
 
 		frappe.form_dict = frappe._dict({
 			"hub.mode": "subscribe",
@@ -98,7 +98,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 	def test_handler_get_verification_rejects_bad_token(self):
 		"""GET handler returns 403 text/plain when verify token doesn't match."""
-		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", "correct_token")
+		frappe.db.set_single_value("WhatsApp Settings", "webhook_verify_token", "correct_token")
 
 		frappe.form_dict = frappe._dict({
 			"hub.mode": "subscribe",
@@ -116,7 +116,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	# on_receive
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_on_receive_notification(self, mock_run_notif):
 		"""_create_incoming_message fires run_notifications("on_receive")."""
 		acc = self._make_account()
@@ -146,7 +146,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 		_create_incoming_message(msg, acc)
 
 		docstatus = frappe.db.get_value(
-			"Whatsapp Message", {"message_id": "wa_msg_submit_001"}, "docstatus"
+			"WhatsApp Message", {"message_id": "wa_msg_submit_001"}, "docstatus"
 		)
 		self.assertEqual(docstatus, 1)
 
@@ -154,7 +154,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	# on_status_update
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_on_status_update_fires_on_change(self, mock_run_notif):
 		"""_update_message_status fires run_notifications("on_status_update") on status change."""
 		acc = self._make_account()
@@ -169,9 +169,9 @@ class TestWebhookNotifications(IntegrationTestCase):
 		_update_message_status(status)
 
 		mock_run_notif.assert_any_call("on_status_update")
-		self.assertEqual(frappe.db.get_value("Whatsapp Message", msg_name, "status"), "Delivered")
+		self.assertEqual(frappe.db.get_value("WhatsApp Message", msg_name, "status"), "Delivered")
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_on_status_update_skips_noop(self, mock_run_notif):
 		"""_update_message_status does NOT fire when status hasn't changed."""
 		acc = self._make_account()
@@ -193,7 +193,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	def _make_template(self, account: str, **overrides) -> str:
 		uid = frappe.generate_hash(length=6)
 		data = dict(
-			doctype="Whatsapp Template",
+			doctype="WhatsApp Template",
 			template_label=f"_Test Tmpl {uid}",
 			template_name=f"_test_tmpl_{uid}",
 			template_type="UTILITY",
@@ -206,7 +206,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 		doc = frappe.get_doc(data).insert()
 		return doc.name
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsappTemplate.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsAppTemplate.run_notifications")
 	def test_template_approved_fires_on_approved(self, mock_run_notif):
 		"""_handle_template_status fires on_template_approved when APPROVED."""
 		acc = self._make_account()
@@ -214,7 +214,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		value = {
 			"message_template_id": frappe.db.get_value(
-				"Whatsapp Template", tmpl_name, "whatsapp_template_id"
+				"WhatsApp Template", tmpl_name, "whatsapp_template_id"
 			),
 			"status": "APPROVED",
 		}
@@ -222,10 +222,10 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_template_approved")
 		self.assertEqual(
-			frappe.db.get_value("Whatsapp Template", tmpl_name, "status"), "APPROVED"
+			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "APPROVED"
 		)
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsappTemplate.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsAppTemplate.run_notifications")
 	def test_template_rejected_fires_on_rejected(self, mock_run_notif):
 		"""_handle_template_status fires on_template_rejected when REJECTED."""
 		acc = self._make_account()
@@ -233,7 +233,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		value = {
 			"message_template_id": frappe.db.get_value(
-				"Whatsapp Template", tmpl_name, "whatsapp_template_id"
+				"WhatsApp Template", tmpl_name, "whatsapp_template_id"
 			),
 			"status": "REJECTED",
 		}
@@ -241,10 +241,10 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_template_rejected")
 		self.assertEqual(
-			frappe.db.get_value("Whatsapp Template", tmpl_name, "status"), "REJECTED"
+			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "REJECTED"
 		)
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsappTemplate.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsAppTemplate.run_notifications")
 	def test_template_skips_noop(self, mock_run_notif):
 		"""_handle_template_status does NOT fire when status hasn't changed."""
 		acc = self._make_account()
@@ -252,7 +252,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		value = {
 			"message_template_id": frappe.db.get_value(
-				"Whatsapp Template", tmpl_name, "whatsapp_template_id"
+				"WhatsApp Template", tmpl_name, "whatsapp_template_id"
 			),
 			"status": "APPROVED",
 		}
@@ -266,7 +266,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	# incoming context_message_id
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_incoming_context_message_id_from_context(self, mock_run_notif):
 		"""Incoming message with context.id sets context_message_id on doc."""
 		acc = self._make_account()
@@ -281,20 +281,20 @@ class TestWebhookNotifications(IntegrationTestCase):
 		}
 		_create_incoming_message(msg, acc)
 
-		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_msg_ctx_001"}, "name")
-		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		doc_name = frappe.db.get_value("WhatsApp Message", {"message_id": "wa_msg_ctx_001"}, "name")
+		doc = frappe.get_doc("WhatsApp Message", doc_name)
 		self.assertEqual(doc.context_message_id, "wamid.parent")
 
 	# -------------------------------------------------------------------------
 	# read receipts
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_read_receipt_sent_when_enabled(self, mock_run_notif, mock_mark_read):
 		"""auto_read_receipts=True triggers mark_as_read for incoming messages."""
 		acc = self._make_account()
-		frappe.db.set_value("Whatsapp Account", acc, "auto_read_receipts", 1)
+		frappe.db.set_value("WhatsApp Account", acc, "auto_read_receipts", 1)
 
 		msg = {
 			"from": "+12223334444",
@@ -310,8 +310,8 @@ class TestWebhookNotifications(IntegrationTestCase):
 		args, _ = mock_mark_read.call_args
 		self.assertEqual(args[0], "wa_rr_001")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_read_receipt_not_sent_when_disabled(self, mock_run_notif, mock_mark_read):
 		"""auto_read_receipts=False (default) does NOT call mark_as_read."""
 		acc = self._make_account()
@@ -328,13 +328,13 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_mark_read.assert_not_called()
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.mark_as_read")
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.mark_as_read")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_read_receipt_failure_does_not_raise(self, mock_run_notif, mock_mark_read):
 		"""read receipt failure is logged but does not propagate."""
 		mock_mark_read.side_effect = Exception("Connection error")
 		acc = self._make_account()
-		frappe.db.set_value("Whatsapp Account", acc, "auto_read_receipts", 1)
+		frappe.db.set_value("WhatsApp Account", acc, "auto_read_receipts", 1)
 
 		msg = {
 			"from": "+12223334446",
@@ -350,7 +350,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	# incoming reactions
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_incoming_reaction_creates_reaction_message(self, mock_run_notif):
 		"""Incoming reaction webhook creates message with reaction field and context_message_id."""
 		acc = self._make_account()
@@ -367,13 +367,13 @@ class TestWebhookNotifications(IntegrationTestCase):
 		}
 		_create_incoming_message(msg, acc)
 
-		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_reaction_001"}, "name")
-		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		doc_name = frappe.db.get_value("WhatsApp Message", {"message_id": "wa_reaction_001"}, "name")
+		doc = frappe.get_doc("WhatsApp Message", doc_name)
 		self.assertEqual(doc.reaction, "👍")
 		self.assertEqual(doc.context_message_id, "wamid.target_msg")
 		self.assertEqual(doc.message, "👍")
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
 	def test_incoming_reaction_without_emoji(self, mock_run_notif):
 		"""Incoming reaction without emoji still creates message with reaction set."""
 		acc = self._make_account()
@@ -389,7 +389,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 		}
 		_create_incoming_message(msg, acc)
 
-		doc_name = frappe.db.get_value("Whatsapp Message", {"message_id": "wa_reaction_002"}, "name")
-		doc = frappe.get_doc("Whatsapp Message", doc_name)
+		doc_name = frappe.db.get_value("WhatsApp Message", {"message_id": "wa_reaction_002"}, "name")
+		doc = frappe.get_doc("WhatsApp Message", doc_name)
 		self.assertEqual(doc.reaction, "")
 		self.assertEqual(doc.context_message_id, "wamid.target_msg2")

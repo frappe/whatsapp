@@ -7,10 +7,10 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account"]
+IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account"]
 
 
-class IntegrationTestWhatsappTemplate(IntegrationTestCase):
+class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
 		frappe.set_user("Administrator")
@@ -18,7 +18,7 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 	def _make_account(self) -> str:
 		uid = frappe.generate_hash(length=6)
 		doc = frappe.get_doc(
-			doctype="Whatsapp Account",
+			doctype="WhatsApp Account",
 			account_name=f"_Test Account {uid}",
 			status="Active",
 			phone_id="1234567890",
@@ -37,7 +37,7 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		template_name = f"_test_var_field_{uid}"
 
 		doc = frappe.get_doc(
-			doctype="Whatsapp Template",
+			doctype="WhatsApp Template",
 			template_label=template_name,
 			template_name=template_name,
 			template_type="UTILITY",
@@ -81,11 +81,11 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name["order_id"], "email")
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.Whatsapp")
-	def test_push_to_meta_logs_without_link_validation_error_on_new_doc(self, MockWhatsapp):
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsApp")
+	def test_push_to_meta_logs_without_link_validation_error_on_new_doc(self, MockWhatsApp):
 		"""_push_to_meta runs in before_save (doc not yet in DB). Log writes must not
-		fail with LinkValidationError trying to validate Whatsapp Template: <name>."""
-		MockWhatsapp.return_value.create_template.return_value = {
+		fail with LinkValidationError trying to validate WhatsApp Template: <name>."""
+		MockWhatsApp.return_value.create_template.return_value = {
 			"id": "tmpl_123",
 			"status": "PENDING",
 		}
@@ -95,7 +95,7 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		template_label = f"_Test Push {uid}"
 
 		doc = frappe.get_doc(
-			doctype="Whatsapp Template",
+			doctype="WhatsApp Template",
 			template_label=template_label,
 			template_name=f"_test_push_{uid}",
 			template_type="UTILITY",
@@ -108,13 +108,13 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		self.assertEqual(doc.status, "PENDING")
 
 		log_exists = frappe.db.exists(
-			"Whatsapp Log",
+			"WhatsApp Log",
 			{
 				"event_type": "Template",
 				"message": ["like", f"%{template_label}%pushed to Meta%"],
 			},
 		)
-		self.assertTrue(log_exists, "expected a success Whatsapp Log row for the template push")
+		self.assertTrue(log_exists, "expected a success WhatsApp Log row for the template push")
 
 	def test_sync_leaves_variable_field_empty_for_new_variables(self):
 		"""New variables introduced by Meta should start with empty variable_field."""
@@ -125,7 +125,7 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		template_name = f"_test_new_var_{uid}"
 
 		frappe.get_doc(
-			doctype="Whatsapp Template",
+			doctype="WhatsApp Template",
 			template_label=template_name,
 			template_name=template_name,
 			template_type="UTILITY",
@@ -161,7 +161,7 @@ class IntegrationTestWhatsappTemplate(IntegrationTestCase):
 		}
 		_upsert_template(meta_payload, account)
 
-		doc = frappe.get_doc("Whatsapp Template", template_name)
+		doc = frappe.get_doc("WhatsApp Template", template_name)
 		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name.get("otp", ""), "")

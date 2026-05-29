@@ -5,10 +5,10 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account"]
+IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account"]
 
 
-class IntegrationTestWhatsappProfile(IntegrationTestCase):
+class IntegrationTestWhatsAppProfile(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
 		frappe.set_user("Administrator")
@@ -16,7 +16,7 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 	def _make_account(self) -> str:
 		uid = frappe.generate_hash(length=6)
 		doc = frappe.get_doc(
-			doctype="Whatsapp Account",
+			doctype="WhatsApp Account",
 			account_name=f"_Test Account {uid}",
 			status="Active",
 			phone_id="1234567890",
@@ -29,7 +29,7 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 	def test_create_profile(self):
 		acc = self._make_account()
 		doc = frappe.get_doc(
-			doctype="Whatsapp Profile",
+			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
 			profile_name="John Doe",
@@ -42,13 +42,13 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 		acc = self._make_account()
 		acc2 = self._make_account()
 		frappe.get_doc(
-			doctype="Whatsapp Profile",
+			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
 			profile_name="John",
 		).insert()
 		doc2 = frappe.get_doc(
-			doctype="Whatsapp Profile",
+			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc2,
 			profile_name="John (Other)",
@@ -58,14 +58,14 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 	def test_duplicate_raises(self):
 		acc = self._make_account()
 		frappe.get_doc(
-			doctype="Whatsapp Profile",
+			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
 			profile_name="Duplicate Test",
 		).insert()
 		with self.assertRaises(frappe.ValidationError):
 			frappe.get_doc(
-				doctype="Whatsapp Profile",
+				doctype="WhatsApp Profile",
 				phone_number="+1234567890",
 				whatsapp_account=acc,
 				profile_name="Duplicate Test 2",
@@ -81,7 +81,7 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 		name2 = get_or_create_profile("+1234567890", acc, "Alice Updated")
 		self.assertEqual(name2, name)
 
-		profile = frappe.get_doc("Whatsapp Profile", name)
+		profile = frappe.get_doc("WhatsApp Profile", name)
 		self.assertEqual(profile.profile_name, "Alice Updated")
 
 	def test_resolve_profile_by_phone(self):
@@ -89,7 +89,7 @@ class IntegrationTestWhatsappProfile(IntegrationTestCase):
 
 		acc = self._make_account()
 		doc = frappe.get_doc(
-			doctype="Whatsapp Profile",
+			doctype="WhatsApp Profile",
 			phone_number="+9999999999",
 			whatsapp_account=acc,
 			profile_name="+9999999999",

@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 
 
-class WhatsappProfile(Document):
+class WhatsAppProfile(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -42,7 +42,7 @@ class WhatsappProfile(Document):
 		}
 		if self.name:
 			filters["name"] = ["!=", self.name]
-		if frappe.db.exists("Whatsapp Profile", filters):
+		if frappe.db.exists("WhatsApp Profile", filters):
 			frappe.throw(
 				_("WhatsApp Profile for phone {0} under account {1} already exists").format(
 					self.phone_number, self.whatsapp_account
@@ -64,12 +64,12 @@ def get_or_create_profile(
 ) -> str:
 	existing = resolve_profile_by_phone(phone_number, account_name)
 	if existing:
-		profile = frappe.get_doc("Whatsapp Profile", existing)
+		profile = frappe.get_doc("WhatsApp Profile", existing)
 		if profile_name and profile.profile_name != profile_name:
 			profile.db_set("profile_name", profile_name)
 		return profile.name
 
-	doc = frappe.new_doc("Whatsapp Profile")
+	doc = frappe.new_doc("WhatsApp Profile")
 	doc.phone_number = phone_number
 	doc.whatsapp_account = account_name
 	doc.profile_name = profile_name or phone_number
@@ -82,13 +82,13 @@ def get_or_create_profile(
 
 def resolve_profile_by_phone(phone_number: str, account_name: str) -> str | None:
 	return frappe.db.get_value(
-		"Whatsapp Profile",
+		"WhatsApp Profile",
 		{"phone_number": phone_number, "whatsapp_account": account_name},
 		"name",
 	)
 
 
 def update_profile_activity(profile_name: str) -> None:
-	profile = frappe.get_doc("Whatsapp Profile", profile_name)
+	profile = frappe.get_doc("WhatsApp Profile", profile_name)
 	profile.db_set("last_message_at", now_datetime())
 	profile.db_set("message_count", (profile.message_count or 0) + 1)

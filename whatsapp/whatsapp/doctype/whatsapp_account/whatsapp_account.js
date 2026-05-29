@@ -1,13 +1,13 @@
 // Copyright (c) 2026, pratham@frappe.io and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Whatsapp Account", {
+frappe.ui.form.on("WhatsApp Account", {
 	refresh: function (frm) {
 		_update_all_field_options(frm);
 	},
 });
 
-frappe.ui.form.on("Whatsapp Account Append", {
+frappe.ui.form.on("WhatsApp Account Append", {
 	append_to: function (frm, cdt, cdn) {
 		const row = frappe.get_doc(cdt, cdn);
 		row.sender_field = "";

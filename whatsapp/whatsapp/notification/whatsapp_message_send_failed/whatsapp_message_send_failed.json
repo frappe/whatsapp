@@ -5,7 +5,7 @@
  "days_in_advance": 0,
  "docstatus": 0,
  "doctype": "Notification",
- "document_type": "Whatsapp Message",
+ "document_type": "WhatsApp Message",
  "enabled": 1,
  "event": "Method",
  "idx": 0,
@@ -15,7 +15,7 @@
  "minutes_offset": 0,
  "modified": "2026-05-22 15:53:51.500046",
  "modified_by": "test@example.com",
- "module": "Whatsapp",
+ "module": "WhatsApp",
  "name": "WhatsApp Message Send Failed",
  "owner": "Administrator",
  "recipients": [

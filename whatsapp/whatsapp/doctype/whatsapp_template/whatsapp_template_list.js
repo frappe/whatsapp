@@ -1,4 +1,4 @@
-frappe.listview_settings["Whatsapp Template"] = {
+frappe.listview_settings["WhatsApp Template"] = {
 	onload: function (listview) {
 		listview.page.add_button(__("Sync from Meta"), () => {
 			frappe.call({

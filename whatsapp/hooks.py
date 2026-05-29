@@ -1,5 +1,5 @@
 app_name = "whatsapp"
-app_title = "Whatsapp"
+app_title = "WhatsApp"
 app_publisher = "pratham@frappe.io"
 app_description = "Official whatsapp integration for frappe crm"
 app_email = "pratham@frappe.io"
@@ -15,7 +15,7 @@ app_license = "mit"
 # 	{
 # 		"name": "whatsapp",
 # 		"logo": "/assets/whatsapp/logo.png",
-# 		"title": "Whatsapp",
+# 		"title": "WhatsApp",
 # 		"route": "/whatsapp",
 # 		"has_permission": "whatsapp.api.permission.has_app_permission"
 # 	}
@@ -237,7 +237,7 @@ export_python_type_annotations = True
 require_type_annotated_api_methods = True
 
 default_log_clearing_doctypes = {
-	"Whatsapp Log": 60,
+	"WhatsApp Log": 60,
 }
 
 # Translation

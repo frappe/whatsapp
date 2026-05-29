@@ -1,12 +1,12 @@
 // Copyright (c) 2026, pratham@frappe.io and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Whatsapp Message", {
+frappe.ui.form.on("WhatsApp Message", {
 	refresh: function (frm) {
 		frm.trigger("is_template");
 		frm.trigger("direction");
 		if (frm.is_new() && frm.doc.direction === "Outgoing" && !frm.doc.whatsapp_account) {
-			frappe.db.get_single_value("Whatsapp Setting", "default_account").then((account) => {
+			frappe.db.get_single_value("WhatsApp Settings", "default_account").then((account) => {
 				if (account) frm.set_value("whatsapp_account", account);
 			});
 		}
@@ -27,7 +27,7 @@ frappe.ui.form.on("Whatsapp Message", {
 	whatsapp_template: function (frm) {
 		if (frm.doc.whatsapp_template) {
 			frappe.db.get_value(
-				"Whatsapp Template",
+				"WhatsApp Template",
 				frm.doc.whatsapp_template,
 				["reference_doctype", "message", "header_text"],
 				(r) => {
@@ -53,7 +53,7 @@ frappe.ui.form.on("Whatsapp Message", {
 
 	reply_to_message: function (frm) {
 		if (frm.doc.reply_to_message) {
-			frappe.db.get_value("Whatsapp Message", frm.doc.reply_to_message, "message_id", (r) => {
+			frappe.db.get_value("WhatsApp Message", frm.doc.reply_to_message, "message_id", (r) => {
 				frm.set_value("context_message_id", r.message_id || null);
 			});
 		} else if (!frm.doc.context_message_id) {

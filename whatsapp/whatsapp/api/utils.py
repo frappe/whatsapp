@@ -476,7 +476,7 @@ def get_logs(
 	if account:
 		filters["account"] = account
 	return frappe.get_all(
-		"Whatsapp Log",
+		"WhatsApp Log",
 		filters=filters or None,
 		fields=["name", "level", "event_type", "message", "account", "timestamp", "reference_doctype", "reference_docname"],
 		order_by="creation desc",
@@ -503,7 +503,7 @@ def log(
 			response_data = frappe.as_json(response_data)
 		doc = frappe.get_doc(
 			{
-				"doctype": "Whatsapp Log",
+				"doctype": "WhatsApp Log",
 				"level": level,
 				"event_type": event_type,
 				"message": message,
@@ -520,5 +520,5 @@ def log(
 		doc.insert()
 		return doc.name
 	except Exception:
-		frappe.logger("whatsapp").error("Failed to create Whatsapp Log entry", exc_info=True)
+		frappe.logger("whatsapp").error("Failed to create WhatsApp Log entry", exc_info=True)
 		return None

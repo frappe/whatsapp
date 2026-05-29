@@ -12,11 +12,11 @@ from frappe.tests import IntegrationTestCase
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account", "Whatsapp Template", "Whatsapp Profile"]
+IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account", "WhatsApp Template", "WhatsApp Profile"]
 
 
-class IntegrationTestWhatsappMessage(IntegrationTestCase):
-	"""Integration tests for WhatsappMessage."""
+class IntegrationTestWhatsAppMessage(IntegrationTestCase):
+	"""Integration tests for WhatsAppMessage."""
 
 	def setUp(self):
 		super().setUp()
@@ -29,7 +29,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	def _make_account(self) -> str:
 		uid = frappe.generate_hash(length=6)
 		doc = frappe.get_doc(
-			doctype="Whatsapp Account",
+			doctype="WhatsApp Account",
 			account_name=f"_Test Account {uid}",
 			status="Active",
 			phone_id="1234567890",
@@ -50,7 +50,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		uid = frappe.generate_hash(length=6)
 		acc = self._make_account()
 		data = dict(
-			doctype="Whatsapp Template",
+			doctype="WhatsApp Template",
 			template_label=f"_Test Template {uid}",
 			template_name=f"_test_template_{uid}",
 			template_type="UTILITY",
@@ -69,7 +69,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		from_val = overrides.pop("from_", None)
 		phone = overrides.pop("_phone", None) or f"+1{secrets.randbelow(10**10):010d}"
 		data = dict(
-			doctype="Whatsapp Message",
+			doctype="WhatsApp Message",
 			direction="Outgoing",
 			whatsapp_account=acc,
 		)
@@ -83,7 +83,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		return data
 
 	def _make_setting(self):
-		sett = frappe.get_single("Whatsapp Setting")
+		sett = frappe.get_single("WhatsApp Settings")
 		sett.whatsapp_api_url = "https://graph.facebook.com"
 		sett.whatsapp_api_version = "v22.0"
 		sett.webhook_verify_token = "test_verify"
@@ -116,19 +116,19 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 	def test_validate_skipped_for_incoming(self):
 		doc = frappe.get_doc(
-			doctype="Whatsapp Message",
+			doctype="WhatsApp Message",
 			direction="Incoming",
 			**{"from": "+0987654321"},
 		)
 		doc.validate()  # no exception
 
 	def test_on_trash_cascades_linked_logs(self):
-		"""Deleting a Whatsapp Message must also delete its Whatsapp Log rows."""
+		"""Deleting a WhatsApp Message must also delete its WhatsApp Log rows."""
 		acc = self._make_account()
 		phone = "+1555000111"
 		profile = self._make_profile(phone, acc)
 		msg = frappe.get_doc(
-			doctype="Whatsapp Message",
+			doctype="WhatsApp Message",
 			direction="Incoming",
 			whatsapp_account=acc,
 			to=profile,
@@ -136,29 +136,29 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		).insert(ignore_permissions=True)
 
 		frappe.get_doc(
-			doctype="Whatsapp Log",
+			doctype="WhatsApp Log",
 			level="Info",
 			event_type="Message",
 			message="test log",
-			reference_doctype="Whatsapp Message",
+			reference_doctype="WhatsApp Message",
 			reference_docname=msg.name,
 		).insert(ignore_permissions=True)
 
 		self.assertEqual(
 			frappe.db.count(
-				"Whatsapp Log",
-				{"reference_doctype": "Whatsapp Message", "reference_docname": msg.name},
+				"WhatsApp Log",
+				{"reference_doctype": "WhatsApp Message", "reference_docname": msg.name},
 			),
 			1,
 		)
 
-		frappe.delete_doc("Whatsapp Message", msg.name, ignore_permissions=True)
+		frappe.delete_doc("WhatsApp Message", msg.name, ignore_permissions=True)
 
-		self.assertFalse(frappe.db.exists("Whatsapp Message", msg.name))
+		self.assertFalse(frappe.db.exists("WhatsApp Message", msg.name))
 		self.assertEqual(
 			frappe.db.count(
-				"Whatsapp Log",
-				{"reference_doctype": "Whatsapp Message", "reference_docname": msg.name},
+				"WhatsApp Log",
+				{"reference_doctype": "WhatsApp Message", "reference_docname": msg.name},
 			),
 			0,
 		)
@@ -166,7 +166,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	def test_outgoing_fails_for_blocked_profile(self):
 		acc = self._make_account()
 		profile = self._make_profile("+1234567890", acc, "Blocked User")
-		frappe.db.set_value("Whatsapp Profile", profile, "status", "Blocked")
+		frappe.db.set_value("WhatsApp Profile", profile, "status", "Blocked")
 		data = self._make_outgoing(account=acc)
 		data["to"] = profile
 		doc = frappe.get_doc(data)
@@ -327,8 +327,8 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# submit / send — notification events
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_on_submit_fires_on_send(self, mock_send, mock_run_notif):
 		mock_send.return_value = {"messages": [{"id": "wa_msg_on_send"}]}
 		self._make_setting()
@@ -340,8 +340,8 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_send")
 
-	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsappMessage.run_notifications")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage.run_notifications")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_send_failure_fires_on_send_failed(self, mock_send, mock_run_notif):
 		from requests import HTTPError
 
@@ -361,7 +361,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# submit / send
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_submit_sends_template_message(self, mock_send):
 		mock_send.return_value = {"messages": [{"id": "wa_msg_123"}]}
 		self._make_setting()
@@ -399,7 +399,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertEqual(payload["type"], "template")
 		self.assertEqual(payload["template"]["name"], "_test_submittmpl")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_submit_sends_text_message(self, mock_send):
 		mock_send.return_value = {"messages": [{"id": "wa_msg_456"}]}
 		self._make_setting()
@@ -421,7 +421,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		acc = self._make_account()
 		profile = self._make_profile(f"+1{secrets.randbelow(10**10):010d}", acc)
 		doc = frappe.get_doc(
-			doctype="Whatsapp Message",
+			doctype="WhatsApp Message",
 			to=profile,
 			direction="Incoming",
 			whatsapp_account=acc,
@@ -432,7 +432,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		doc.submit()
 		self.assertEqual(doc.docstatus, 1)
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_send_failure(self, mock_send):
 		from requests import HTTPError
 
@@ -466,7 +466,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 			doc.submit()
 
 		# Frappe sets docstatus=1 in Python before save(); DB should remain 0
-		db_doc = frappe.get_doc("Whatsapp Message", doc.name)
+		db_doc = frappe.get_doc("WhatsApp Message", doc.name)
 		self.assertEqual(db_doc.docstatus, 0)
 		# In-memory values set by _send before frappe.throw
 		self.assertEqual(doc.status, "Failed")
@@ -476,7 +476,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# reply-to / context
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_reply_to_message_resolves_context(self, mock_send):
 		"""reply_to_message Link auto-fills context_message_id from the quoted message."""
 		mock_send.return_value = {"messages": [{"id": "wa_reply_ctx"}]}
@@ -491,7 +491,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		doc.validate()
 		self.assertEqual(doc.context_message_id, "wamid.orig")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_context_included_in_outgoing_payload(self, mock_send):
 		"""context.message_id is added to the send payload when context_message_id is set."""
 		mock_send.return_value = {"messages": [{"id": "wa_ctx_001"}]}
@@ -509,7 +509,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertIn("context", payload)
 		self.assertEqual(payload["context"]["message_id"], "wamid.prev")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_context_omitted_when_not_set(self, mock_send):
 		"""Outgoing payload has no context key when context_message_id is empty."""
 		mock_send.return_value = {"messages": [{"id": "wa_noctx_001"}]}
@@ -527,7 +527,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# reactions
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_reaction_sends_reaction_payload(self, mock_send):
 		"""Outgoing reaction with emoji sends type=reaction payload."""
 		mock_send.return_value = {"messages": [{"id": "wa_rxn_001"}]}
@@ -546,7 +546,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertEqual(payload["reaction"]["emoji"], "👍")
 		self.assertEqual(payload["reaction"]["message_id"], "wamid.target")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_reaction_without_emoji_sends_unreact(self, mock_send):
 		"""Empty reaction string sends un-react (no emoji key)."""
 		mock_send.return_value = {"messages": [{"id": "wa_rxn_002"}]}
@@ -565,7 +565,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertNotIn("emoji", payload["reaction"])
 		self.assertEqual(payload["reaction"]["message_id"], "wamid.target")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_reaction_without_context_falls_to_text(self, mock_send):
 		"""Reaction without context_message_id falls through to text message."""
 		mock_send.return_value = {"messages": [{"id": "wa_rxn_003"}]}
@@ -579,7 +579,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		payload = mock_send.call_args[0][0]
 		self.assertEqual(payload["type"], "text")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_reaction_with_template_falls_to_template(self, mock_send):
 		"""Reaction with is_template sends template, not reaction."""
 		mock_send.return_value = {"messages": [{"id": "wa_rxn_004"}]}
@@ -604,8 +604,8 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# media messages
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_media_message_uploads_and_sends(self, mock_send, mock_upload):
 		"""Media message uploads file then sends with correct media type."""
 		mock_upload.return_value = {"id": "media_uploaded_001"}
@@ -625,8 +625,8 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertEqual(payload["type"], "image")
 		self.assertEqual(payload["image"]["id"], "media_uploaded_001")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_media_message_caption_in_payload(self, mock_send, mock_upload):
 		"""Message field becomes caption in media payload."""
 		mock_upload.return_value = {"id": "media_cap_001"}
@@ -643,7 +643,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertEqual(payload["type"], "document")
 		self.assertEqual(payload["document"]["caption"], "Check this out")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	def test_media_upload_failure_fails_send(self, mock_upload):
 		"""Upload failure sets status=Failed and raises."""
 		from requests import HTTPError
@@ -664,7 +664,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 	def test_get_mime_type_maps_correctly(self):
 		"""_get_mime_type returns correct MIME for known and unknown extensions."""
-		doc = frappe.get_doc(doctype="Whatsapp Message", direction="Incoming", **{"from": "+1"})
+		doc = frappe.get_doc(doctype="WhatsApp Message", direction="Incoming", **{"from": "+1"})
 		self.assertEqual(doc._get_mime_type("photo.jpg"), "image/jpeg")
 		self.assertEqual(doc._get_mime_type("photo.jpeg"), "image/jpeg")
 		self.assertEqual(doc._get_mime_type("photo.png"), "image/png")
@@ -680,8 +680,8 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# template header media upload
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_template_header_media_uploaded_when_missing(self, mock_send, mock_upload):
 		"""Template header media is uploaded on first send when handle missing."""
 		mock_upload.return_value = {"id": "h_handle_001"}
@@ -701,11 +701,11 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		doc.submit()
 
 		mock_upload.assert_called_once()
-		handle = frappe.db.get_value("Whatsapp Template", tmpl, "header_media_handle")
+		handle = frappe.db.get_value("WhatsApp Template", tmpl, "header_media_handle")
 		self.assertEqual(handle, "h_handle_001")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_template_header_media_skipped_when_cached(self, mock_send, mock_upload):
 		"""Template header media is NOT re-uploaded when handle already cached."""
 		mock_send.return_value = {"messages": [{"id": "wa_th_002"}]}
@@ -726,7 +726,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 
 		mock_upload.assert_not_called()
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	def test_template_header_media_upload_failure_fails_send(self, mock_upload):
 		"""Template header media upload failure sets status=Failed and raises."""
 		from requests import HTTPError
@@ -755,7 +755,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 	# interactive messages
 	# -------------------------------------------------------------------------
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_interactive_buttons_payload(self, mock_send):
 		"""Interactive buttons produce correct payload structure."""
 		mock_send.return_value = {"messages": [{"id": "wa_btn_001"}]}
@@ -776,7 +776,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		self.assertEqual(len(payload["interactive"]["action"]["buttons"]), 2)
 		self.assertEqual(payload["interactive"]["action"]["buttons"][0]["reply"]["title"], "Yes")
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_interactive_list_payload(self, mock_send):
 		"""Interactive list produces correct payload structure."""
 		mock_send.return_value = {"messages": [{"id": "wa_list_001"}]}
@@ -839,7 +839,7 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		doc = frappe.get_doc(data)
 		doc.validate()  # no exception
 
-	@patch("whatsapp.whatsapp.api.whatsapp.Whatsapp.send_message")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_interactive_buttons_with_template_falls_through(self, mock_send):
 		"""Buttons with is_template sends template, not interactive."""
 		mock_send.return_value = {"messages": [{"id": "wa_int_tmpl"}]}

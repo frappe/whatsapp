@@ -18,10 +18,10 @@ from whatsapp.whatsapp.api.utils import (
 	build_text_message_payload,
 	log,
 )
-from whatsapp.whatsapp.api.whatsapp import Whatsapp
+from whatsapp.whatsapp.api.whatsapp import WhatsApp
 
 
-class WhatsappMessage(Document):
+class WhatsAppMessage(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -55,7 +55,7 @@ class WhatsappMessage(Document):
 
 	def before_insert(self) -> None:
 		if self.direction == "Outgoing" and not self.whatsapp_account:
-			default_account = frappe.db.get_single_value("Whatsapp Setting", "default_account")
+			default_account = frappe.db.get_single_value("WhatsApp Settings", "default_account")
 			if default_account:
 				self.whatsapp_account = default_account
 
@@ -79,8 +79,8 @@ class WhatsappMessage(Document):
 
 	def on_trash(self) -> None:
 		frappe.db.delete(
-			"Whatsapp Log",
-			{"reference_doctype": "Whatsapp Message", "reference_docname": self.name},
+			"WhatsApp Log",
+			{"reference_doctype": "WhatsApp Message", "reference_docname": self.name},
 		)
 
 	def _validate_outgoing(self) -> None:
@@ -93,7 +93,7 @@ class WhatsappMessage(Document):
 			self._validate_template_reference()
 
 	def _check_profile_blocked(self) -> None:
-		profile = frappe.get_cached_doc("Whatsapp Profile", self.to)
+		profile = frappe.get_cached_doc("WhatsApp Profile", self.to)
 		if profile.status == "Blocked":
 			frappe.throw(
 				_("Cannot send message to blocked profile: {0}").format(profile.profile_name)
@@ -101,7 +101,7 @@ class WhatsappMessage(Document):
 
 	def _set_from_number(self) -> None:
 		if not self.get("from") and self.whatsapp_account:
-			account = frappe.get_cached_doc("Whatsapp Account", self.whatsapp_account)
+			account = frappe.get_cached_doc("WhatsApp Account", self.whatsapp_account)
 			self.set("from", account.phone_id)
 
 	def _validate_interactive(self) -> None:
@@ -116,17 +116,17 @@ class WhatsappMessage(Document):
 
 	def _resolve_reply_to_context(self) -> None:
 		if self.reply_to_message:
-			replied = frappe.get_doc("Whatsapp Message", self.reply_to_message)
+			replied = frappe.get_doc("WhatsApp Message", self.reply_to_message)
 			self.context_message_id = replied.message_id
 
 	def _validate_template_reference(self) -> None:
-		template = frappe.get_cached_doc("Whatsapp Template", self.whatsapp_template)
+		template = frappe.get_cached_doc("WhatsApp Template", self.whatsapp_template)
 		if template.template_variables:
 			if not self.reference_docname:
 				frappe.throw(_("Reference Document is required when template has variables"))
 
 	def _populate_template_parameters(self) -> None:
-		template = frappe.get_cached_doc("Whatsapp Template", self.whatsapp_template)
+		template = frappe.get_cached_doc("WhatsApp Template", self.whatsapp_template)
 		if not template.reference_doctype:
 			return
 
@@ -167,8 +167,8 @@ class WhatsappMessage(Document):
 		return mime_map.get(ext, "application/octet-stream")
 
 	def _send(self) -> None:
-		account = frappe.get_doc("Whatsapp Account", self.whatsapp_account)
-		settings = frappe.get_single("Whatsapp Setting")
+		account = frappe.get_doc("WhatsApp Account", self.whatsapp_account)
+		settings = frappe.get_single("WhatsApp Settings")
 		client = _get_whatsapp_client(account, settings)
 
 		if self.attach and not self.is_template:
@@ -187,7 +187,7 @@ class WhatsappMessage(Document):
 					"Error", "Message",
 					f"Media upload failed for {self.to}: {e}",
 					account=self.whatsapp_account,
-					reference_doctype="Whatsapp Message",
+					reference_doctype="WhatsApp Message",
 					reference_docname=self.name,
 					traceback=frappe.get_traceback(),
 				)
@@ -197,7 +197,7 @@ class WhatsappMessage(Document):
 				frappe.throw(_("Failed to upload media: {0}").format(str(e)))
 
 		if self.is_template and self.whatsapp_template:
-			template_doc = frappe.get_doc("Whatsapp Template", self.whatsapp_template)
+			template_doc = frappe.get_doc("WhatsApp Template", self.whatsapp_template)
 			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media:
 				if not template_doc.header_media_handle:
 					file_doc = frappe.get_doc("File", template_doc.header_media)
@@ -207,10 +207,10 @@ class WhatsappMessage(Document):
 					try:
 						media_result = client.upload_media(file_content, mime_type, file_name)
 						handle = media_result.get("id")
-						frappe.db.set_value("Whatsapp Template", template_doc.name, "header_media_handle", handle)
+						frappe.db.set_value("WhatsApp Template", template_doc.name, "header_media_handle", handle)
 						template_doc.header_media_handle = handle
 						template_doc.mime_type = mime_type
-						frappe.db.set_value("Whatsapp Template", template_doc.name, "mime_type", mime_type)
+						frappe.db.set_value("WhatsApp Template", template_doc.name, "mime_type", mime_type)
 					except requests.HTTPError as e:
 						self.status = "Failed"
 						self.error_message = str(e)
@@ -218,7 +218,7 @@ class WhatsappMessage(Document):
 							"Error", "Message",
 							f"Template header media upload failed for {self.to}: {e}",
 							account=self.whatsapp_account,
-							reference_doctype="Whatsapp Message",
+							reference_doctype="WhatsApp Message",
 							reference_docname=self.name,
 							traceback=frappe.get_traceback(),
 						)
@@ -233,7 +233,7 @@ class WhatsappMessage(Document):
 				"Info", "Message",
 				f"Sending {self.direction} message to {self.to}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Message",
+				reference_doctype="WhatsApp Message",
 				reference_docname=self.name,
 				request_data=payload,
 			)
@@ -246,7 +246,7 @@ class WhatsappMessage(Document):
 				"Info", "Message",
 				f"Message sent successfully to {self.to}, id={self.message_id}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Message",
+				reference_doctype="WhatsApp Message",
 				reference_docname=self.name,
 				response_data=result,
 			)
@@ -257,7 +257,7 @@ class WhatsappMessage(Document):
 				"Error", "Message",
 				f"Message send failed to {self.to}: {e}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Message",
+				reference_doctype="WhatsApp Message",
 				reference_docname=self.name,
 				request_data=payload,
 				response_data=getattr(e, "response", None) and e.response.text,
@@ -270,7 +270,7 @@ class WhatsappMessage(Document):
 			frappe.throw(_("Failed to send message: {0}").format(str(e)))
 
 	def _build_payload(self) -> dict:
-		profile = frappe.get_cached_doc("Whatsapp Profile", self.to)
+		profile = frappe.get_cached_doc("WhatsApp Profile", self.to)
 		to_phone = profile.phone_number
 
 		buttons = self.get("interactive_buttons") or []
@@ -306,7 +306,7 @@ class WhatsappMessage(Document):
 			)
 
 		if self.is_template:
-			template_doc = frappe.get_cached_doc("Whatsapp Template", self.whatsapp_template)
+			template_doc = frappe.get_cached_doc("WhatsApp Template", self.whatsapp_template)
 			body_params = json.loads(self.template_body_parameters or "{}")
 
 			header_params = self.template_header_parameters
@@ -333,7 +333,7 @@ def process_append_actions(
 	doc, trigger_on: str, sender_phone: str | None = None, sender_name: str | None = None
 ) -> None:
 	"""Create linked documents from the message based on the account's append actions."""
-	account = frappe.get_cached_doc("Whatsapp Account", doc.whatsapp_account)
+	account = frappe.get_cached_doc("WhatsApp Account", doc.whatsapp_account)
 	actions = account.get("append_actions", [])
 	if not actions:
 		return
@@ -369,7 +369,7 @@ def process_append_actions(
 				"Error", "Message",
 				f"Append action failed: could not create {action.append_to} from message",
 				account=doc.whatsapp_account,
-				reference_doctype="Whatsapp Message",
+				reference_doctype="WhatsApp Message",
 				reference_docname=doc.name,
 				traceback=frappe.get_traceback(),
 			)
@@ -383,8 +383,8 @@ def process_append_actions(
 		doc.db_set("reference_docname", doc.reference_docname)
 
 
-def _get_whatsapp_client(account, settings) -> Whatsapp:
-	return Whatsapp(
+def _get_whatsapp_client(account, settings) -> WhatsApp:
+	return WhatsApp(
 		args=frappe._dict(
 			business_id=account.get("business_id"),
 			app_id=account.get("app_id") or "",

@@ -14,12 +14,12 @@ from whatsapp.whatsapp.api.utils import (
 	log,
 	parse_whatsapp_template_to_doc,
 )
-from whatsapp.whatsapp.api.whatsapp import Whatsapp
-from whatsapp.whatsapp.doctype.whatsapp_account.whatsapp_account import WhatsappAccount
-from whatsapp.whatsapp.doctype.whatsapp_setting.whatsapp_setting import WhatsappSetting
+from whatsapp.whatsapp.api.whatsapp import WhatsApp
+from whatsapp.whatsapp.doctype.whatsapp_account.whatsapp_account import WhatsAppAccount
+from whatsapp.whatsapp.doctype.whatsapp_settings.whatsapp_settings import WhatsAppSettings
 
 
-class WhatsappTemplate(Document):
+class WhatsAppTemplate(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -28,9 +28,9 @@ class WhatsappTemplate(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 		from whatsapp.whatsapp.doctype.template_variable.template_variable import TemplateVariable
-		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import WhatsappTemplateButton
+		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import WhatsAppTemplateButton
 
-		buttons: DF.Table[WhatsappTemplateButton]
+		buttons: DF.Table[WhatsAppTemplateButton]
 		footer: DF.Data | None
 		header_media: DF.Attach | None
 		header_media_handle: DF.Data | None
@@ -250,14 +250,14 @@ class WhatsappTemplate(Document):
 		)
 
 	def _log_reference(self) -> tuple[str | None, str | None]:
-		"""Return (doctype, name) safe to use as a Whatsapp Log DynamicLink.
+		"""Return (doctype, name) safe to use as a WhatsApp Log DynamicLink.
 
 		Skipped when the doc isn't yet persisted — _push_to_meta runs inside
 		before_save, so the row doesn't exist for Frappe's link validator.
 		"""
-		if self.is_new() or not frappe.db.exists("Whatsapp Template", self.name):
+		if self.is_new() or not frappe.db.exists("WhatsApp Template", self.name):
 			return None, None
-		return "Whatsapp Template", self.name
+		return "WhatsApp Template", self.name
 
 	def _update_in_meta(self) -> None:
 		logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
@@ -327,20 +327,20 @@ def get_template_variables(s: str) -> list[str]:
 	return variables_list
 
 
-def get_settings() -> WhatsappSetting:
-	return frappe.get_single("Whatsapp Setting").as_dict()
+def get_settings() -> WhatsAppSettings:
+	return frappe.get_single("WhatsApp Settings").as_dict()
 
 
 @frappe.whitelist()
-def get_active_accounts() -> list[WhatsappAccount]:
+def get_active_accounts() -> list[WhatsAppAccount]:
 	accounts = frappe.get_all(
-		"Whatsapp Account",
+		"WhatsApp Account",
 		filters={"status": "Active"},
 		fields=["name", "account_name", "business_id"],
 	)
 	return [
 		cast(
-			WhatsappAccount,
+			WhatsAppAccount,
 			{
 				"name": acc.name,
 				"account_name": acc.account_name,
@@ -351,10 +351,10 @@ def get_active_accounts() -> list[WhatsappAccount]:
 	]
 
 
-def _get_whatsapp_client(account_name: str) -> Whatsapp:
+def _get_whatsapp_client(account_name: str) -> WhatsApp:
 	settings = get_settings()
-	account = frappe.get_doc("Whatsapp Account", account_name)
-	return Whatsapp(
+	account = frappe.get_doc("WhatsApp Account", account_name)
+	return WhatsApp(
 		args=frappe._dict(
 			business_id=account.business_id,
 			app_id=account.app_id or "",
@@ -367,7 +367,7 @@ def _get_whatsapp_client(account_name: str) -> Whatsapp:
 	)
 
 
-def _iter_templates(whatsapp: Whatsapp) -> Iterator[dict]:
+def _iter_templates(whatsapp: WhatsApp) -> Iterator[dict]:
 	cursor = None
 	while True:
 		params: dict = {"limit": 100}
@@ -399,14 +399,14 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 	parsed = parse_whatsapp_template_to_doc(template_data)
 
 	existing = frappe.get_all(
-		"Whatsapp Template",
+		"WhatsApp Template",
 		filters={"template_name": parsed["template_name"]},
 		pluck="name",
 		limit=1,
 	)
 
 	if existing:
-		doc = frappe.get_doc("Whatsapp Template", existing[0])
+		doc = frappe.get_doc("WhatsApp Template", existing[0])
 		doc.flags.from_sync = True
 		doc.whatsapp_account = account_name
 		doc.status = parsed.get("status", "PENDING")
@@ -434,14 +434,14 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			"Info", "Template",
 			f"Synced existing template {parsed['template_name']} (status={parsed.get('status')})",
 			account=account_name,
-			reference_doctype="Whatsapp Template",
+			reference_doctype="WhatsApp Template",
 			reference_docname=doc.name,
 		)
 		return parsed["template_name"], False
 
 	doc = frappe.get_doc(
 		{
-			"doctype": "Whatsapp Template",
+			"doctype": "WhatsApp Template",
 			"template_label": parsed["template_name"],
 			"template_name": parsed["template_name"],
 			"whatsapp_account": account_name,
@@ -464,7 +464,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		"Info", "Template",
 		f"Created new template {parsed['template_name']} from sync (status={parsed.get('status')})",
 		account=account_name,
-		reference_doctype="Whatsapp Template",
+		reference_doctype="WhatsApp Template",
 		reference_docname=doc.name,
 	)
 	return parsed["template_name"], True
@@ -472,16 +472,16 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 
 def _mark_deleted_templates(meta_template_names: set[str], account_name: str | None = None) -> None:
 	local_templates = frappe.get_all(
-		"Whatsapp Template",
+		"WhatsApp Template",
 		fields=["name", "template_name"],
 	)
 	for local in local_templates:
 		if local.template_name not in meta_template_names:
-			frappe.db.set_value("Whatsapp Template", local.name, "status", "DELETED")
+			frappe.db.set_value("WhatsApp Template", local.name, "status", "DELETED")
 			log(
 				"Info", "Template",
 				f"Template {local.template_name} marked as DELETED (not found in Meta)",
-				reference_doctype="Whatsapp Template",
+				reference_doctype="WhatsApp Template",
 				reference_docname=local.name,
 				account=account_name,
 			)
@@ -537,10 +537,10 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 	is_new = doc_data.get("__islocal", True)
 
 	if is_new or not existing_name:
-		doc = frappe.new_doc("Whatsapp Template")
+		doc = frappe.new_doc("WhatsApp Template")
 		doc.update(doc_data)
 	else:
-		doc = frappe.get_doc("Whatsapp Template", existing_name)
+		doc = frappe.get_doc("WhatsApp Template", existing_name)
 		if doc.whatsapp_template_id:
 			frappe.throw(
 				_(
@@ -591,7 +591,7 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 		"Info", "Template",
 		f"Created and pushed template {doc.template_label}, id={template_id}, status={doc.status}",
 		account=account_name,
-		reference_doctype="Whatsapp Template",
+		reference_doctype="WhatsApp Template",
 		reference_docname=doc.name,
 		request_data=payload,
 		response_data=result,
@@ -606,8 +606,8 @@ def sync_all() -> dict:
 	settings = get_settings()
 
 	if not settings:
-		log("Error", "Template", "Sync failed: Whatsapp Settings not found")
-		frappe.throw(_("Whatsapp Settings not found. Please create a settings first."))
+		log("Error", "Template", "Sync failed: WhatsApp Settings not found")
+		frappe.throw(_("WhatsApp Settings not found. Please create a settings first."))
 
 	if not accounts:
 		log("Error", "Template", "Sync failed: No active WhatsApp accounts found")

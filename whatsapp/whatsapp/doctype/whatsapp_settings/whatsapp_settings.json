@@ -50,7 +50,7 @@
    "fieldname": "default_account",
    "fieldtype": "Link",
    "label": "Default Account",
-   "options": "Whatsapp Account"
+   "options": "WhatsApp Account"
   }
  ],
  "grid_page_length": 50,
@@ -59,8 +59,8 @@
  "links": [],
  "modified": "2026-05-13 17:18:01.406933",
  "modified_by": "Administrator",
- "module": "Whatsapp",
- "name": "Whatsapp Setting",
+ "module": "WhatsApp",
+ "name": "WhatsApp Settings",
  "owner": "Administrator",
  "permissions": [
   {

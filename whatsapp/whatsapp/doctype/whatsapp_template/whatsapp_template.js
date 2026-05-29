@@ -1,7 +1,7 @@
 // Copyright (c) 2026, pratham@frappe.io and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Whatsapp Template", {
+frappe.ui.form.on("WhatsApp Template", {
 	refresh: function (frm) {
 		frm.trigger("template_variable_added");
 	},

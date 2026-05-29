@@ -39,7 +39,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "WhatsApp Account",
-   "options": "Whatsapp Account",
+   "options": "WhatsApp Account",
    "reqd": 1
   },
   {
@@ -92,8 +92,8 @@
  "links": [],
  "modified": "2026-05-25 12:35:54.991937",
  "modified_by": "Administrator",
- "module": "Whatsapp",
- "name": "Whatsapp Profile",
+ "module": "WhatsApp",
+ "name": "WhatsApp Profile",
  "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [

@@ -55,7 +55,7 @@
    "fieldname": "to",
    "fieldtype": "Link",
    "label": "To",
-   "options": "Whatsapp Profile",
+   "options": "WhatsApp Profile",
    "reqd": 1
   },
   {
@@ -79,8 +79,8 @@
   {
    "fieldname": "whatsapp_account",
    "fieldtype": "Link",
-   "label": "Whatsapp Account",
-   "options": "Whatsapp Account",
+   "label": "WhatsApp Account",
+   "options": "WhatsApp Account",
    "reqd": 1
   },
   {
@@ -109,8 +109,8 @@
    "depends_on": "eval:doc.is_template",
    "fieldname": "whatsapp_template",
    "fieldtype": "Link",
-   "label": "Whatsapp Template",
-   "options": "Whatsapp Template"
+   "label": "WhatsApp Template",
+   "options": "WhatsApp Template"
   },
    {
     "fieldname": "reference_doctype",
@@ -149,7 +149,7 @@
     "fieldname": "interactive_buttons",
     "fieldtype": "Table",
     "label": "Buttons",
-    "options": "Whatsapp Message Interactive Button"
+    "options": "WhatsApp Message Interactive Button"
    },
    {
     "collapsible": 1,
@@ -162,7 +162,7 @@
     "fieldname": "interactive_list_items",
     "fieldtype": "Table",
     "label": "List Items",
-    "options": "Whatsapp Message List Item"
+    "options": "WhatsApp Message List Item"
    },
    {
     "fieldname": "section_break_delivery",
@@ -210,7 +210,7 @@
     "fieldtype": "Link",
     "label": "Reply to Message",
     "no_copy": 1,
-    "options": "Whatsapp Message"
+    "options": "WhatsApp Message"
    },
    {
     "fieldname": "reaction",
@@ -267,7 +267,7 @@
    "fieldtype": "Link",
    "label": "Amended From",
    "no_copy": 1,
-   "options": "Whatsapp Message",
+   "options": "WhatsApp Message",
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
@@ -288,8 +288,8 @@
  "links": [],
  "modified": "2026-05-21 16:47:09.262425",
  "modified_by": "Administrator",
- "module": "Whatsapp",
- "name": "Whatsapp Message",
+ "module": "WhatsApp",
+ "name": "WhatsApp Message",
  "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [

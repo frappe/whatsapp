@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestWhatsappAccount(IntegrationTestCase):
+class IntegrationTestWhatsAppAccount(IntegrationTestCase):
 	"""
-	Integration tests for WhatsappAccount.
+	Integration tests for WhatsAppAccount.
 	Use this class for testing interactions between multiple components.
 	"""
 
