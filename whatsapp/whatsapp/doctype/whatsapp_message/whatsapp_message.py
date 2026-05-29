@@ -388,7 +388,7 @@ def _get_whatsapp_client(account, settings) -> WhatsApp:
 		args=frappe._dict(
 			business_id=account.get("business_id"),
 			app_id=account.get("app_id") or "",
-			access_token=account.get("access_token"),
+			access_token=account.get_password("access_token"),
 			phone_number_id=account.get("phone_id"),
 			base_url=settings.get("whatsapp_api_url"),
 			api_version=settings.get("whatsapp_api_version"),

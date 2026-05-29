@@ -18,7 +18,7 @@ class WhatsAppAccount(Document):
 			WhatsAppAccountAppend,
 		)
 
-		access_token: DF.LongText | None
+		access_token: DF.Password | None
 		account_name: DF.Data | None
 		append_actions: DF.Table[WhatsAppAccountAppend]
 		app_id: DF.Data | None

@@ -53,9 +53,8 @@
   },
   {
    "fieldname": "access_token",
-   "fieldtype": "Long Text",
-   "label": "Access token",
-   "max_height": "100px"
+   "fieldtype": "Password",
+   "label": "Access token"
    },
     {
      "fieldname": "read_receipts_sb",

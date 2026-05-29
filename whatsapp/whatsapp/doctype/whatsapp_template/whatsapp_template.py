@@ -362,7 +362,7 @@ def _get_whatsapp_client(account_name: str) -> WhatsApp:
 		args=frappe._dict(
 			business_id=account.business_id,
 			app_id=account.app_id or "",
-			access_token=account.access_token,
+			access_token=account.get_password("access_token"),
 			phone_number_id=account.phone_id,
 			base_url=settings.whatsapp_api_url,
 			api_version=settings.whatsapp_api_version,
