@@ -48,6 +48,7 @@
    "fieldname": "template_name",
    "fieldtype": "Data",
    "label": "Template name",
+   "read_only": 1,
    "unique": 1
   },
   {

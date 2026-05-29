@@ -147,14 +147,18 @@ class WhatsAppTemplate(Document):
 			self.get("__islocal"),
 		)
 
-		if not self.template_name:
-			old = self.template_label
-			self.template_name = normalize_string(self.template_label)
-			logger.info(
-				"before_save | auto-generated template_name | old=%s new=%s",
-				old,
-				self.template_name,
-			)
+		# template_name is readonly and auto-derived from template_label.
+		# Once a template is pushed to Meta we lock it (Meta doesn't allow rename),
+		# and we never override during Meta-driven sync.
+		if not self.flags.get("from_sync") and not self.whatsapp_template_id:
+			derived = normalize_string(self.template_label)
+			if derived != self.template_name:
+				logger.info(
+					"before_save | auto-derived template_name | old=%s new=%s",
+					self.template_name,
+					derived,
+				)
+				self.template_name = derived
 
 		self._sync_template_variables()
 		self._set_mime_type()
