@@ -1,7 +1,7 @@
 # Copyright (c) 2026, pratham@frappe.io and Contributors
 # See license.txt
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import secrets
 
@@ -13,6 +13,7 @@ from whatsapp.whatsapp.webhook import (
 	_create_incoming_message,
 	_handle_template_status,
 	_update_message_status,
+	handler,
 )
 
 
@@ -61,6 +62,53 @@ class TestWebhookNotifications(IntegrationTestCase):
 		data.update(overrides)
 		doc = frappe.get_doc(data).insert()
 		return doc.name
+
+	# -------------------------------------------------------------------------
+	# handler dispatch (GET verification / POST receive)
+	# -------------------------------------------------------------------------
+
+	def _bind_request(self, method: str) -> None:
+		"""Bind a mock request onto frappe.local so frappe.request resolves."""
+		frappe.local.request = MagicMock(method=method)
+
+		def _cleanup():
+			try:
+				del frappe.local.request
+			except AttributeError:
+				pass
+
+		self.addCleanup(_cleanup)
+
+	def test_handler_get_verification_echoes_challenge(self):
+		"""GET handler must echo back hub.challenge when token matches."""
+		token = f"verify_{secrets.token_hex(8)}"
+		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", token)
+
+		frappe.form_dict = frappe._dict({
+			"hub.mode": "subscribe",
+			"hub.verify_token": token,
+			"hub.challenge": "challenge_abc",
+		})
+		self._bind_request("GET")
+		result = handler()
+
+		self.assertEqual(result, "challenge_abc")
+
+	def test_handler_get_verification_rejects_bad_token(self):
+		"""GET handler returns 403 when verify token doesn't match."""
+		frappe.db.set_single_value("Whatsapp Setting", "webhook_verify_token", "correct_token")
+
+		frappe.form_dict = frappe._dict({
+			"hub.mode": "subscribe",
+			"hub.verify_token": "wrong_token",
+			"hub.challenge": "challenge_abc",
+		})
+		self._bind_request("GET")
+		result = handler()
+
+		self.assertEqual(result, "token mismatch")
+		self.assertEqual(frappe.response.http_status_code, 403)
+		frappe.response.http_status_code = 200
 
 	# -------------------------------------------------------------------------
 	# on_receive

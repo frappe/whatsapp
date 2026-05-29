@@ -201,6 +201,8 @@ class WhatsappTemplate(Document):
 		payload = build_create_template_payload(self)
 		logger.info("_push_to_meta | payload=%s", payload)
 
+		ref_doctype, ref_docname = self._log_reference()
+
 		try:
 			logger.info("_push_to_meta | calling Meta API create_template...")
 			result = whatsapp.create_template(payload)
@@ -211,8 +213,8 @@ class WhatsappTemplate(Document):
 				"Error", "Template",
 				f"Failed to push template {self.template_label} to Meta: {e}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Template",
-				reference_docname=self.name,
+				reference_doctype=ref_doctype,
+				reference_docname=ref_docname,
 				request_data=payload,
 				traceback=frappe.get_traceback(),
 			)
@@ -225,8 +227,8 @@ class WhatsappTemplate(Document):
 				"Error", "Template",
 				f"Meta API returned no template ID for {self.template_label}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Template",
-				reference_docname=self.name,
+				reference_doctype=ref_doctype,
+				reference_docname=ref_docname,
 				request_data=payload,
 				response_data=result,
 			)
@@ -241,11 +243,21 @@ class WhatsappTemplate(Document):
 			"Info", "Template",
 			f"Template {self.template_label} pushed to Meta, id={template_id}, status={self.status}",
 			account=self.whatsapp_account,
-			reference_doctype="Whatsapp Template",
-			reference_docname=self.name,
+			reference_doctype=ref_doctype,
+			reference_docname=ref_docname,
 			request_data=payload,
 			response_data=result,
 		)
+
+	def _log_reference(self) -> tuple[str | None, str | None]:
+		"""Return (doctype, name) safe to use as a Whatsapp Log DynamicLink.
+
+		Skipped when the doc isn't yet persisted — _push_to_meta runs inside
+		before_save, so the row doesn't exist for Frappe's link validator.
+		"""
+		if self.is_new() or not frappe.db.exists("Whatsapp Template", self.name):
+			return None, None
+		return "Whatsapp Template", self.name
 
 	def _update_in_meta(self) -> None:
 		logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
@@ -270,6 +282,8 @@ class WhatsappTemplate(Document):
 		payload.pop("language", None)
 		logger.info("_update_in_meta | payload=%s", payload)
 
+		ref_doctype, ref_docname = self._log_reference()
+
 		try:
 			logger.info("_update_in_meta | calling Meta API update_template...")
 			result = whatsapp.update_template(self.whatsapp_template_id, payload)
@@ -280,8 +294,8 @@ class WhatsappTemplate(Document):
 				"Error", "Template",
 				f"Failed to update template {self.template_label} in Meta: {e}",
 				account=self.whatsapp_account,
-				reference_doctype="Whatsapp Template",
-				reference_docname=self.name,
+				reference_doctype=ref_doctype,
+				reference_docname=ref_docname,
 				request_data=payload,
 				traceback=frappe.get_traceback(),
 			)
@@ -293,8 +307,8 @@ class WhatsappTemplate(Document):
 			"Info", "Template",
 			f"Template {self.template_label} updated in Meta, status={self.status}",
 			account=self.whatsapp_account,
-			reference_doctype="Whatsapp Template",
-			reference_docname=self.name,
+			reference_doctype=ref_doctype,
+			reference_docname=ref_docname,
 			request_data=payload,
 			response_data=result,
 		)
@@ -403,7 +417,15 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		doc.message = parsed.get("message", "")
 		doc.footer = parsed.get("footer", "")
 		doc.variable_format = parsed.get("variable_format", "named")
-		doc.set("template_variables", parsed.get("template_variables", []))
+
+		existing_variable_fields = {
+			v.variable_name: v.variable_field for v in doc.template_variables
+		}
+		parsed_variables = parsed.get("template_variables", [])
+		for pv in parsed_variables:
+			pv["variable_field"] = existing_variable_fields.get(pv["variable_name"], "")
+		doc.set("template_variables", parsed_variables)
+
 		doc.set("buttons", parsed.get("buttons", []))
 		if whatsapp_template_id and not doc.whatsapp_template_id:
 			doc.whatsapp_template_id = whatsapp_template_id

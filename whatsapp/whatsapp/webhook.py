@@ -26,8 +26,15 @@ from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
-def handler() -> str:
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+def handler():
+	"""Dispatch Meta webhook requests: GET verifies, POST delivers events."""
+	if frappe.request.method == "GET":
+		return _verify()
+	return _receive()
+
+
+def _verify() -> str:
 	"""Verify webhook with Meta challenge-response."""
 	mode = frappe.form_dict.get("hub.mode")
 	token = frappe.form_dict.get("hub.verify_token")
@@ -47,8 +54,7 @@ def handler() -> str:
 	return challenge
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-def handler() -> dict:
+def _receive() -> dict:
 	"""Receive incoming webhook events from Meta."""
 	payload = frappe.local.form_dict
 

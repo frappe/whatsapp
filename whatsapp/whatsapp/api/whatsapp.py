@@ -40,7 +40,9 @@ class Whatsapp:
 		self._log_api_success(method, url, kwargs.get("json"), result)
 		return result
 
-	def _log_api_error(self, method: str, url: str, payload: dict | None, resp: requests.Response) -> None:
+	def _log_api_error(
+		self, method: str, url: str, payload: dict | None, resp: requests.Response
+	) -> None:
 		try:
 			event_type = "API"
 			if "message_templates" in url or "/templates" in url:
@@ -49,10 +51,12 @@ class Whatsapp:
 				event_type = "Message"
 
 			import frappe
+
 			from whatsapp.whatsapp.api.utils import log
 
 			log(
-				"Error", event_type,
+				"Error",
+				event_type,
 				f"Meta API {method} {url.rsplit('/', 1)[-1][:60]} failed: HTTP {resp.status_code}",
 				account=self.account_name,
 				request_data=payload,
@@ -72,7 +76,8 @@ class Whatsapp:
 			from whatsapp.whatsapp.api.utils import log
 
 			log(
-				"Debug", event_type,
+				"Debug",
+				event_type,
 				f"Meta API {method} {url.rsplit('/', 1)[-1][:60]} succeeded",
 				account=self.account_name,
 				request_data=payload,

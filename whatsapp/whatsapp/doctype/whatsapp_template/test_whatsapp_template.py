@@ -1,14 +1,170 @@
 # Copyright (c) 2026, pratham@frappe.io and Contributors
 # See license.txt
 
+from unittest.mock import patch
+
+import frappe
 from frappe.tests import IntegrationTestCase
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = []
+IGNORE_TEST_RECORD_DEPENDENCIES = ["Whatsapp Account"]
 
 
 class IntegrationTestWhatsappTemplate(IntegrationTestCase):
-	pass
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+
+	def _make_account(self) -> str:
+		uid = frappe.generate_hash(length=6)
+		doc = frappe.get_doc(
+			doctype="Whatsapp Account",
+			account_name=f"_Test Account {uid}",
+			status="Active",
+			phone_id="1234567890",
+			business_id="test_business",
+			app_id="test_app",
+			access_token="test_token",
+		).insert()
+		return doc.name
+
+	def test_sync_preserves_local_variable_field(self):
+		"""Hourly sync from Meta must not clobber user-configured variable_field mappings."""
+		from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import _upsert_template
+
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		template_name = f"_test_var_field_{uid}"
+
+		doc = frappe.get_doc(
+			doctype="Whatsapp Template",
+			template_label=template_name,
+			template_name=template_name,
+			template_type="UTILITY",
+			language="en_US",
+			message="Hello {{name}}, order {{order_id}}",
+			whatsapp_account=account,
+			whatsapp_template_id=uid,
+			status="PENDING",
+			variable_format="named",
+			reference_doctype="User",
+			template_variables=[
+				{"variable_name": "name", "variable_example": "John", "variable_field": "full_name"},
+				{"variable_name": "order_id", "variable_example": "123", "variable_field": "email"},
+			],
+		).insert()
+
+		meta_payload = {
+			"id": uid,
+			"name": template_name,
+			"category": "UTILITY",
+			"language": "en_US",
+			"status": "APPROVED",
+			"components": [
+				{
+					"type": "BODY",
+					"text": "Hello {{name}}, order {{order_id}}",
+					"example": {
+						"body_text_named_params": [
+							{"param_name": "name", "example": "John"},
+							{"param_name": "order_id", "example": "123"},
+						]
+					},
+				}
+			],
+		}
+		_upsert_template(meta_payload, account)
+
+		doc.reload()
+		self.assertEqual(doc.status, "APPROVED")
+		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
+		self.assertEqual(fields_by_name["name"], "full_name")
+		self.assertEqual(fields_by_name["order_id"], "email")
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.Whatsapp")
+	def test_push_to_meta_logs_without_link_validation_error_on_new_doc(self, MockWhatsapp):
+		"""_push_to_meta runs in before_save (doc not yet in DB). Log writes must not
+		fail with LinkValidationError trying to validate Whatsapp Template: <name>."""
+		MockWhatsapp.return_value.create_template.return_value = {
+			"id": "tmpl_123",
+			"status": "PENDING",
+		}
+
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		template_label = f"_Test Push {uid}"
+
+		doc = frappe.get_doc(
+			doctype="Whatsapp Template",
+			template_label=template_label,
+			template_name=f"_test_push_{uid}",
+			template_type="UTILITY",
+			language="en_US",
+			message="Hello world",
+			whatsapp_account=account,
+		).insert()
+
+		self.assertEqual(doc.whatsapp_template_id, "tmpl_123")
+		self.assertEqual(doc.status, "PENDING")
+
+		log_exists = frappe.db.exists(
+			"Whatsapp Log",
+			{
+				"event_type": "Template",
+				"message": ["like", f"%{template_label}%pushed to Meta%"],
+			},
+		)
+		self.assertTrue(log_exists, "expected a success Whatsapp Log row for the template push")
+
+	def test_sync_leaves_variable_field_empty_for_new_variables(self):
+		"""New variables introduced by Meta should start with empty variable_field."""
+		from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import _upsert_template
+
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		template_name = f"_test_new_var_{uid}"
+
+		frappe.get_doc(
+			doctype="Whatsapp Template",
+			template_label=template_name,
+			template_name=template_name,
+			template_type="UTILITY",
+			language="en_US",
+			message="Hello {{name}}",
+			whatsapp_account=account,
+			whatsapp_template_id=uid,
+			status="PENDING",
+			variable_format="named",
+			template_variables=[
+				{"variable_name": "name", "variable_example": "John", "variable_field": "full_name"},
+			],
+		).insert()
+
+		meta_payload = {
+			"id": uid,
+			"name": template_name,
+			"category": "UTILITY",
+			"language": "en_US",
+			"status": "APPROVED",
+			"components": [
+				{
+					"type": "BODY",
+					"text": "Hello {{name}}, your code is {{otp}}",
+					"example": {
+						"body_text_named_params": [
+							{"param_name": "name", "example": "John"},
+							{"param_name": "otp", "example": "9999"},
+						]
+					},
+				}
+			],
+		}
+		_upsert_template(meta_payload, account)
+
+		doc = frappe.get_doc("Whatsapp Template", template_name)
+		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
+		self.assertEqual(fields_by_name["name"], "full_name")
+		self.assertEqual(fields_by_name.get("otp", ""), "")
 
 
 class TestUtils:

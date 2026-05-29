@@ -122,6 +122,47 @@ class IntegrationTestWhatsappMessage(IntegrationTestCase):
 		)
 		doc.validate()  # no exception
 
+	def test_on_trash_cascades_linked_logs(self):
+		"""Deleting a Whatsapp Message must also delete its Whatsapp Log rows."""
+		acc = self._make_account()
+		phone = "+1555000111"
+		profile = self._make_profile(phone, acc)
+		msg = frappe.get_doc(
+			doctype="Whatsapp Message",
+			direction="Incoming",
+			whatsapp_account=acc,
+			to=profile,
+			**{"from": phone},
+		).insert(ignore_permissions=True)
+
+		frappe.get_doc(
+			doctype="Whatsapp Log",
+			level="Info",
+			event_type="Message",
+			message="test log",
+			reference_doctype="Whatsapp Message",
+			reference_docname=msg.name,
+		).insert(ignore_permissions=True)
+
+		self.assertEqual(
+			frappe.db.count(
+				"Whatsapp Log",
+				{"reference_doctype": "Whatsapp Message", "reference_docname": msg.name},
+			),
+			1,
+		)
+
+		frappe.delete_doc("Whatsapp Message", msg.name, ignore_permissions=True)
+
+		self.assertFalse(frappe.db.exists("Whatsapp Message", msg.name))
+		self.assertEqual(
+			frappe.db.count(
+				"Whatsapp Log",
+				{"reference_doctype": "Whatsapp Message", "reference_docname": msg.name},
+			),
+			0,
+		)
+
 	def test_outgoing_fails_for_blocked_profile(self):
 		acc = self._make_account()
 		profile = self._make_profile("+1234567890", acc, "Blocked User")

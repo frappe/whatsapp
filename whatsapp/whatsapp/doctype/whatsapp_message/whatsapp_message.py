@@ -77,6 +77,12 @@ class WhatsappMessage(Document):
 			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
 
+	def on_trash(self) -> None:
+		frappe.db.delete(
+			"Whatsapp Log",
+			{"reference_doctype": "Whatsapp Message", "reference_docname": self.name},
+		)
+
 	def _validate_outgoing(self) -> None:
 		if not self.to:
 			frappe.throw(_("Recipient is required"))
