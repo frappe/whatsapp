@@ -3,7 +3,7 @@
 > [!WARNING]
 > WIP 🚧: Not meant for use yet!
 
-Official whatsapp integration for frappe crm
+Official WhatsApp integration for Frappe CRM.
 
 ### Installation
 
