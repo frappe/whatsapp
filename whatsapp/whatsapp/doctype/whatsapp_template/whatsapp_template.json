@@ -221,7 +221,13 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
+ "links": [
+  {
+   "group": "Messages",
+   "link_doctype": "WhatsApp Message",
+   "link_fieldname": "whatsapp_template"
+  }
+ ],
  "modified": "2026-05-21 17:24:54.550585",
  "modified_by": "Administrator",
  "module": "WhatsApp",

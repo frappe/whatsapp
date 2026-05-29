@@ -89,7 +89,18 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
+ "links": [
+  {
+   "group": "Messages",
+   "link_doctype": "WhatsApp Message",
+   "link_fieldname": "to"
+  },
+  {
+   "group": "Logs",
+   "link_doctype": "WhatsApp Log",
+   "link_fieldname": "reference_docname"
+  }
+ ],
  "modified": "2026-05-25 12:35:54.991937",
  "modified_by": "Administrator",
  "module": "WhatsApp",

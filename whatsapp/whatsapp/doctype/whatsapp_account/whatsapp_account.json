@@ -83,7 +83,28 @@
   ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
+ "links": [
+  {
+   "group": "Messages",
+   "link_doctype": "WhatsApp Message",
+   "link_fieldname": "whatsapp_account"
+  },
+  {
+   "group": "Contacts",
+   "link_doctype": "WhatsApp Profile",
+   "link_fieldname": "whatsapp_account"
+  },
+  {
+   "group": "Templates",
+   "link_doctype": "WhatsApp Template",
+   "link_fieldname": "whatsapp_account"
+  },
+  {
+   "group": "Logs",
+   "link_doctype": "WhatsApp Log",
+   "link_fieldname": "account"
+  }
+ ],
  "modified": "2026-05-21 17:05:42.516163",
  "modified_by": "Administrator",
  "module": "WhatsApp",
