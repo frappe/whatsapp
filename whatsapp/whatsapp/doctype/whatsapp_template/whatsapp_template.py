@@ -12,6 +12,7 @@ from frappe.model.document import Document
 from whatsapp.whatsapp.api.utils import (
 	build_create_template_payload,
 	log,
+	normalize_template_status,
 	parse_whatsapp_template_to_doc,
 )
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
@@ -35,12 +36,12 @@ class WhatsAppTemplate(Document):
 		header_media: DF.Attach | None
 		header_media_handle: DF.Data | None
 		header_text: DF.Data | None
-		mime_type: DF.Data | None
 		header_type: DF.Literal["TEXT", "IMAGE", "DOCUMENT", "GIF", "VIDEO"]
 		language: DF.Literal["en_UK", "en_US", "en"]
 		message: DF.Code
+		mime_type: DF.Data | None
 		reference_doctype: DF.Link | None
-		status: DF.Literal["PENDING", "APPROVED", "REJECTED", "DELETED"]
+		status: DF.Literal["Pending", "Approved", "Rejected", "Deleted"]
 		template_label: DF.Data
 		template_name: DF.Data | None
 		template_type: DF.Literal["UTILITY", "MARKETING", "AUTHENTICATION"]
@@ -239,7 +240,7 @@ class WhatsAppTemplate(Document):
 			frappe.throw(_("Meta API did not return a template ID"))
 
 		self.whatsapp_template_id = template_id
-		self.status = result.get("status", "PENDING")
+		self.status = normalize_template_status(result.get("status", ""))
 		logger.info(
 			"_push_to_meta | success | whatsapp_template_id=%s status=%s", template_id, self.status
 		)
@@ -305,7 +306,7 @@ class WhatsAppTemplate(Document):
 			)
 			frappe.throw(_("Failed to update template in Meta: {0}").format(str(e)))
 
-		self.status = result.get("status", "PENDING")
+		self.status = normalize_template_status(result.get("status", ""))
 		logger.info("_update_in_meta | success | status=%s", self.status)
 		log(
 			"Info", "Template",
@@ -413,7 +414,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		doc = frappe.get_doc("WhatsApp Template", existing[0])
 		doc.flags.from_sync = True
 		doc.whatsapp_account = account_name
-		doc.status = parsed.get("status", "PENDING")
+		doc.status = parsed.get("status", "Pending")
 		doc.template_type = parsed["template_type"]
 		doc.header_type = parsed.get("header_type", "TEXT")
 		doc.header_text = parsed.get("header_text", "")
@@ -450,7 +451,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			"template_name": parsed["template_name"],
 			"whatsapp_account": account_name,
 			"whatsapp_template_id": whatsapp_template_id,
-			"status": parsed.get("status", "PENDING"),
+			"status": parsed.get("status", "Pending"),
 			"template_type": parsed["template_type"],
 			"language": parsed["language"],
 			"header_type": parsed.get("header_type", "TEXT"),
@@ -481,10 +482,10 @@ def _mark_deleted_templates(meta_template_names: set[str], account_name: str | N
 	)
 	for local in local_templates:
 		if local.template_name not in meta_template_names:
-			frappe.db.set_value("WhatsApp Template", local.name, "status", "DELETED")
+			frappe.db.set_value("WhatsApp Template", local.name, "status", "Deleted")
 			log(
 				"Info", "Template",
-				f"Template {local.template_name} marked as DELETED (not found in Meta)",
+				f"Template {local.template_name} marked as Deleted (not found in Meta)",
 				reference_doctype="WhatsApp Template",
 				reference_docname=local.name,
 				account=account_name,
@@ -584,7 +585,7 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 		frappe.throw(_("Meta API did not return a template ID"))
 
 	doc.whatsapp_template_id = template_id
-	doc.status = result.get("status", "PENDING")
+	doc.status = normalize_template_status(result.get("status", ""))
 
 	if is_new or not existing_name:
 		doc.insert()

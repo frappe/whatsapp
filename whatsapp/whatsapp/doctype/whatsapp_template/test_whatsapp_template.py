@@ -45,7 +45,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			message="Hello {{name}}, order {{order_id}}",
 			whatsapp_account=account,
 			whatsapp_template_id=uid,
-			status="PENDING",
+			status="Pending",
 			variable_format="named",
 			reference_doctype="User",
 			template_variables=[
@@ -76,7 +76,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		_upsert_template(meta_payload, account)
 
 		doc.reload()
-		self.assertEqual(doc.status, "APPROVED")
+		self.assertEqual(doc.status, "Approved")
 		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name["order_id"], "email")
@@ -105,7 +105,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		).insert()
 
 		self.assertEqual(doc.whatsapp_template_id, "tmpl_123")
-		self.assertEqual(doc.status, "PENDING")
+		self.assertEqual(doc.status, "Pending")
 
 		log_exists = frappe.db.exists(
 			"WhatsApp Log",
@@ -133,7 +133,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			message="Hello {{name}}",
 			whatsapp_account=account,
 			whatsapp_template_id=uid,
-			status="PENDING",
+			status="Pending",
 			variable_format="named",
 			template_variables=[
 				{"variable_name": "name", "variable_example": "John", "variable_field": "full_name"},

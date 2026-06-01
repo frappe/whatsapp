@@ -168,18 +168,23 @@ def _resolve_examples(text: str, comp: dict) -> list[tuple[str, str]]:
 	return [(v, lookup.get(v, v)) for v in vars]
 
 
+def normalize_template_status(api_status: str) -> str:
+	"""Map a Meta Graph API template status (all-caps) to the capitalized local value."""
+	return {
+		"APPROVED": "Approved",
+		"REJECTED": "Rejected",
+		"PENDING": "Pending",
+		"PENDING_DELETION": "Pending",
+		"DELETED": "Deleted",
+	}.get((api_status or "").upper(), "Pending")
+
+
 def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
-	api_status = data.get("status", "")
-	status_map = {
-		"APPROVED": "APPROVED",
-		"REJECTED": "REJECTED",
-		"PENDING": "PENDING",
-	}
 	doc = {
 		"template_name": data.get("name"),
 		"template_type": data.get("category"),
 		"language": data.get("language"),
-		"status": status_map.get(api_status, "PENDING"),
+		"status": normalize_template_status(data.get("status", "")),
 	}
 
 	header_type = ""

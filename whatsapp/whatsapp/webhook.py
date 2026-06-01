@@ -13,7 +13,7 @@ from frappe.core.doctype.server_script.server_script_utils import (
 )
 from werkzeug.wrappers import Response
 
-from whatsapp.whatsapp.api.utils import log
+from whatsapp.whatsapp.api.utils import log, normalize_template_status
 from whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message import (
 	_get_whatsapp_client,
 	process_append_actions,
@@ -295,14 +295,7 @@ def _handle_template_status(value: dict) -> None:
 	if not template_id:
 		return
 
-	api_status = value.get("status", "")
-	status_map = {
-		"APPROVED": "APPROVED",
-		"REJECTED": "REJECTED",
-		"PENDING": "PENDING",
-		"PENDING_DELETION": "PENDING",
-	}
-	local_status = status_map.get(api_status, "PENDING")
+	local_status = normalize_template_status(value.get("status", ""))
 
 	name = frappe.db.get_value("WhatsApp Template", {"whatsapp_template_id": template_id}, "name")
 	if not name:
@@ -320,9 +313,9 @@ def _handle_template_status(value: dict) -> None:
 
 	frappe.db.set_value("WhatsApp Template", name, "status", local_status)
 	doc = frappe.get_doc("WhatsApp Template", name)
-	if local_status == "APPROVED":
+	if local_status == "Approved":
 		doc.run_notifications("on_template_approved")
-	elif local_status == "REJECTED":
+	elif local_status == "Rejected":
 		doc.run_notifications("on_template_rejected")
 	run_server_script_for_doc_event(doc, "on_update")
 

@@ -210,7 +210,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 	def test_template_approved_fires_on_approved(self, mock_run_notif):
 		"""_handle_template_status fires on_template_approved when APPROVED."""
 		acc = self._make_account()
-		tmpl_name = self._make_template(acc, status="PENDING")
+		tmpl_name = self._make_template(acc, status="Pending")
 
 		value = {
 			"message_template_id": frappe.db.get_value(
@@ -222,14 +222,14 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_template_approved")
 		self.assertEqual(
-			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "APPROVED"
+			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "Approved"
 		)
 
 	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsAppTemplate.run_notifications")
 	def test_template_rejected_fires_on_rejected(self, mock_run_notif):
 		"""_handle_template_status fires on_template_rejected when REJECTED."""
 		acc = self._make_account()
-		tmpl_name = self._make_template(acc, status="PENDING")
+		tmpl_name = self._make_template(acc, status="Pending")
 
 		value = {
 			"message_template_id": frappe.db.get_value(
@@ -241,14 +241,14 @@ class TestWebhookNotifications(IntegrationTestCase):
 
 		mock_run_notif.assert_any_call("on_template_rejected")
 		self.assertEqual(
-			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "REJECTED"
+			frappe.db.get_value("WhatsApp Template", tmpl_name, "status"), "Rejected"
 		)
 
 	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsAppTemplate.run_notifications")
 	def test_template_skips_noop(self, mock_run_notif):
 		"""_handle_template_status does NOT fire when status hasn't changed."""
 		acc = self._make_account()
-		tmpl_name = self._make_template(acc, status="APPROVED")
+		tmpl_name = self._make_template(acc, status="Approved")
 
 		value = {
 			"message_template_id": frappe.db.get_value(

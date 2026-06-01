@@ -23,13 +23,13 @@
    "default": "https://graph.facebook.com",
    "fieldname": "whatsapp_api_url",
    "fieldtype": "Data",
-   "label": "API url"
+   "label": "API Url"
   },
   {
    "default": "v23.0",
    "fieldname": "whatsapp_api_version",
    "fieldtype": "Data",
-   "label": "API version"
+   "label": "API Version"
   },
   {
    "fieldname": "webhook_verify_token",

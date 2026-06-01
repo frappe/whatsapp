@@ -60,12 +60,12 @@
    "unique": 1
   },
   {
-   "default": "PENDING",
+   "default": "Pending",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "PENDING\nAPPROVED\nREJECTED\nDELETED",
+   "options": "Pending\nApproved\nRejected\nDeleted",
    "read_only": 1
   },
   {
@@ -255,19 +255,19 @@
  "states": [
   {
    "color": "Green",
-   "title": "APPROVED"
+   "title": "Approved"
   },
   {
    "color": "Red",
-   "title": "REJECTED"
+   "title": "Rejected"
   },
   {
    "color": "Orange",
-   "title": "PENDING"
+   "title": "Pending"
   },
   {
    "color": "Gray",
-   "title": "DELETED"
+   "title": "Deleted"
   }
  ],
  "track_changes": 1
