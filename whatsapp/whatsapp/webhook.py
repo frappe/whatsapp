@@ -8,20 +8,18 @@ import json
 
 import frappe
 from frappe import _
-from werkzeug.wrappers import Response
-
 from frappe.core.doctype.server_script.server_script_utils import (
 	run_server_script_for_doc_event,
 )
+from werkzeug.wrappers import Response
 
 from whatsapp.whatsapp.api.utils import log
 from whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message import (
-	process_append_actions,
 	_get_whatsapp_client,
+	process_append_actions,
 )
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
 	get_or_create_profile,
-	update_profile_activity,
 )
 
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
@@ -128,7 +126,8 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 	message_id = msg.get("id")
 	if message_id and frappe.db.exists("WhatsApp Message", {"message_id": message_id}):
 		log(
-			"Info", "Webhook",
+			"Info",
+			"Webhook",
 			f"Duplicate webhook delivery for message_id={message_id} ignored",
 			account=account_name,
 			request_data=msg,
@@ -144,7 +143,6 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 		profile_name=profile_name or None,
 		wa_id=wa_id,
 	)
-	update_profile_activity(profile)
 
 	msg_type = msg.get("type", "text")
 
@@ -216,7 +214,10 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			client = _get_whatsapp_client(account_doc, settings)
 			client.mark_as_read(doc.message_id)
 		except Exception:
-			log("Warning", "Webhook", f"Failed to send read receipt for {doc.message_id}",
+			log(
+				"Warning",
+				"Webhook",
+				f"Failed to send read receipt for {doc.message_id}",
 				account=account_name,
 				reference_doctype="WhatsApp Message",
 				reference_docname=doc.name,
@@ -224,7 +225,8 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			)
 
 	log(
-		"Info", "Webhook",
+		"Info",
+		"Webhook",
 		f"Incoming {msg_type} message from {wa_id} ({profile_name})",
 		account=account_name,
 		reference_doctype="WhatsApp Message",
@@ -259,7 +261,8 @@ def _update_message_status(status: dict, account_name: str | None = None) -> Non
 	name = frappe.db.get_value("WhatsApp Message", {"message_id": message_id}, "name")
 	if not name:
 		log(
-			"Warning", "Webhook",
+			"Warning",
+			"Webhook",
 			f"Status update for unknown message_id={message_id} status={new_status}",
 			account=account_name,
 			response_data=status,
@@ -277,7 +280,8 @@ def _update_message_status(status: dict, account_name: str | None = None) -> Non
 
 	log_level = "Warning" if new_status == "Failed" else "Info"
 	log(
-		log_level, "Webhook",
+		log_level,
+		"Webhook",
 		f"Message {message_id} status changed: {old_status} -> {new_status}",
 		account=account_name,
 		reference_doctype="WhatsApp Message",
@@ -303,7 +307,8 @@ def _handle_template_status(value: dict) -> None:
 	name = frappe.db.get_value("WhatsApp Template", {"whatsapp_template_id": template_id}, "name")
 	if not name:
 		log(
-			"Warning", "Webhook",
+			"Warning",
+			"Webhook",
 			f"Status update for unknown template_id={template_id} status={local_status}",
 			response_data=value,
 		)
@@ -322,7 +327,8 @@ def _handle_template_status(value: dict) -> None:
 	run_server_script_for_doc_event(doc, "on_update")
 
 	log(
-		"Info", "Webhook",
+		"Info",
+		"Webhook",
 		f"Template {doc.template_name} status changed: {old_status} -> {local_status}",
 		reference_doctype="WhatsApp Template",
 		reference_docname=name,

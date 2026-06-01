@@ -7,35 +7,35 @@
  "engine": "InnoDB",
  "field_order": [
   "whatsapp_api_url",
+  "webhook_verify_token",
   "column_break_hpwl",
-   "whatsapp_api_version",
-   "webhook_verify_token",
-   "webhook_secret",
-   "column_break_default",
-   "default_account"
-  ],
-  "fields": [
-   {
-    "fieldname": "column_break_hpwl",
-    "fieldtype": "Column Break"
-   },
-    {
-     "default": "https://graph.facebook.com",
-     "fieldname": "whatsapp_api_url",
-     "fieldtype": "Data",
-     "label": "API url"
-    },
-    {
-     "default": "v23.0",
-     "fieldname": "whatsapp_api_version",
-     "fieldtype": "Data",
-     "label": "API version"
-    },
-   {
-    "fieldname": "webhook_verify_token",
-    "fieldtype": "Data",
-    "label": "Webhook Verify Token"
-   },
+  "whatsapp_api_version",
+  "webhook_secret",
+  "column_break_default",
+  "default_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "column_break_hpwl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "https://graph.facebook.com",
+   "fieldname": "whatsapp_api_url",
+   "fieldtype": "Data",
+   "label": "API url"
+  },
+  {
+   "default": "v23.0",
+   "fieldname": "whatsapp_api_version",
+   "fieldtype": "Data",
+   "label": "API version"
+  },
+  {
+   "fieldname": "webhook_verify_token",
+   "fieldtype": "Data",
+   "label": "Webhook Verify Token"
+  },
   {
    "fieldname": "webhook_secret",
    "fieldtype": "Data",
@@ -57,7 +57,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-05-13 17:18:01.406933",
+ "modified": "2026-06-01 14:24:48.684160",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Settings",

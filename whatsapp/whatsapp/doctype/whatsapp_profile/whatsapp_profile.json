@@ -3,7 +3,7 @@
  "allow_bulk_edit": 1,
  "allow_rename": 1,
  "autoname": "field:profile_name",
- "creation": "2026-05-25 12:00:00",
+ "creation": "2026-06-01 16:52:06.399512",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -59,6 +59,7 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "section_break_activity",
    "fieldtype": "Section Break",
    "label": "Activity"
@@ -66,12 +67,14 @@
   {
    "fieldname": "last_message_at",
    "fieldtype": "Datetime",
+   "is_virtual": 1,
    "label": "Last Message At",
    "read_only": 1
   },
   {
    "fieldname": "message_count",
    "fieldtype": "Int",
+   "is_virtual": 1,
    "label": "Message Count",
    "read_only": 1
   },
@@ -101,7 +104,7 @@
    "link_fieldname": "reference_docname"
   }
  ],
- "modified": "2026-05-25 12:35:54.991937",
+ "modified": "2026-06-01 16:52:56.210633",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Profile",

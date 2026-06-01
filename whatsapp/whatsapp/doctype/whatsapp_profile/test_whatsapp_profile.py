@@ -84,6 +84,46 @@ class IntegrationTestWhatsAppProfile(IntegrationTestCase):
 		profile = frappe.get_doc("WhatsApp Profile", name)
 		self.assertEqual(profile.profile_name, "Alice Updated")
 
+	def test_virtual_message_fields(self):
+		import datetime
+
+		acc = self._make_account()
+		profile = frappe.get_doc(
+			doctype="WhatsApp Profile",
+			phone_number="+1555000111",
+			whatsapp_account=acc,
+			profile_name="Virtual Fields",
+		).insert()
+
+		# No messages yet: count is zero and last activity is unknown.
+		fresh = frappe.get_doc("WhatsApp Profile", profile.name)
+		self.assertEqual(fresh.message_count, 0)
+		self.assertIsNone(fresh.last_message_at)
+
+		def _msg(direction, ts=None):
+			frappe.get_doc(
+				doctype="WhatsApp Message",
+				to=profile.name,
+				direction=direction,
+				whatsapp_account=acc,
+				message="hi",
+				timestamp=ts,
+			).insert()
+
+		_msg("Incoming", datetime.datetime(2026, 5, 1, 10, 0, 0))
+		_msg("Outgoing", datetime.datetime(2026, 5, 30, 15, 30, 0))
+		_msg("Incoming")  # no explicit timestamp -> falls back to creation
+
+		reloaded = frappe.get_doc("WhatsApp Profile", profile.name)
+		# Counts both directions.
+		self.assertEqual(reloaded.message_count, 3)
+		# Latest message has no timestamp, so last_message_at falls back to its creation.
+		self.assertIsNotNone(reloaded.last_message_at)
+		# Virtual fields must serialize (this is the path the form/getdoc uses).
+		as_dict = reloaded.as_dict()
+		self.assertEqual(as_dict["message_count"], 3)
+		self.assertEqual(as_dict["last_message_at"], reloaded.last_message_at)
+
 	def test_resolve_profile_by_phone(self):
 		from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import resolve_profile_by_phone
 
