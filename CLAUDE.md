@@ -8,6 +8,8 @@ Frappe app providing WhatsApp Business Cloud API (Graph API v22.0) integration. 
 
 **Canonical reference:** `~/Dev/frappe-bench/apps/frappe/` — always check Frappe source for framework APIs before assuming behavior.
 
+**Related docs:** `AGENTS.md` has exhaustive Frappe coding conventions (naming, lifecycle method ordering, error handling, test fixture patterns) — check it for anything not covered below. `DESIGN_DECISIONS.md` documents intentional product constraints (e.g. named-only template variables, reference-DocType-driven template parameters) that are not bugs.
+
 ## Commands
 
 ```bash
@@ -44,16 +46,16 @@ whatsapp/whatsapp/
     whatsapp.py                 # WhatsApp class — wraps all Facebook Graph API calls
     utils.py                    # Template payload builders, {{var}} interpolation, log() utility
   doctype/
-    whatsapp_account/           # Per-account config (phone_number_id, token, auto_read_receipts)
+    whatsapp_account/           # Per-account config (phone_id, access_token, auto_read_receipts)
     whatsapp_account_append/    # Child table: Append Actions config per account
     whatsapp_message/           # Core message record (inbound + outbound)
-    whatsapp_template/          # Template management + Meta sync (hourly scheduled job)
+    whatsapp_template/          # Template management + Meta sync (daily scheduled job)
     whatsapp_template_button/   # Child table for template buttons
     whatsapp_message_interactive_button/  # Child table for interactive message buttons
     whatsapp_message_list_item/ # Child table for list message items
     whatsapp_profile/           # Auto-created contact record for each unique sender
     whatsapp_log/               # Audit log for all webhook/API/template/message events
-    whatsapp_setting/           # App-level singleton settings
+    whatsapp_settings/          # App-level singleton settings
     template_variable/          # Child table for named/positional template variables
   notification/                 # 6 built-in Frappe Notifications (received, sent, failed, etc.)
 ```
@@ -62,7 +64,7 @@ whatsapp/whatsapp/
 
 **Message flow (outbound):** Caller creates `WhatsApp Message` doc → `whatsapp_message.py` `after_insert` → `WhatsApp` API class → logs result in `WhatsApp Log`.
 
-**Template sync:** `whatsapp_template.sync_all` runs hourly via scheduler hooks. Sample templates are flagged and skipped to avoid unnecessary Meta API calls.
+**Template sync:** `whatsapp_template.sync_all` runs daily via scheduler hooks (`whatsapp/hooks.py` `scheduler_events`). Sample templates are flagged and skipped to avoid unnecessary Meta API calls.
 
 ## Key Conventions
 

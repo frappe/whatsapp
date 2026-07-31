@@ -1,8 +1,5 @@
 ### WhatsApp
 
-> [!WARNING]
-> WIP 🚧: Not meant for use yet!
-
 Official WhatsApp integration for Frappe Apps.
 
 ### Installation
@@ -92,6 +89,7 @@ These are operational issues in the current implementation that should be addres
 
 ### Planned
 
+- Tech Provider Based Login Flow
 - Bulk Sending
 - Catalog Upload + Catalog Based Templates
 - Group management
