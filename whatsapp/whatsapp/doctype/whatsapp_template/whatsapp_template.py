@@ -606,6 +606,69 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 
 
 @frappe.whitelist()
+def get_sendable_templates(reference_doctype: str) -> list[dict]:
+	"""Return Approved templates that can be sent from the given DocType.
+
+	A template is sendable from `reference_doctype` when either:
+	- it is bound to that doctype (variables resolve from the open document), or
+	- it is unbound AND has no variables (nothing to resolve).
+
+	Unbound templates with variables are excluded because their variables cannot be
+	auto-filled (see DESIGN_DECISIONS.md).
+	"""
+	templates = frappe.get_all(
+		"WhatsApp Template",
+		filters={
+			"status": "Approved",
+			"reference_doctype": ["in", [reference_doctype, ""]],
+		},
+		fields=["name", "message", "footer", "header_text", "header_type", "reference_doctype"],
+		order_by="modified desc",
+	)
+	if not templates:
+		return []
+
+	unbound_names = [t.name for t in templates if not t.reference_doctype]
+	unbound_with_vars: set[str] = set()
+	if unbound_names:
+		unbound_with_vars = {
+			row.parent
+			for row in frappe.get_all(
+				"Template Variable",
+				filters={"parent": ["in", unbound_names], "parenttype": "WhatsApp Template"},
+				fields=["parent"],
+			)
+		}
+
+	sendable = [t for t in templates if t.name not in unbound_with_vars]
+	if not sendable:
+		return []
+
+	# buttons is a child table, which frappe.get_all on the parent cannot return no
+	# matter what is in the field list — it needs its own query keyed on `parent`.
+	buttons_by_template: dict[str, list[dict]] = {}
+	for row in frappe.get_all(
+		"WhatsApp Template Button",
+		filters={"parent": ["in", [t.name for t in sendable]], "parenttype": "WhatsApp Template"},
+		fields=["parent", "button_type", "button_text", "url", "phone_number"],
+		order_by="idx asc",
+	):
+		buttons_by_template.setdefault(row.parent, []).append(
+			{
+				"button_type": row.button_type,
+				"button_text": row.button_text,
+				"url": row.url,
+				"phone_number": row.phone_number,
+			}
+		)
+
+	for template in sendable:
+		template["buttons"] = buttons_by_template.get(template.name, [])
+
+	return sendable
+
+
+@frappe.whitelist()
 def sync_all() -> dict:
 	accounts = get_active_accounts()
 	settings = get_settings()

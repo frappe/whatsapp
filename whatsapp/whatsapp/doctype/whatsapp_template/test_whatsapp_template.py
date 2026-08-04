@@ -6,6 +6,8 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import get_sendable_templates
+
 EXTRA_TEST_RECORD_DEPENDENCIES = []
 IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account"]
 
@@ -165,6 +167,137 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name.get("otp", ""), "")
+
+
+class IntegrationTestGetSendableTemplates(IntegrationTestCase):
+	"""`get_sendable_templates` powers the template picker in a conversation view.
+
+	A template is sendable from a DocType when it is bound to that DocType, or when it is
+	unbound and has no variables to resolve (see DESIGN_DECISIONS.md).
+	"""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		self.account = self._make_account()
+		self.uid = frappe.generate_hash(length=6)
+
+	def _make_account(self) -> str:
+		uid = frappe.generate_hash(length=6)
+		return (
+			frappe.get_doc(
+				doctype="WhatsApp Account",
+				account_name=f"_Test Sendable Acc {uid}",
+				status="Active",
+				phone_id="1234567890",
+				business_id="test_business",
+				app_id="test_app",
+				access_token="test_token",
+			)
+			.insert()
+			.name
+		)
+
+	def _make_template(
+		self,
+		suffix: str,
+		*,
+		status: str = "Approved",
+		reference_doctype: str = "",
+		message: str = "Hello there",
+		template_variables: list | None = None,
+		buttons: list | None = None,
+	) -> str:
+		name = f"_test_sendable_{suffix}_{self.uid}"
+		return (
+			frappe.get_doc(
+				doctype="WhatsApp Template",
+				template_label=name,
+				template_name=name,
+				template_type="UTILITY",
+				language="en_US",
+				message=message,
+				whatsapp_account=self.account,
+				# A template id short-circuits the push to Meta on insert.
+				whatsapp_template_id=f"{suffix}_{self.uid}",
+				status=status,
+				variable_format="named",
+				reference_doctype=reference_doctype,
+				template_variables=template_variables or [],
+				buttons=buttons or [],
+			)
+			.insert()
+			.name
+		)
+
+	def test_only_approved_templates_are_returned(self):
+		approved = self._make_template("approved", status="Approved", reference_doctype="ToDo")
+		pending = self._make_template("pending", status="Pending", reference_doctype="ToDo")
+		rejected = self._make_template("rejected", status="Rejected", reference_doctype="ToDo")
+
+		names = [t.name for t in get_sendable_templates("ToDo")]
+		self.assertIn(approved, names)
+		self.assertNotIn(pending, names)
+		self.assertNotIn(rejected, names)
+
+	def test_templates_bound_to_another_doctype_are_excluded(self):
+		other = self._make_template("otherdoctype", reference_doctype="Contact")
+		self.assertNotIn(other, [t.name for t in get_sendable_templates("ToDo")])
+
+	def test_unbound_template_without_variables_is_included(self):
+		unbound = self._make_template("unbound_clean", reference_doctype="", message="No vars here")
+		self.assertIn(unbound, [t.name for t in get_sendable_templates("ToDo")])
+
+	def test_unbound_template_with_variables_is_excluded(self):
+		"""Nothing can resolve its variables, so it must never reach the picker."""
+		unbound = self._make_template(
+			"unbound_vars",
+			reference_doctype="",
+			message="Hi {{first_name}}",
+			template_variables=[
+				{"variable_name": "first_name", "variable_example": "John", "variable_field": ""}
+			],
+		)
+		self.assertNotIn(unbound, [t.name for t in get_sendable_templates("ToDo")])
+
+	def test_bound_template_with_variables_is_included(self):
+		bound = self._make_template(
+			"bound_vars",
+			reference_doctype="ToDo",
+			message="Hi {{description}}",
+			template_variables=[
+				{
+					"variable_name": "description",
+					"variable_example": "Call back",
+					"variable_field": "description",
+				}
+			],
+		)
+		self.assertIn(bound, [t.name for t in get_sendable_templates("ToDo")])
+
+	def test_buttons_child_table_is_returned(self):
+		"""`frappe.get_all` on the parent cannot return a child table; it needs its own query."""
+		with_buttons = self._make_template(
+			"buttons",
+			reference_doctype="ToDo",
+			buttons=[
+				{"button_type": "URL", "button_text": "Track", "url": "https://example.com"},
+				{"button_type": "PHONE_NUMBER", "button_text": "Call", "phone_number": "+15551230000"},
+			],
+		)
+		template = next(t for t in get_sendable_templates("ToDo") if t.name == with_buttons)
+
+		self.assertEqual(
+			[(b["button_type"], b["button_text"]) for b in template["buttons"]],
+			[("URL", "Track"), ("PHONE_NUMBER", "Call")],
+		)
+		self.assertEqual(template["buttons"][0]["url"], "https://example.com")
+		self.assertEqual(template["buttons"][1]["phone_number"], "+15551230000")
+
+	def test_template_without_buttons_gets_an_empty_list(self):
+		plain = self._make_template("nobuttons", reference_doctype="ToDo")
+		template = next(t for t in get_sendable_templates("ToDo") if t.name == plain)
+		self.assertEqual(template["buttons"], [])
 
 
 class TestUtils:

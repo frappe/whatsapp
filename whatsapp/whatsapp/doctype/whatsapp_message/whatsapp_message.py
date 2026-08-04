@@ -77,6 +77,17 @@ class WhatsAppMessage(Document):
 			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
 
+	def on_update(self) -> None:
+		# Any host rendering a conversation listens on this to refresh the reference
+		# document's messages. Fires once per save, including the save that submits.
+		frappe.publish_realtime(
+			"whatsapp_message",
+			{
+				"reference_doctype": self.reference_doctype,
+				"reference_docname": self.reference_docname,
+			},
+		)
+
 	def on_trash(self) -> None:
 		frappe.db.delete(
 			"WhatsApp Log",

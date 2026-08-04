@@ -1,7 +1,23 @@
+import json
 import re
 from typing import TypedDict, cast
 
 import frappe
+
+MIME_CONTENT_TYPE_MAP = {
+	"image/": "image",
+	"audio/": "audio",
+	"video/": "video",
+}
+
+CONTENT_TYPE_MIME_MAP = {
+	"image": "image/jpeg",
+	"document": "application/pdf",
+	"audio": "audio/mp4",
+	"video": "video/mp4",
+}
+
+PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*([^}]+?)\s*\}\}")
 
 
 class TemplateVariableRow(TypedDict):
@@ -56,6 +72,86 @@ def get_template_variables(text: str) -> list[str]:
 	if not text:
 		return []
 	return re.findall(r"\x7b\x7b\s*([^}]+)\s*\x7d\x7d", text)
+
+
+def parse_template_parameters(string: str | None, parameters) -> str | None:
+	"""Substitute `{{var}}` placeholders in `string` using `parameters`.
+
+	Parameters are stored in three shapes:
+	- dict: named templates (the authoring default) and synced positional templates
+	  with numeric-string keys → substitute `{{<key>}}` per entry
+	- list: legacy positional shape → substitute `{{1}}`, `{{2}}`, … by index
+	- scalar (str/int/float): header storage, which keeps only the single value
+	  (Meta's header section takes one variable) → substitute the first placeholder
+	"""
+	if not string or parameters is None:
+		return string
+
+	if isinstance(parameters, dict):
+		return PLACEHOLDER_PATTERN.sub(
+			lambda m: str(parameters[m.group(1)]) if m.group(1) in parameters else m.group(0),
+			string,
+		)
+
+	if isinstance(parameters, list):
+
+		def _replace_positional(match: re.Match) -> str:
+			key = match.group(1)
+			if key.isdigit():
+				index = int(key) - 1
+				if 0 <= index < len(parameters):
+					return str(parameters[index])
+			return match.group(0)
+
+		return PLACEHOLDER_PATTERN.sub(_replace_positional, string)
+
+	return PLACEHOLDER_PATTERN.sub(lambda _m: str(parameters), string, count=1)
+
+
+def infer_content_type(mime_type: str | None) -> str:
+	"""Map a MIME type to the render kind used by message UIs."""
+	if not mime_type:
+		return "text"
+	for prefix, content_type in MIME_CONTENT_TYPE_MAP.items():
+		if mime_type.lower().startswith(prefix):
+			return content_type
+	return "document"
+
+
+def mime_type_for_content_type(content_type: str) -> str:
+	"""Best-guess MIME type for a render kind, used as a pre-send display value."""
+	return CONTENT_TYPE_MIME_MAP.get(content_type, "")
+
+
+def humanize_error_message(raw: str | None) -> str | None:
+	"""Reduce a stored WhatsApp error to its human-readable message.
+
+	`error_message` can be stored in several shapes depending on where the failure
+	was captured:
+	- the raw Meta send response: ``{"error": {"message": ..., "code": ...}}``
+	- the webhook status payload's errors array: ``[{"message": ..., "title": ...}]``
+	- an already-plain string (e.g. "Code 131030: ...")
+
+	Return just the human message (e.g. "(#131030) Recipient phone number not in
+	allowed list"), falling back to the original value when it can't be parsed.
+	"""
+	if not raw:
+		return raw
+
+	try:
+		data = json.loads(raw)
+	except (ValueError, TypeError):
+		return raw
+
+	if isinstance(data, list):
+		data = data[0] if data else {}
+
+	if isinstance(data, dict):
+		error = data.get("error", data)
+		if isinstance(error, dict):
+			return error.get("message") or error.get("error_user_msg") or error.get("title") or raw
+
+	return raw
 
 
 def _find_example(variables, var_name: str) -> str:
@@ -282,8 +378,6 @@ def build_template_message_payload(
 
 	if header_parameters is not None and template_doc.header_type:
 		if isinstance(header_parameters, str):
-			import json
-
 			header_parameters = json.loads(header_parameters)
 
 		if template_doc.header_type == "TEXT":

@@ -50,6 +50,43 @@ Pre-commit is configured to use the following tools for checking and formatting 
 - Button support (QUICK_REPLY, URL, COPY_CODE, PHONE_NUMBER, VOICE_CALL)
 - Template status tracking (PENDING, APPROVED, REJECTED, DELETED)
 
+#### Client API
+
+Whitelisted endpoints so a host app can build a messaging UI without reimplementing WhatsApp
+logic. All of them are host-agnostic — no host's DocTypes or roles appear in their signatures.
+
+| Method | Purpose |
+|---|---|
+| `whatsapp.whatsapp.api.messages.get_messages(references)` | Messages for one or more reference documents, with reactions folded onto their targets, template bodies rendered, replies resolved, attachment metadata joined and failure payloads reduced to a sentence |
+| `whatsapp.whatsapp.api.messages.send_message(to, message, attach, content_type, reply_to, reference_doctype, reference_docname)` | Send text or media, optionally as a reply. Returns the new message's name |
+| `whatsapp.whatsapp.api.messages.react_to_message(message, emoji)` | React to a message. Returns the reaction message's name |
+| `whatsapp.whatsapp.api.messages.send_template(template, to, reference_doctype, reference_docname)` | Send an approved template |
+| `whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.get_sendable_templates(reference_doctype)` | Approved templates whose variables can be resolved from that DocType, buttons included |
+| `whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.create_template_and_push(doc_data, account_name)` | Create a template and push it to Meta for approval |
+
+`references` is a JSON list of `[doctype, docname]` pairs — the **host** decides the scope
+(e.g. a CRM Deal that should also show its converted Lead's messages), and the endpoint
+verifies `read` permission on every reference it is handed. The **first** pair is where a
+send attaches; the rest only widen the read.
+
+`to` is a `WhatsApp Profile` name or a raw phone number, resolved against the default
+account. `WhatsApp Message.on_update` publishes a `whatsapp_message` realtime event carrying
+the reference doctype/docname, so a conversation view can refresh itself.
+
+Sender display names are deliberately **not** returned: for a given conversation the name is a
+single string the host already knows, so it is passed to the UI rather than resolved per
+message.
+
+Permissions guard on the reference document. The app has no role model of its own yet
+(see Known Gaps below), so a host with its own role policy must keep that check in front.
+
+#### Client UI — `@whatsapp/ui`
+
+Shared Vue components for rendering WhatsApp conversations, in [`ui/`](ui/). Ships raw source
+consumed by a host's bundler; `frappe-ui` and `vue` are peer dependencies. See
+[`ui/README.md`](ui/README.md) to install it and
+[`ui/src/components/Messages/README.md`](ui/src/components/Messages/README.md) for usage.
+
 #### Account & Configuration
 
 - Multiple WhatsApp Business Accounts
