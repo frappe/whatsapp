@@ -213,7 +213,7 @@ That one rule covers every place a name appears: the reply quote's header, the r
 tooltip (`reactedByLabel`), and the input's reply preview. `MessagePanel`, `MessageList`,
 `MessageBubble` and `MessageInput` all take both props. There is no `from_name` field and no
 reactor name on a reaction — see
-[ADR-0003](../../../docs/adr/0003-the-app-owns-the-message-api.md).
+the "Design decisions" section of the [package README](../../../README.md).
 
 ### Realtime
 

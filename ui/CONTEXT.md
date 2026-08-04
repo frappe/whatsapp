@@ -37,7 +37,7 @@ given conversation it is one string, the same on every **Bubble** of that
 **Direction**, and choosing between the two by Direction is presentation. So it
 never travels on the wire and no Message carries it.
 _Avoid_: "from name" (`from_name` was the server-computed field this replaced —
-see [ADR-0003](docs/adr/0003-the-app-owns-the-message-api.md)), "reactor name"
+see "Design decisions" in [README.md](README.md)), "reactor name"
 (same string, reached the same way; a **Reaction** carries only its Direction).
 
 **Direction**:
@@ -55,7 +55,7 @@ message starts there and stays there until the send call returns, and it
 deliberately shows no delivery mark at all.
 _Avoid_: lowercased status values (CRM normalizes case at its API boundary; that
 is the legacy behaviour this package exists to stop — see
-[ADR-0001](docs/adr/0001-whatsapp-native-wire-dialect.md)), "state", "read
+"Design decisions" in [README.md](README.md)), "state", "read
 receipt" (that names one Status, not the axis).
 
 **Render kind**:
@@ -107,7 +107,7 @@ wired to the Controller's verbs.
 _Avoid_: **"adapter"** — the retired term for a *host-side* function that shaped a
 host's API response into the view model. There is no such function now: the app's
 own endpoints return the view model, so there is nothing to shape (see
-[ADR-0003](docs/adr/0003-the-app-owns-the-message-api.md)). Also avoid "store"
+"Design decisions" in [README.md](README.md)). Also avoid "store"
 (a Controller is per-conversation, not a singleton) and "hook" (a Frappe hook is
 a different mechanism, and one this package deliberately does not use).
 

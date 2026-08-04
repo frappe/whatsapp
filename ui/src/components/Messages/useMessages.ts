@@ -43,8 +43,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   const reactResource = createResource({ url: `${API}.react_to_message` });
 
   // Sorted here, not taken as given: `get_messages` reads each reference with its own query
-  // and `WhatsApp Message` sorts `creation desc` by default, so the rows arrive newest-first
-  // and grouped by reference. A conversation is one chronological run across every reference.
+  // and concatenates, so rows are ordered within a reference but grouped by it. A conversation
+  // is one chronological run across every reference.
   // `creation` is an ISO-ish stamp, so it compares correctly as a string.
   const messages = computed<WhatsAppMessage[]>(() =>
     [...((list.data as WhatsAppMessage[]) ?? [])].sort((a, b) =>

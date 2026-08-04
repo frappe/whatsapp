@@ -76,6 +76,52 @@ Those endpoints guard on the reference document's read permission. The app has n
 of its own yet, so a host with its own WhatsApp role policy must keep that gate in front —
 see the security note in the [Messages README](src/components/Messages/README.md#security).
 
+## Design decisions
+
+Three choices that look odd without their reasoning.
+
+**The view model uses the DocType's own fieldnames.** CRM's old endpoint returned a dialect
+of its own — `direction` as `type`, `media_url` as `attach`, `whatsapp_template` as
+`template`, `status` lowercased — built by popping the real fieldnames off each row. The
+renames were undocumented and lossy: `mime_type` never reached the client, and `template`
+held a docname in one place and rendered prose in another. This package takes the WhatsApp
+app's fieldnames unrenamed, and since the endpoint filling them is now the app's own, the
+contract and the query behind it share one vocabulary. Keeping that dialect would have
+encoded one host's history into a shared package; a shim to undo it would have been a
+translation layer nobody deletes.
+
+A pure DocType shape isn't achievable, and `types.ts` says so rather than pretending:
+`reactions[]`, `file_name`/`file_size`, the rendered `template`/`header`/`footer`/`buttons`
+and the `reply_*` fields need reaction folding, a `File` join, variable substitution and
+linked-document resolution. The interface is split into two labelled groups — **DocType
+fields** and **server-derived** — because which group a field is in tells you where to look
+when it's wrong.
+
+**Host-specific data arrives as arguments, not hooks.** Two things in the old endpoints
+genuinely were CRM-specific. The obvious fix was `frappe.get_hooks` callbacks; both are
+better as arguments.
+
+`get_from_name()` was deleted rather than hooked. It reads only the reference
+doctype/docname, so across a whole fetch it resolves to *one string* — and the rule it feeds
+(outgoing → "You", incoming → the contact) is presentation the client can already decide
+from `direction`. A hook would have bought indirection to compute a known constant. It's the
+`senderName` prop now, and `from_name`/`reply_to_from` are gone from the wire.
+
+The Deal→Lead union became the `references` argument. A host decides what a conversation
+spans; the endpoint checks `has_permission("read")` on every pair it's handed. That's
+*stronger* than a hook — a registered resolver is trusted to return a safe scope, an
+argument is assumed hostile and checked.
+
+**`frappe-ui` is a peer, never a dependency** — see the section above for the failure mode.
+Worth stating plainly because the work started from "add frappe-ui to the whatsapp app" and
+the answer was the opposite.
+
+**A note on `FP2`.** `@framework/ui`'s PHILOSOPHY scopes FP2 ("the host owns fetching") to
+*list-view controls* — SortBy, Filter, ColumnSettings, QuickFilter. It does not forbid a
+composable from fetching, and the closest precedents do exactly that: `useNotifications`
+owns a `createListResource`, `useActivityTimeline` a `createResource`. Reading FP2 as a
+blanket rule is what kept this package fetch-free for longer than it should have been.
+
 ## Not included
 
 - No emoji picker. Reactions use a small fixed emoji bar; typing emoji is the OS keyboard's job.

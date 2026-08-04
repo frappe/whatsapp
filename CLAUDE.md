@@ -93,6 +93,41 @@ log(
 
 **Indentation:** Tabs (ruff config), double quotes, line length 110.
 
+## Comments — hard rule
+
+**Code must be self-explanatory. Do not write a comment the code already says.**
+
+If a comment restates the line below it, the fix is a better name, not a comment. Reach for a
+clearer function or variable name, or extract a named helper, before reaching for prose.
+
+Delete on sight:
+
+```python
+# Get the default account          <- says nothing the name doesn't
+account = get_default_account()
+
+# Loop through messages            <- describes the syntax
+for message in messages:
+
+def send_message(to, message):
+    """Send a message to a recipient."""   # <- restates the signature
+```
+
+A comment earns its place only when it carries something the code cannot:
+
+- **Why**, when the reason is not visible — a workaround, a deliberate ordering, an
+  upstream quirk. `# anchored to line starts so digits mid-sentence aren't matched as list items`
+- **A non-obvious constraint** a future edit would otherwise break — a field that must be
+  set before another, a guard that looks removable and isn't.
+- **A reference** that saves a hunt — an issue number, a Meta API behaviour, a linked commit.
+
+Docstrings follow the same rule: write one when a function's contract is not obvious from its
+name and signature, and say what is *not* obvious — edge cases, what it throws, what shape it
+returns. Skip it otherwise. Never restate the parameters.
+
+When editing existing code, delete redundant comments you pass through rather than preserving
+them out of politeness.
+
 ## Commit Style
 
 Conventional Commits required. Format: `type(scope): description`
