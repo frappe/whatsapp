@@ -70,8 +70,9 @@ verifies `read` permission on every reference it is handed. The **first** pair i
 send attaches; the rest only widen the read.
 
 `to` is a `WhatsApp Profile` name or a raw phone number, resolved against the default
-account. `WhatsApp Message.on_update` publishes a `whatsapp_message` realtime event carrying
-the reference doctype/docname, so a conversation view can refresh itself.
+account. `WhatsApp Message.notify_change()` publishes a `whatsapp_message` realtime event
+carrying the reference doctype/docname, so a conversation view can refresh itself. It fires on
+insert, on delete, and on a status change from the webhook, and is emitted after commit.
 
 Sender display names are deliberately **not** returned: for a given conversation the name is a
 single string the host already knows, so it is passed to the UI rather than resolved per

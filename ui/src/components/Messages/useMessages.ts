@@ -199,8 +199,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
 
   const socket = getSocketInstance();
   if (socket) {
-    // Published by the app's `WhatsApp Message.on_update`, so an inbound message, a status
-    // change and another agent's send all land here.
+    // Published by the app's `WhatsApp Message.notify_change()`, so an inbound message, a
+    // status change and another agent's send all land here.
     const onMessage = (payload: unknown) => {
       const event = (payload ?? {}) as Partial<
         Record<"reference_doctype" | "reference_docname", string>

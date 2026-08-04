@@ -373,7 +373,7 @@ their type annotations, and that parameter is annotated `str`, so a raw array is
 before the method runs. `useMessages()` stringifies it for you.
 
 Realtime updates listen on the `whatsapp_message` event, published by
-`WhatsApp Message.on_update` with the reference doctype and docname.
+`WhatsApp Message.notify_change()` with the reference doctype and docname.
 
 ## Types
 
