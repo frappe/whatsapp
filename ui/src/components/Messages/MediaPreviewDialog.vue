@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { Button, Dialog, Textarea, formatBytes } from "frappe-ui";
-import DocumentIcon from "./icons/DocumentIcon.vue";
 import type { MediaPreviewDialogProps } from "./types";
 
 const props = withDefaults(defineProps<MediaPreviewDialogProps>(), {
@@ -72,7 +71,10 @@ watch(
 					class="max-h-80 rounded-md"
 				/>
 				<div v-else class="flex w-full items-center gap-2 p-2">
-					<DocumentIcon class="size-10 flex-shrink-0 text-ink-gray-4" />
+					<span
+						class="lucide-file-text size-10 flex-shrink-0 text-ink-gray-4"
+						aria-hidden="true"
+					/>
 					<div class="flex min-w-0 flex-col">
 						<div class="truncate text-ink-gray-8">{{ file?.file_name }}</div>
 						<div v-if="fileSize" class="text-sm text-ink-gray-5">

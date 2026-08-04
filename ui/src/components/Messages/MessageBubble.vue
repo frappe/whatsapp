@@ -1,10 +1,7 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
 import { computed } from "vue";
-import { Badge, Dropdown, FeatherIcon, Tooltip, dayjsLocal } from "frappe-ui";
-import CheckIcon from "./icons/CheckIcon.vue";
-import DocumentIcon from "./icons/DocumentIcon.vue";
-import DoubleCheckIcon from "./icons/DoubleCheckIcon.vue";
+import { Badge, Dropdown, Tooltip, dayjsLocal } from "frappe-ui";
 import TemplateButtons from "./TemplateButtons.vue";
 import { formatWhatsAppMessage } from "./formatMessage";
 import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "./media";
@@ -102,7 +99,7 @@ function openFileInAnotherTab(url?: string) {
 			}"
 		>
 			<Dropdown :options="messageOptions">
-				<FeatherIcon name="chevron-down" class="size-4 text-ink-gray-5" />
+				<span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
 			</Dropdown>
 		</div>
 
@@ -150,7 +147,10 @@ function openFileInAnotherTab(url?: string) {
 				:class="hasCaption(message) ? 'bg-surface-gray-3 p-2' : ''"
 				@click="() => openFileInAnotherTab(message.media_url)"
 			>
-				<DocumentIcon class="size-10 flex-shrink-0 rounded-md text-ink-gray-4" />
+				<span
+					class="lucide-file-text size-10 flex-shrink-0 rounded-md text-ink-gray-4"
+					aria-hidden="true"
+				/>
 				<div class="flex min-w-0 flex-1 flex-col">
 					<div
 						:title="documentName(message)"
@@ -191,11 +191,16 @@ function openFileInAnotherTab(url?: string) {
 				</div>
 			</Tooltip>
 			<div v-if="message.direction == 'Outgoing'">
-				<CheckIcon v-if="message.status == 'Sent'" class="size-4" />
-				<DoubleCheckIcon
+				<span
+					v-if="message.status == 'Sent'"
+					class="lucide-check size-4"
+					aria-hidden="true"
+				/>
+				<span
 					v-else-if="['Read', 'Delivered'].includes(message.status || '')"
-					class="size-4"
+					class="lucide-check-check size-4"
 					:class="{ 'text-ink-blue-2': message.status == 'Read' }"
+					aria-hidden="true"
 				/>
 			</div>
 		</div>

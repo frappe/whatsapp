@@ -114,17 +114,17 @@ function uploadOptions(openFileSelector: () => void) {
 	return [
 		{
 			label: props.uploadDocumentLabel,
-			icon: "file",
+			icon: "lucide-file",
 			onClick: () => pickFile("document", undefined, openFileSelector),
 		},
 		{
 			label: props.uploadImageLabel,
-			icon: "image",
+			icon: "lucide-image",
 			onClick: () => pickFile("image", "image/*", openFileSelector),
 		},
 		{
 			label: props.uploadVideoLabel,
-			icon: "video",
+			icon: "lucide-video",
 			onClick: () => pickFile("video", "video/*", openFileSelector),
 		},
 	];

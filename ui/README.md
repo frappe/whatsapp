@@ -46,6 +46,33 @@ and binds a controller — it does not write an API or a mapping layer. See
 See `apps/crm-eventfix/frontend/vite.config.js` for the same setup applied to
 `@framework/ui`.
 
+## Host build requirements for icons
+
+Icons come from frappe-ui's lucide integration, in both of its forms — so a host has to
+enable **both**, or icons go missing.
+
+1. **The vite plugin**, for the `~icons/lucide/*` imports (`TemplateButtons` picks its icon
+   from `button_type` at runtime, which a class name cannot express):
+
+   ```js
+   frappeui({ lucideIcons: true })
+   ```
+
+2. **A Tailwind `content` glob covering this package**, for the `lucide-*` utility classes
+   used everywhere else. Tailwind only generates CSS for classes it finds as complete strings
+   in the files it scans, and it does not scan a linked package by default:
+
+   ```js
+   // tailwind.config.js
+   content: [
+     './src/**/*.{vue,js,ts,jsx,tsx}',
+     '../../whatsapp/ui/src/**/*.{vue,js,ts,jsx,tsx}',   // ← this package
+   ]
+   ```
+
+   **Miss this one and nothing errors** — every class-form icon simply renders as empty
+   space. `crm-eventfix` already carries the equivalent line for `@framework/ui`.
+
 ## Do not install `frappe-ui` or `vue` here
 
 `frappe-ui` and `vue` are **peer dependencies** and must never end up in this package's

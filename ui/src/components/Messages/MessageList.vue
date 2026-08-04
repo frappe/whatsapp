@@ -2,7 +2,6 @@
 import { Button } from "frappe-ui";
 import MessageBubble from "./MessageBubble.vue";
 import ReactionPicker, { REACTION_EMOJIS } from "./ReactionPicker.vue";
-import ReactIcon from "./icons/ReactIcon.vue";
 import type { MessageListProps, ReactPayload, WhatsAppMessage } from "./types";
 
 withDefaults(defineProps<MessageListProps>(), {
@@ -65,7 +64,10 @@ function scrollToMessage(name: string) {
 				>
 					<Button class="rounded-full !size-6 mt-0.5" @click="togglePopover">
 						<template #icon>
-							<ReactIcon class="text-ink-gray-3" />
+							<span
+								class="lucide-smile-plus size-4 text-ink-gray-3"
+								aria-hidden="true"
+							/>
 						</template>
 					</Button>
 				</ReactionPicker>

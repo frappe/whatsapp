@@ -8,7 +8,6 @@ export const REACTION_EMOJIS: string[] = ["👍", "❤️", "😂", "😮", "�
 
 <script setup lang="ts">
 import { Button, Popover } from "frappe-ui";
-import ReactIcon from "./icons/ReactIcon.vue";
 import type { ReactionPickerProps } from "./types";
 
 withDefaults(defineProps<ReactionPickerProps>(), {
@@ -32,7 +31,10 @@ function choose(emoji: string, togglePopover: () => void) {
 			<slot v-bind="{ isOpen, togglePopover }">
 				<Button variant="ghost" aria-label="React" @click="togglePopover">
 					<template #icon>
-						<ReactIcon class="size-4 text-ink-gray-7" />
+						<span
+							class="lucide-smile-plus size-4 text-ink-gray-7"
+							aria-hidden="true"
+						/>
 					</template>
 				</Button>
 			</slot>
