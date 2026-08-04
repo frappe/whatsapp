@@ -2,9 +2,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Badge, Dropdown, Tooltip, dayjsLocal } from "frappe-ui";
-import TemplateButtons from "./TemplateButtons.vue";
-import { formatWhatsAppMessage } from "./formatMessage";
-import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "./media";
+import TemplateContent from "./TemplateContent.vue";
+import { formatWhatsAppMessage } from "../../utils/formatMessage";
+import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "../../utils/media";
 import type { MessageBubbleProps, WhatsAppDirection, WhatsAppMessage } from "./types";
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
@@ -118,16 +118,13 @@ function openFileInAnotherTab(url?: string) {
 			</Tooltip>
 		</div>
 
-		<div v-if="message.is_template" class="flex flex-col gap-2">
-			<div v-if="message.header" class="text-base font-semibold">
-				{{ message.header }}
-			</div>
-			<div v-html="formatWhatsAppMessage(message.template)" />
-			<div v-if="message.footer" class="text-xs text-ink-gray-5">
-				{{ message.footer }}
-			</div>
-			<TemplateButtons :buttons="message.buttons" />
-		</div>
+		<TemplateContent
+			v-if="message.is_template"
+			:header="message.header"
+			:body="message.template"
+			:footer="message.footer"
+			:buttons="message.buttons"
+		/>
 		<div v-else-if="contentType == 'text'" v-html="formatWhatsAppMessage(message.message)" />
 		<div v-else-if="contentType == 'image'">
 			<img
@@ -136,7 +133,7 @@ function openFileInAnotherTab(url?: string) {
 				@click="() => openFileInAnotherTab(message.media_url)"
 			/>
 			<div
-				v-if="hasCaption(message)"
+				v-if="hasCaption(message.message)"
 				class="mt-1.5"
 				v-html="formatWhatsAppMessage(message.message)"
 			/>
@@ -144,7 +141,7 @@ function openFileInAnotherTab(url?: string) {
 		<div v-else-if="contentType == 'document'" class="flex flex-col gap-1.5">
 			<div
 				class="flex min-w-0 cursor-pointer items-center gap-2 rounded-md"
-				:class="hasCaption(message) ? 'bg-surface-gray-3 p-2' : ''"
+				:class="hasCaption(message.message) ? 'bg-surface-gray-3 p-2' : ''"
 				@click="() => openFileInAnotherTab(message.media_url)"
 			>
 				<span
@@ -163,7 +160,10 @@ function openFileInAnotherTab(url?: string) {
 					</div>
 				</div>
 			</div>
-			<div v-if="hasCaption(message)" v-html="formatWhatsAppMessage(message.message)" />
+			<div
+				v-if="hasCaption(message.message)"
+				v-html="formatWhatsAppMessage(message.message)"
+			/>
 		</div>
 		<div v-else-if="contentType == 'audio'" class="flex items-center gap-2">
 			<audio :src="message.media_url" controls class="cursor-pointer" />
@@ -171,7 +171,7 @@ function openFileInAnotherTab(url?: string) {
 		<div v-else-if="contentType == 'video'" class="flex-col items-center gap-2">
 			<video :src="message.media_url" controls class="h-40 cursor-pointer rounded-md" />
 			<div
-				v-if="hasCaption(message)"
+				v-if="hasCaption(message.message)"
 				class="mt-1.5"
 				v-html="formatWhatsAppMessage(message.message)"
 			/>

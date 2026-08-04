@@ -121,19 +121,20 @@ DocTypes or roles is by definition a Host concern.
 _Avoid_: "parent app", "consumer" (fine in prose, but "Host" is the term the docs
 and ADRs use).
 
-**Composite**:
-`MessagePanel` — the one component that assembles the rendered conversation and is
-what a Host mounts by default. It owns only what spans its own children (whether
-the template picker is open); what is being composed, including which Message is
-being replied to, lives in the **Controller** instead.
-
 **Part**:
-An individually exported piece of the Composite — the message list, a bubble, the
-input, the dialogs, the reaction bar. A Host reaches for Parts when it needs a
-layout the Composite does not offer. Parts are exported deliberately, not
-incidentally: shipping only the Composite would force a fork the first time a
-Host wants a different shell.
-_Avoid_: "sub-component", "internal" (a Part is public).
+An individually exported piece of the UI — the message list, a bubble, the input,
+a template's rendered body, the reaction bar. Parts are all there is: there is no
+composite that assembles them, because assembly is where a **Host**'s layout lives.
+Every Part is public and mounted directly.
+_Avoid_: "sub-component", "internal" (a Part is public), and **"composite"** /
+"panel" — `MessagePanel` was such a component and was removed. It wrapped the list
+in loading and empty states and forwarded props, which is not a layer worth the
+indirection, and it owned a dialog from inside a scroll region.
+
+A Part draws content, never its container. `MessageBubble` draws one Message and
+`TemplateContent` one **Template**; a dialog, a grid or a picker around either is
+Host layout. `TemplateSelectorDialog` broke that rule — it shipped a Dialog, a
+search box and a grid to deliver one renderer — and was removed for it.
 
 **Chrome**:
 User-facing English strings the library renders — placeholders, button labels,

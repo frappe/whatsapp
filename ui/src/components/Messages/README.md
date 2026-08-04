@@ -1,24 +1,28 @@
-# MessagePanel
+# Messages
 
 A WhatsApp conversation UI: the messages attached to one or more reference documents, drawn
 as a flat list in send order, plus the input that sends into it.
 
 The components are **UI only**. Data is a plugin the host owns: call `useMessages()` to get a
-controller, then spread it onto the panel and the input with `v-bind`. The controllers own the
+controller, then bind it onto the list and spread it onto the input. The controllers own the
 fetching and the writing — they call this app's own whitelisted endpoints, so there is no
 host adapter to write and no host endpoint to build. This is the same shape as
-`@framework/ui`'s `useNotifications()` / `NotificationPanel`.
+`@framework/ui`'s `useNotifications()`.
+
+There is no all-in-one panel component. The host composes the list, the input and the
+template dialog, because it is the host that decides where a conversation sits, what scrolls,
+and what the toolbar above it does.
 
 `MessageInput` is the input that ships with the package. It has no privileged access to the
 controller, so you can replace it with your own without losing any behaviour.
 
 ## Usage
 
-Batteries included — the panel, the controller, and the default input:
+The controller, the list, and the default input:
 
 ```vue
 <script setup lang="ts">
-import { MessageInput, MessagePanel, useMessages, useTemplates } from "@whatsapp/ui";
+import { MessageInput, MessageList, useMessages } from "@whatsapp/ui";
 import type { ReactPayload } from "@whatsapp/ui";
 
 const props = defineProps<{
@@ -33,34 +37,21 @@ const messages = useMessages({
   to: () => props.phone,
 });
 
-const templates = useTemplates({
-  referenceDoctype: () => props.doctype,
-  referenceDocname: () => props.docname,
-  to: () => props.phone,
-});
-
 function react({ messageName, emoji }: ReactPayload) {
   messages.react(messageName, emoji);
-}
-
-async function sendTemplate(templateName: string) {
-  // The two controllers are independent, so a template send does not refresh the
-  // conversation by itself. (With a socket wired up the realtime event does it for you.)
-  if (await templates.sendTemplate(templateName)) messages.reload();
 }
 </script>
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- MessagePanel sets inheritAttrs: false — wrap it to size or space it -->
-    <div class="min-h-0 flex-1">
-      <MessagePanel
-        v-bind="messages"
-        :templates="templates.templates"
+    <!-- the host owns the scroll container; MessageList is layout-neutral -->
+    <div class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-10">
+      <MessageList
+        :messages="messages.messages"
+        :loading="messages.loading"
         :sender-name="contactName"
         @reply="messages.setReplyTo"
         @react="react"
-        @send-template="sendTemplate"
       />
     </div>
     <MessageInput v-bind="messages" :sender-name="contactName" />
@@ -68,20 +59,89 @@ async function sendTemplate(templateName: string) {
 </template>
 ```
 
-`v-bind="messages"` spreads the controller's **data** members as props (the controller is a
-`reactive` object, so each binds as a live value — don't destructure it), along with its verbs,
-which is how `MessageInput` writes back. The panel's own actions are **events**: wire `@reply`
-to `setReplyTo` so a message picked in the list becomes the reply the input quotes, and
-`@react` to `react()`.
+`MessageList` takes explicit props, so bind the two it reads (`messages`, `loading`) rather
+than spreading the whole controller — the controller's verbs would otherwise land on it as
+fall-through attrs and be stamped into the DOM. Its actions are **events**: wire `@reply` to
+`setReplyTo` so a message picked in the list becomes the reply the input quotes, and `@react`
+to `react()`.
+
+`MessageInput` is the one component that *does* take the whole controller.
+`v-bind="messages"` spreads its data members as props (the controller is a `reactive` object,
+so each binds as a live value — don't destructure it) along with its verbs, which is how the
+input writes back.
+
+### Sending a template
+
+There is no template picker in this package. `useTemplates()` fetches the sendable templates
+and sends one; `TemplateContent` draws one; **where they are shown is the host's decision** —
+a dialog, a sidebar, a dropdown, a slash-command menu. Search, the grid and the "create a
+template" affordance are all host chrome.
+
+```vue
+<script setup lang="ts">
+import { TemplateContent, useTemplates } from "@whatsapp/ui";
+
+const templates = useTemplates({
+  referenceDoctype: () => props.doctype,
+  referenceDocname: () => props.docname,
+  to: () => props.phone,
+});
+
+async function send(templateName: string) {
+  // The two controllers are independent, so a template send does not refresh the
+  // conversation by itself. (With a socket wired up the realtime event does it for you.)
+  if (await templates.sendTemplate(templateName)) messages.reload();
+}
+</script>
+
+<template>
+  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div
+      v-for="template in templates.templates"
+      :key="template.name"
+      class="flex h-56 cursor-pointer flex-col gap-2 rounded-lg border p-3 hover:bg-surface-gray-2"
+      @click="send(template.name)"
+    >
+      <div class="truncate border-b pb-2 text-base-semibold">{{ template.name }}</div>
+      <TemplateContent
+        class="min-h-0 flex-1 text-sm text-ink-gray-5"
+        :header="template.header_text"
+        :body="template.message"
+        :footer="template.footer"
+        :buttons="template.buttons"
+        body-class="min-h-0 flex-1 overflow-y-auto"
+      />
+    </div>
+  </div>
+</template>
+```
+
+`TemplateContent` is the template-side counterpart of `MessageBubble`, and the bubble's own
+template branch renders through it — so a preview cannot drift from the message it becomes.
+Feed it a `WhatsAppTemplate`'s `header_text`/`message`/`footer` as above, or a sent
+`WhatsAppMessage`'s `header`/`template`/`footer`.
+
+`body-class` exists for the fixed-height card above: only the body scrolls, so the footer and
+buttons stay pinned rather than being clipped by a long body.
+
+### Finding rows in the DOM
+
+`MessageList` takes a `rowClass`, applied to every message row, for a host that has to locate
+rows itself:
+
+```vue
+<MessageList :messages="messages.messages" row-class="activity" />
+```
+
+CRM needs this: `Activities.vue` collects `.activity` elements to position its scroll, and
+WhatsApp rows have to be among them. The class name is the host's, so it is passed in rather
+than baked into the package.
 
 `MessageInput` calls `messages.send()` itself and emits `send` only **after** the send lands —
 that is a notification (scroll to the bottom, close a drawer), not a request to perform the
 call. The controller clears what the send consumed: a text send is a full `reset()`, a media
 send clears only the attachment and the reply, because its body was the caption and whatever
 is still typed in the box is a separate unsent message.
-
-Omit `:templates` and the template flow disappears entirely — the panel does not render the
-selector dialog at all.
 
 ### Roll your own input
 
@@ -210,10 +270,10 @@ string for the whole conversation, so it is a prop:
 - `Outgoing` → `youLabel` (default `"You"`).
 
 That one rule covers every place a name appears: the reply quote's header, the reaction
-tooltip (`reactedByLabel`), and the input's reply preview. `MessagePanel`, `MessageList`,
-`MessageBubble` and `MessageInput` all take both props. There is no `from_name` field and no
-reactor name on a reaction — see
-the "Design decisions" section of the [package README](../../../README.md).
+tooltip (`reactedByLabel`), and the input's reply preview. `MessageList`, `MessageBubble` and
+`MessageInput` all take both props. There is no `from_name` field and no reactor name on a
+reaction — see the "Design decisions" section of the
+[package README](../../../README.md).
 
 ### Realtime
 
@@ -231,30 +291,19 @@ dispose, so a controller held longer than a component is still cleaned up correc
 
 ### Exposed methods
 
-`MessagePanel` owns its template dialog, so a host toolbar can drive it through a template ref
-rather than through a boolean:
+`MessageInput` exposes `focus()`, and focuses itself whenever `replyTo` becomes set. The
+template dialog's open state is a boolean the host holds, so a toolbar drives it directly.
 
-```vue
-<MessagePanel ref="panel" ... />
-<Button label="Templates" @click="panel.openTemplateSelector()" />
-```
+### Where a `class` lands
 
-Bind `v-model:templatesOpen` instead if you would rather hold the dialog's state yourself.
-`MessageInput` exposes `focus()`, and focuses itself whenever `replyTo` becomes set.
+`MessageInput` sets `inheritAttrs: false` — its template has multiple roots, which Vue cannot
+auto-inherit onto at all — and binds `$attrs` onto its input row instead. So a `class` does
+land, on the row rather than on the reply preview above it.
 
-### `inheritAttrs: false`
-
-`MessagePanel` and `MessageInput` both set it, following `NotificationPanel`. The panel is
-bound with `v-bind="controller"`, which lands the controller's verbs on it as fall-through
-attrs; inheriting those onto the root element would stamp function-valued attributes into the
-DOM. The input's template has multiple roots, which Vue cannot auto-inherit onto at all.
-
-The practical consequence differs between the two:
-
-- **`MessagePanel` does not re-bind `$attrs`**, so a `class` you pass it is dropped. Wrap it in
-  an element you style instead.
-- **`MessageInput` binds `$attrs` onto its input row**, so a `class` does land — on the row,
-  not on the reply preview above it.
+`MessageList` inherits attrs normally, so a `class` lands on the list root. It is bound with
+explicit props rather than `v-bind="controller"`, which is what makes that safe: spreading the
+controller onto it would land the verbs as fall-through attrs and stamp function-valued
+attributes into the DOM.
 
 ## What a host still needs to know about the data
 
@@ -292,9 +341,12 @@ assume the app's reference check subsumes it.
   `youLabel`, `replyLabel`, `emptyLabel`, and so on. Pass your own translations in.
 - **No toasts or error dialogs.** Failures are surfaced on the controller's `error`; where an
   app shows errors is the app's decision.
+- **No template picker.** `TemplateContent` renders one template; the container, the search
+  and the grid are host layout. See "Sending a template" above.
 - **No account or settings management.** Choosing the WhatsApp account and enabling the
-  channel stay in the host (or the desk UI). Editing templates is desk-side too — the
-  selector's "Create New" opens this app's own form.
+  channel stay in the host (or the desk UI). Editing templates is desk-side too: point a
+  "create a template" affordance at `/app/whatsapp-template/new`, or call the controller's
+  `createTemplate()`.
 
 ## Backend
 
@@ -325,9 +377,12 @@ Realtime updates listen on the `whatsapp_message` event, published by
 
 ## Types
 
-`WhatsAppMessage`, `WhatsAppTemplate`, `WhatsAppReaction`, `WhatsAppTemplateButton`,
-`WhatsAppDirection`, `WhatsAppStatus`, `WhatsAppContentType`, `MediaFile`, `MessageReference`,
-`SendMessagePayload`, `ReactPayload`, `UseMessagesOptions`, `MessagesController`,
-`UseTemplatesOptions`, `TemplatesController`, `SendTemplateOverrides`, `MessagePanelProps`,
-`MessageListProps`, `MessageBubbleProps`, `MessageInputProps`, `MediaPreviewDialogProps`,
-`TemplateSelectorDialogProps`, `TemplateButtonsProps`, `ReactionPickerProps`.
+From `@whatsapp/ui` (or the `./Messages` subpath): `WhatsAppMessage`, `WhatsAppTemplate`,
+`WhatsAppReaction`, `WhatsAppTemplateButton`, `WhatsAppDirection`, `WhatsAppStatus`,
+`WhatsAppContentType`, `MediaFile`, `MessageReference`, `SendMessagePayload`, `ReactPayload`,
+`UseMessagesOptions`, `MessagesController`, `UseTemplatesOptions`, `TemplatesController`,
+`SendTemplateOverrides`, `MessageListProps`, `MessageBubbleProps`, `MessageInputProps`,
+`TemplateContentProps`, `TemplateButtonsProps`.
+
+The generic helper components live beside them, under `./common`: `MediaPreviewDialogProps`,
+`ReactionPickerProps`. `MediaKind` and `MediaAttachment` come from the package root.

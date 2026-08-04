@@ -9,6 +9,9 @@
  */
 
 import type { MaybeRefOrGetter } from "vue";
+import type { MediaFile, MediaKind } from "../../types";
+
+export type { MediaFile };
 
 /** `WhatsApp Message.direction`. "Outgoing" = sent by the agent, "Incoming" = by the contact. */
 export type WhatsAppDirection = "Incoming" | "Outgoing";
@@ -34,21 +37,15 @@ export type WhatsAppStatus =
 /**
  * How a message body should be rendered.
  *
- * Always derived from the message's `mime_type` by `contentTypeFromMime()` in `./media`: an
- * `image/`, `audio/` or `video/` prefix picks that kind, any other MIME type is a `document`,
- * and no MIME type at all means a plain `text` message. There is no stored column behind this
- * and no way to override it — the MIME type is the single source of truth.
+ * Always derived from the message's `mime_type` by `contentTypeFromMime()` in
+ * `utils/media`. There is no stored column behind this and no way to override it — the MIME
+ * type is the single source of truth.
  *
  * Inbound button and interactive replies are not a separate kind: the webhook stores the
  * button's text as the message body and sets no `mime_type`, so they derive to `"text"`,
  * which is how they have always rendered.
  */
-export type WhatsAppContentType =
-  | "text"
-  | "image"
-  | "audio"
-  | "video"
-  | "document";
+export type WhatsAppContentType = MediaKind;
 
 /**
  * One participant's reaction to a message.
@@ -164,11 +161,11 @@ export interface WhatsAppMessage {
 }
 
 /**
- * A template offered in the template selector — the `WhatsApp Template` fields it needs.
+ * A sendable template — the `WhatsApp Template` fields a host needs to offer one.
  *
- * The picker previews what a send will actually render: `header_text`, the body, `footer`
- * and `buttons`, using the same formatter and the same {@link TemplateButtonsProps} row the
- * sent bubble uses. This is exactly what `get_sendable_templates` returns, buttons included.
+ * Exactly what `get_sendable_templates` returns, buttons included. Feed `header_text`, the
+ * body, `footer` and `buttons` to {@link TemplateContentProps} to preview what a send will
+ * actually render, through the same component the sent bubble uses.
  */
 export interface WhatsAppTemplate {
   /** docname; shown as the card title and emitted on select */
@@ -191,13 +188,6 @@ export interface WhatsAppTemplate {
    * header/body/footer, only less completely than the bubble that message becomes.
    */
   buttons?: WhatsAppTemplateButton[];
-}
-
-/** An uploaded file handed to the media preview dialog (frappe-ui `FileUploader` success payload). */
-export interface MediaFile {
-  file_url: string;
-  file_name?: string;
-  file_size?: number;
 }
 
 // —— outbound payloads ——
@@ -230,29 +220,29 @@ export interface ReactPayload {
 // —— component props ——
 
 /**
- * The composite, and it renders only: the message list, its loading and empty states, and
- * the template selector dialog. There is no input inside it — composing is
- * {@link MessagesController}'s job, and the host places the input where its layout wants one.
- * A picked reply leaves as an event; the panel holds no reply state.
+ * The conversation: every bubble, its loading and empty states, and the scroll-to-message
+ * behaviour behind reply quotes.
  *
- * Data spreads in from the controller with `v-bind="messages"`; the controller's verbs land
- * as fall-through attrs and are not inherited (actions are events instead).
+ * Layout-neutral by design — no scroll container and no padding, because the host owns where
+ * the conversation sits and how tall it is. It inherits attrs, so a `class` lands on the
+ * list root.
  *
  * Emits: `reply` ({@link WhatsAppMessage} — hand it to `setReplyTo`), `react`
- * ({@link ReactPayload}), `sendTemplate` (`templateName: string`), and
- * `update:templatesOpen` (`boolean`) for `v-model:templatesOpen`.
- *
- * Exposes: `openTemplateSelector()`.
+ * ({@link ReactPayload}).
  */
-export interface MessagePanelProps {
+export interface MessageListProps {
   /** oldest first, as {@link MessagesController.messages} holds them */
   messages: WhatsAppMessage[];
   /** first-load spinner; only meaningful while `messages` is empty */
   loading?: boolean;
-  /** templates for the selector; omit to leave the template flow out entirely */
-  templates?: WhatsAppTemplate[];
-  /** two-way open state of the template selector, so a host toolbar can trigger it */
-  templatesOpen?: boolean;
+  /**
+   * Class applied to every message row, for a host that needs to find rows in the DOM.
+   *
+   * CRM's `Activities.vue` collects `.activity` elements to position its scroll, and its
+   * WhatsApp rows have to be among them — but that is one host's class name and does not
+   * belong hardcoded in a shared package.
+   */
+  rowClass?: string;
 
   // — chrome (English defaults; override to translate) —
   /**
@@ -273,28 +263,6 @@ export interface MessagePanelProps {
   failedMessageLabel?: string;
   /** default "No messages yet" — shown once loading has settled on an empty thread */
   emptyLabel?: string;
-  /** default `["👍", "❤️", "😂", "😮", "😢", "🙏"]` */
-  reactionEmojis?: string[];
-}
-
-/**
- * The scrollable conversation. Owns the scroll-to-message behaviour behind reply quotes.
- *
- * Emits: `reply` ({@link WhatsAppMessage}), `react` ({@link ReactPayload}).
- */
-export interface MessageListProps {
-  /** oldest first */
-  messages: WhatsAppMessage[];
-  /** default "Contact" — see {@link MessagePanelProps.senderName} */
-  senderName?: string;
-  /** default "You" */
-  youLabel?: string;
-  /** default "Reacted by" */
-  reactedByLabel?: string;
-  /** default "Reply" */
-  replyLabel?: string;
-  /** default "Failed to send message" */
-  failedMessageLabel?: string;
   /**
    * default `["👍", "❤️", "😂", "😮", "😢", "🙏"]`
    *
@@ -521,57 +489,36 @@ export interface MessageInputProps {
 }
 
 /**
- * Caption-before-send dialog for an uploaded file.
+ * One template's body, rendered — header, text, footer and buttons. The template-side
+ * counterpart of {@link MessageBubbleProps}: a bubble draws one message, this draws one
+ * template.
  *
- * Emits: `send` (`caption: string`), `update:open` (`boolean`) for `v-model:open`.
- */
-export interface MediaPreviewDialogProps {
-  open: boolean;
-  file?: MediaFile;
-  /** picks the preview: image, video, or the generic document row */
-  type?: WhatsAppContentType;
-  loading?: boolean;
-  /** defaults by `type`: "Send an image" / "Send a video" / "Send a file" */
-  title?: string;
-  /** default "Add a caption..." */
-  captionPlaceholder?: string;
-  /** default "Cancel" */
-  cancelLabel?: string;
-  /** default "Send" */
-  sendLabel?: string;
-}
-
-/**
- * Template gallery with client-side search. Each row previews the message a send produces —
- * header, body, footer and buttons — rather than just the body text.
+ * It serves both ends of a template's life, which is the point of it existing. A **sent**
+ * template is a {@link WhatsAppMessage}, whose server-rendered `header`/`template`/`footer`
+ * feed it; an **unsent** one is a {@link WhatsAppTemplate}, whose `header_text`/`message`/
+ * `footer` do. Two field vocabularies, one renderer — so a preview cannot drift from the
+ * bubble it becomes.
  *
- * Emits: `select` (`templateName: string`), `update:open` (`boolean`) for `v-model:open`.
- * "Create New" is not an emit — it opens this app's own desk form in a new tab.
+ * Where it is shown is nobody's business here. A picker, a dialog, a sidebar, a hover card
+ * are all host layout; this only draws the content.
  */
-export interface TemplateSelectorDialogProps {
-  open: boolean;
-  /** the host fetches these; the dialog only filters them. Include `buttons` — it is a child
-   * table and needs its own query, see {@link WhatsAppTemplate.buttons} */
-  templates: WhatsAppTemplate[];
-  loading?: boolean;
-  /** default "WhatsApp Templates" */
-  title?: string;
-  /** default "Welcome Message" — an example name, not an instruction */
-  searchPlaceholder?: string;
-  /** default "Create New Template" */
-  createLabel?: string;
-  /** default "No Templates Found" */
-  emptyLabel?: string;
-  /** default "Create New" — the empty state's button */
-  emptyCreateLabel?: string;
-}
-
-/**
- * Fixed emoji bar shown on bubble hover. There is no emoji search or picker by design.
- *
- * Emits: `select` (`emoji: string`).
- */
-export interface ReactionPickerProps {
-  /** default `["👍", "❤️", "😂", "😮", "😢", "🙏"]` */
-  emojis?: string[];
+export interface TemplateContentProps {
+  /** rendered header text — `WhatsAppMessage.header` or `WhatsAppTemplate.header_text` */
+  header?: string;
+  /**
+   * The body. On a sent message this is `template`, already substituted; on an unsent
+   * template it is `message`, still carrying its `{{ variables }}`. Either way it renders
+   * through the WhatsApp markup formatter, so bold and italic preview the way they send.
+   */
+  body?: string;
+  footer?: string;
+  buttons?: WhatsAppTemplateButton[];
+  /**
+   * Class for the body element only.
+   *
+   * A fixed-height card wants just the body to scroll, so the footer and buttons — the parts
+   * a picker most needs to show — stay pinned instead of being clipped by a long body:
+   * `body-class="min-h-0 flex-1 overflow-y-auto"`, with the card itself a flex column.
+   */
+  bodyClass?: string;
 }

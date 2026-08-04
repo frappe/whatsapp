@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
  * The reaction bar's emojis. Fixed by design — there is no picker and no emoji search, so
- * the composite and the bubble reference this list rather than each restating it.
+ * every caller references this list rather than each restating it.
  */
 export const REACTION_EMOJIS: string[] = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 </script>

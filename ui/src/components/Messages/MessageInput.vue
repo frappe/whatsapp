@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { Button, Dropdown, FileUploader, Textarea } from "frappe-ui";
-import MediaPreviewDialog from "./MediaPreviewDialog.vue";
-import { formatWhatsAppMessage } from "./formatMessage";
+import MediaPreviewDialog from "../common/MediaPreviewDialog.vue";
+import { formatWhatsAppMessage } from "../../utils/formatMessage";
 import type {
 	MediaFile,
 	MessageInputProps,

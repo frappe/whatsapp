@@ -1,12 +1,23 @@
 import { formatBytes } from "frappe-ui";
-import type { WhatsAppContentType, WhatsAppMessage } from "./types";
+import type { MediaKind } from "../types";
 
 /** MIME prefixes that map to a dedicated renderer. Everything else is a document. */
-const MIME_CONTENT_TYPE_MAP: Record<string, WhatsAppContentType> = {
+const MIME_CONTENT_TYPE_MAP: Record<string, MediaKind> = {
   "image/": "image",
   "audio/": "audio",
   "video/": "video",
 };
+
+/**
+ * The attachment fields these helpers read. Structural, so any richer type carrying the same
+ * field names — `WhatsAppMessage` above all — satisfies it with no conversion, and `utils`
+ * still owes `components` nothing.
+ */
+export interface MediaAttachment {
+  media_url?: string;
+  file_name?: string;
+  file_size?: number;
+}
 
 /**
  * Pick the render kind for a message from its media's MIME type.
@@ -16,7 +27,7 @@ const MIME_CONTENT_TYPE_MAP: Record<string, WhatsAppContentType> = {
  * message now carries the native `mime_type` and the UI decides how to draw it, so the
  * server-side helper becomes deletable once its host is wired to this package.
  */
-export function contentTypeFromMime(mimeType?: string): WhatsAppContentType {
+export function contentTypeFromMime(mimeType?: string): MediaKind {
   if (!mimeType) return "text";
   const mime = mimeType.toLowerCase();
   for (const [prefix, contentType] of Object.entries(MIME_CONTENT_TYPE_MAP)) {
@@ -27,28 +38,31 @@ export function contentTypeFromMime(mimeType?: string): WhatsAppContentType {
 
 /** Filename to show for an attachment, falling back to the media URL's basename. */
 export function documentName(
-  message: WhatsAppMessage,
+  attachment: MediaAttachment,
   fallback = "Document"
 ): string {
-  if (message.file_name) return message.file_name;
+  if (attachment.file_name) return attachment.file_name;
   // Fall back to the URL basename for media not backed by a local File record.
-  const basename = (message.media_url || "").split("/").pop()?.split("?")[0];
+  const basename = (attachment.media_url || "").split("/").pop()?.split("?")[0];
   return basename || fallback;
 }
 
 /** Secondary line under an attachment's name, e.g. "PDF · 1.2 MB". Empty when neither is known. */
-export function documentMeta(message: WhatsAppMessage): string {
-  const name = documentName(message);
+export function documentMeta(attachment: MediaAttachment): string {
+  const name = documentName(attachment);
   const ext = name.includes(".")
     ? (name.split(".").pop() as string).toUpperCase()
     : "";
-  const size = message.file_size ? formatBytes(message.file_size) : "";
+  const size = attachment.file_size ? formatBytes(attachment.file_size) : "";
   return [ext, size].filter(Boolean).join(" · ");
 }
 
-/** Whether a media message has a caption to render below the media. */
-export function hasCaption(message: WhatsAppMessage): boolean {
-  // Media `message` is the caption; it's empty (or a legacy /files URL) when
-  // there's no caption, in which case nothing should render below the media.
-  return Boolean(message.message && !message.message.startsWith("/files/"));
+/**
+ * Whether a media message's body is a caption worth rendering below the media.
+ *
+ * Media stores its caption in `message`, which is empty when there is none — or, on legacy
+ * rows, the file URL repeated back.
+ */
+export function hasCaption(caption?: string): boolean {
+  return Boolean(caption && !caption.startsWith("/files/"));
 }

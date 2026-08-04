@@ -1,4 +1,4 @@
-import { sanitizeHTML } from "../../utils/sanitize";
+import { sanitizeHTML } from "./sanitize";
 
 /**
  * Convert WhatsApp's message markup to HTML, then sanitize it.

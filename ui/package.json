@@ -13,6 +13,10 @@
       "import": "./src/components/Messages/index.ts",
       "types": "./src/components/Messages/index.ts"
     },
+    "./common": {
+      "import": "./src/components/common/index.ts",
+      "types": "./src/components/common/index.ts"
+    },
     "./utils": {
       "import": "./src/utils/index.ts",
       "types": "./src/utils/index.ts"
