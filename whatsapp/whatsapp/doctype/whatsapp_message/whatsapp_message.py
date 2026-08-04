@@ -59,6 +59,9 @@ class WhatsAppMessage(Document):
 			if default_account:
 				self.whatsapp_account = default_account
 
+	def after_insert(self) -> None:
+		self.notify_change()
+
 	def validate(self) -> None:
 		if self.direction == "Outgoing":
 			self._validate_outgoing()
@@ -77,21 +80,27 @@ class WhatsAppMessage(Document):
 			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
 
-	def on_update(self) -> None:
-		# Any host rendering a conversation listens on this to refresh the reference
-		# document's messages. Fires once per save, including the save that submits.
+	def on_trash(self) -> None:
+		frappe.db.delete(
+			"WhatsApp Log",
+			{"reference_doctype": "WhatsApp Message", "reference_docname": self.name},
+		)
+		self.notify_change()
+
+	def notify_change(self) -> None:
+		"""Tell any host rendering the reference document to refetch its messages.
+
+		`after_commit` keeps a client from refetching rows the transaction has not written
+		yet. Paths that write with `frappe.db.set_value` skip controller hooks and must call
+		this themselves.
+		"""
 		frappe.publish_realtime(
 			"whatsapp_message",
 			{
 				"reference_doctype": self.reference_doctype,
 				"reference_docname": self.reference_docname,
 			},
-		)
-
-	def on_trash(self) -> None:
-		frappe.db.delete(
-			"WhatsApp Log",
-			{"reference_doctype": "WhatsApp Message", "reference_docname": self.name},
+			after_commit=True,
 		)
 
 	def _validate_outgoing(self) -> None:
