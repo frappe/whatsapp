@@ -606,6 +606,65 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 
 
 @frappe.whitelist()
+def get_sendable_templates(reference_doctype: str) -> list[dict]:
+	"""Return Approved templates that can be sent from the given DocType.
+
+	Sendable means bound to that doctype, or unbound with no variables. Unbound templates
+	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md).
+	"""
+	templates = frappe.get_all(
+		"WhatsApp Template",
+		filters={
+			"status": "Approved",
+			"reference_doctype": ["in", [reference_doctype, ""]],
+		},
+		fields=["name", "message", "footer", "header_text", "header_type", "reference_doctype"],
+		order_by="modified desc",
+	)
+	if not templates:
+		return []
+
+	unbound_names = [t.name for t in templates if not t.reference_doctype]
+	unbound_with_vars: set[str] = set()
+	if unbound_names:
+		unbound_with_vars = {
+			row.parent
+			for row in frappe.get_all(
+				"Template Variable",
+				filters={"parent": ["in", unbound_names], "parenttype": "WhatsApp Template"},
+				fields=["parent"],
+			)
+		}
+
+	sendable = [t for t in templates if t.name not in unbound_with_vars]
+	if not sendable:
+		return []
+
+	# A child table needs its own query: frappe.get_all on the parent cannot return one,
+	# whatever is in the field list.
+	buttons_by_template: dict[str, list[dict]] = {}
+	for row in frappe.get_all(
+		"WhatsApp Template Button",
+		filters={"parent": ["in", [t.name for t in sendable]], "parenttype": "WhatsApp Template"},
+		fields=["parent", "button_type", "button_text", "url", "phone_number"],
+		order_by="idx asc",
+	):
+		buttons_by_template.setdefault(row.parent, []).append(
+			{
+				"button_type": row.button_type,
+				"button_text": row.button_text,
+				"url": row.url,
+				"phone_number": row.phone_number,
+			}
+		)
+
+	for template in sendable:
+		template["buttons"] = buttons_by_template.get(template.name, [])
+
+	return sendable
+
+
+@frappe.whitelist()
 def sync_all() -> dict:
 	accounts = get_active_accounts()
 	settings = get_settings()

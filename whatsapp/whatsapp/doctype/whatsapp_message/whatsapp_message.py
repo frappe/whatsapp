@@ -59,6 +59,9 @@ class WhatsAppMessage(Document):
 			if default_account:
 				self.whatsapp_account = default_account
 
+	def after_insert(self) -> None:
+		self.notify_change()
+
 	def validate(self) -> None:
 		if self.direction == "Outgoing":
 			self._validate_outgoing()
@@ -81,6 +84,30 @@ class WhatsAppMessage(Document):
 		frappe.db.delete(
 			"WhatsApp Log",
 			{"reference_doctype": "WhatsApp Message", "reference_docname": self.name},
+		)
+		self.notify_change()
+
+	def notify_change(self) -> None:
+		"""Tell any host rendering the reference document to refetch its messages.
+
+		Scoped to that document's room, as `Communication.notify_change` is: joining one
+		needs read permission, while the no-doctype fallback is the site room every Desk
+		user is in — hence also the early return. `after_commit` keeps a client from
+		refetching rows the transaction has not written yet, and paths that write with
+		`frappe.db.set_value` skip controller hooks and must call this themselves.
+		"""
+		if not (self.reference_doctype and self.reference_docname):
+			return
+
+		frappe.publish_realtime(
+			"whatsapp_message",
+			{
+				"reference_doctype": self.reference_doctype,
+				"reference_docname": self.reference_docname,
+			},
+			doctype=self.reference_doctype,
+			docname=self.reference_docname,
+			after_commit=True,
 		)
 
 	def _validate_outgoing(self) -> None:

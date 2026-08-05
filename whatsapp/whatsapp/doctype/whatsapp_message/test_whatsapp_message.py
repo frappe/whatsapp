@@ -859,6 +859,36 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		payload = mock_send.call_args[0][0]
 		self.assertEqual(payload["type"], "template")
 
+	# -------------------------------------------------------------------------
+	# notify_change
+	# -------------------------------------------------------------------------
+
+	def _notify(self, **fields):
+		doc = frappe.get_doc(dict(doctype="WhatsApp Message", **fields))
+		with patch("frappe.publish_realtime") as publish:
+			doc.notify_change()
+		return publish
+
+	def test_notify_change_is_scoped_to_the_reference_document(self):
+		"""Without doctype/docname the event lands in the site room, i.e. every Desk user."""
+		publish = self._notify(reference_doctype="ToDo", reference_docname="TODO-0001")
+
+		event, message = publish.call_args[0]
+		self.assertEqual(event, "whatsapp_message")
+		self.assertEqual(message, {"reference_doctype": "ToDo", "reference_docname": "TODO-0001"})
+		self.assertEqual(publish.call_args.kwargs["doctype"], "ToDo")
+		self.assertEqual(publish.call_args.kwargs["docname"], "TODO-0001")
+		self.assertTrue(publish.call_args.kwargs["after_commit"])
+
+	def test_notify_change_publishes_nothing_without_a_reference(self):
+		for fields in (
+			{},
+			{"reference_doctype": "ToDo"},
+			{"reference_docname": "TODO-0001"},
+		):
+			with self.subTest(fields=fields):
+				self._notify(**fields).assert_not_called()
+
 
 class TestUtils:
 	"""Tests for utility payload builders (no DB needed)."""

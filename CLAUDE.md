@@ -93,7 +93,70 @@ log(
 
 **Indentation:** Tabs (ruff config), double quotes, line length 110.
 
+## Simplicity — hard rule
+
+**Build what was asked for, at the smallest size that works.** No speculative generality.
+
+Do not add:
+
+- Abstractions with one caller — a base class, factory, registry, or strategy object introduced
+  for a second case that does not exist yet. Write the concrete thing; extract when the second
+  case arrives.
+- Config knobs, feature flags, or `**kwargs` passthroughs nobody sets.
+- Layers Frappe already provides — a wrapper around `frappe.get_doc`, a hand-rolled cache in
+  front of the ORM, a custom hook dispatcher where `hooks.py` or a controller method fits.
+- Defensive branches for inputs the caller cannot produce. Let it raise.
+- Parallel code paths kept "for compatibility" when nothing calls the old one — delete it.
+
+Clean-code practices that do apply here: one job per function, names that state intent, small
+guard clauses over nested `if`s, early return, no reaching through a doc chain, no duplicated
+logic across a controller and its webhook path. Prefer the shortest version a reviewer can hold
+in their head at once.
+
+If a request seems to call for a bigger design, say so in a sentence and implement the simple
+version — do not build both.
+
+## Comments — hard rule
+
+**Write no comment until one is required. Keep the code simple and self-explanatory instead.**
+
+If a comment restates the line below it, the fix is a better name, not a comment. Reach for a
+clearer function or variable name, or extract a named helper, before reaching for prose.
+
+Delete on sight:
+
+```python
+# Get the default account          <- says nothing the name doesn't
+account = get_default_account()
+
+# Loop through messages            <- describes the syntax
+for message in messages:
+
+def send_message(to, message):
+    """Send a message to a recipient."""   # <- restates the signature
+```
+
+A comment earns its place only when it carries something the code cannot:
+
+- **Why**, when the reason is not visible — a workaround, a deliberate ordering, an
+  upstream quirk. `# anchored to line starts so digits mid-sentence aren't matched as list items`
+- **A non-obvious constraint** a future edit would otherwise break — a field that must be
+  set before another, a guard that looks removable and isn't.
+- **A reference** that saves a hunt — an issue number, a Meta API behaviour, a linked commit.
+
+Docstrings follow the same rule: write one when a function's contract is not obvious from its
+name and signature, and say what is *not* obvious — edge cases, what it throws, what shape it
+returns. Skip it otherwise. Never restate the parameters.
+
+When editing existing code, delete redundant comments you pass through rather than preserving
+them out of politeness.
+
 ## Commit Style
+
+**Never commit automatically.** Stop when the changes are ready and hand them back for review — the
+user commits. End with a one-liner pointing at what deserves a look (the file and the thing that
+changed in it), not a summary of everything done. Only run `git commit` when the user asks for it in
+that message.
 
 Conventional Commits required. Format: `type(scope): description`
 
