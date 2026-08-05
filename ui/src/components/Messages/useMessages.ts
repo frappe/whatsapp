@@ -213,10 +213,31 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
       if (concerns) reload();
     };
 
+    // The event is published to each reference document's room, and a client is in no room
+    // until it asks: `doc_subscribe` is what the socket server permission-checks and joins.
+    // Skip this and the handler above is simply never called.
+    let subscribed: MessageReference[] = [];
+    const unsubscribeAll = () => {
+      for (const [doctype, docname] of subscribed) {
+        socket.emit("doc_unsubscribe", doctype, docname);
+      }
+    };
+    const resubscribe = () => {
+      unsubscribeAll();
+      subscribed = [...references()];
+      for (const [doctype, docname] of subscribed) {
+        socket.emit("doc_subscribe", doctype, docname);
+      }
+    };
+    watch(referencesKey, resubscribe, { immediate: true });
+
     socket.on("whatsapp_message", onMessage);
     // Scope disposal, not unmount: the controller belongs to whatever scope created it, and
     // a host may keep one alive across a component's lifetime.
-    onScopeDispose(() => socket.off("whatsapp_message", onMessage));
+    onScopeDispose(() => {
+      socket.off("whatsapp_message", onMessage);
+      unsubscribeAll();
+    });
   }
 
   // Returned as a `reactive` object so a component can spread it with `v-bind="messages"`:

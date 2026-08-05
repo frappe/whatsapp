@@ -281,11 +281,19 @@ reaction — see the "Design decisions" section of the
 subscribes to the app's `whatsapp_message` event, reloading when the event names one of its
 references. That covers an inbound message, a status change, and another agent's send.
 
+The app publishes that event to each reference **document's** room rather than site-wide, so
+the controller also emits `doc_subscribe` for every reference — the socket server checks read
+permission on the document before joining, which is what keeps the event off other users'
+connections. The subscriptions follow the reference list when it changes, and are dropped on
+effect-scope dispose along with the handler, so a controller held longer than a component is
+still cleaned up correctly. Rooms belong to the connection, not to the controller: two
+controllers on the same reference share one subscription, and the first to dispose leaves the
+room for both.
+
 Expose the socket at your app root with `provide("socket", socket)` (`"$socket"` and an
 `app.config.globalProperties.$socket` global are also read). **With no socket the subscription
 is skipped entirely** — everything else works, the conversation just refreshes only on the
-controller's own writes and on `reload()`. The subscription is released on effect-scope
-dispose, so a controller held longer than a component is still cleaned up correctly.
+controller's own writes and on `reload()`.
 
 `useMessages()` injects, so it must be called during `setup()`.
 
@@ -373,7 +381,8 @@ their type annotations, and that parameter is annotated `str`, so a raw array is
 before the method runs. `useMessages()` stringifies it for you.
 
 Realtime updates listen on the `whatsapp_message` event, published by
-`WhatsApp Message.notify_change()` with the reference doctype and docname.
+`WhatsApp Message.notify_change()` with the reference doctype and docname, on that
+document's room.
 
 ## Types
 
