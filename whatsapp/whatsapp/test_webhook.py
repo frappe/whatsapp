@@ -1,4 +1,4 @@
-# Copyright (c) 2026, pratham@frappe.io and Contributors
+# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
 from unittest.mock import MagicMock, patch

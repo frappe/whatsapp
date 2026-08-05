@@ -1,4 +1,4 @@
-// Copyright (c) 2026, pratham@frappe.io and contributors
+// Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
 
 frappe.ui.form.on("WhatsApp Template", {
