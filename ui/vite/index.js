@@ -1,24 +1,12 @@
-// Vite plugin for apps that consume @whatsapp/ui.
+// Vite plugin for apps that consume @whatsapp/ui: add `whatsappUI()` to their `plugins`,
+// optionally with `{ dedupe: [...] }` to extend the list.
 //
-// This package has no build step: it ships raw .vue/.ts source that the host's
-// bundler compiles in place, reached through a symlink or a path alias. That is
-// what makes deduping necessary. When the bundler resolves a bare import such as
-// `vue` or `frappe-ui` from a file inside this package, it walks up from the
-// file's *realpath* — the package's own location — rather than from the host app.
-// If it finds a copy there (or fails to collapse it with the host's), the app
-// ends up running two copies: two Vue runtimes, and two frappe-ui/reka-ui
-// module instances whose provide/inject keys no longer match, so context
-// injection silently returns undefined. Forcing `resolve.dedupe` pins each of
-// these to the host's single instance.
+// This package ships raw source, so a bare import inside it resolves from the package's own
+// realpath, not the host's. Without deduping the app runs two Vue runtimes and two
+// frappe-ui/reka-ui instances, whose provide/inject keys silently stop matching.
 //
-// Opt-in: add `whatsappUI()` to a consuming app's vite `plugins`. Pass
-// `{ dedupe: [...] }` to extend the list with app-specific raw-source singletons.
-//
-// `dompurify` is deduped even though it is this package's own declared
-// dependency, because the host has it too and a single copy is fine. The rule is
-// about the host, not about ownership: a dependency the host does NOT have must
-// never be listed here — deduping it would point resolution at a host copy that
-// does not exist, and the import would fail.
+// Only list what the host also has: deduping a package the host lacks points resolution at a
+// copy that does not exist.
 
 const SINGLETONS = ["vue", "frappe-ui", "reka-ui", "dompurify"];
 

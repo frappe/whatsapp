@@ -10,9 +10,8 @@ withDefaults(defineProps<TemplateButtonsProps>(), {
 	buttons: () => [],
 });
 
-// Imported components rather than `lucide-*` classes: the icon is chosen from `button_type`
-// at runtime, and Tailwind only emits CSS for class names it can read as complete strings in
-// the source, so a computed class name would resolve to nothing.
+// Imported components, not `lucide-*` classes: the icon is picked at runtime, and Tailwind
+// only emits CSS for class names it can read as complete strings in the source.
 const BUTTON_TYPE_ICONS: Record<WhatsAppTemplateButton["button_type"], Component> = {
 	URL: LucideExternalLink,
 	PHONE_NUMBER: LucidePhone,

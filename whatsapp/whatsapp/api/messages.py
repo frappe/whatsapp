@@ -3,14 +3,9 @@
 
 """Conversation API: read a document's WhatsApp messages, and send/react from it.
 
-Every endpoint here is host-agnostic. The scope of a read is handed in as a list of
-`[doctype, docname]` references and each one is permission-checked, so a host decides
-what a "conversation" is (one document, or a document plus the record it was converted
-from) without this app knowing anything about it.
-
-The wire model uses the `WhatsApp Message` DocType's own field names, unrenamed and
-with Title-Case `status`. Consumers derive "is this a reply?" from `context_message_id`
-and the render kind from `mime_type`; there are no columns for either.
+The read's scope is handed in as `[doctype, docname]` references and each one is
+permission-checked, so a host decides what a "conversation" is without this app knowing
+anything about that host. The wire model uses the DocType's own field names, unrenamed.
 """
 
 import frappe
@@ -52,9 +47,8 @@ MESSAGE_FIELDS = [
 def get_messages(references: str) -> list[dict]:
 	"""Return the WhatsApp Messages attached to the given reference documents.
 
-	`references` is a JSON list of `[doctype, docname]` pairs supplied by the client,
-	so every one of them is checked for existence and read permission before its
-	messages are read.
+	`references` is a client-supplied JSON list of `[doctype, docname]` pairs, so every
+	pair is checked for existence and read permission first.
 	"""
 	pairs = _validate_references(references)
 	if not pairs:
@@ -100,8 +94,8 @@ def send_message(
 	if reference_doctype and reference_docname:
 		_validate_reference(reference_doctype, reference_docname)
 
-	# Resolved before anything is created: an attachment that resolves to no File would
-	# otherwise leave a message with no body and no media, i.e. an empty text message.
+	# Before anything is created: an attachment resolving to no File would otherwise leave
+	# a message with no body and no media.
 	file_docname = _resolve_attachment(attach) if attach else None
 
 	profile_name = _resolve_to_profile(to, create_if_missing=True)
@@ -118,9 +112,8 @@ def send_message(
 		{
 			"reference_doctype": reference_doctype,
 			"reference_docname": reference_docname,
-			# For media the `message` becomes the WhatsApp caption; keep it empty when
-			# there is no caption (never fall back to the file URL, which would be sent
-			# verbatim as a text message).
+			# The caption for media; never fall back to the file URL, which would be
+			# sent verbatim as a text message.
 			"message": message or "",
 			"to": profile_name,
 		}
@@ -135,9 +128,8 @@ def send_message(
 	doc.insert(ignore_permissions=True)
 
 	if attach:
-		# media_url is the read-only field a conversation view renders the bubble from,
-		# and mime_type is a pre-send display fallback — _send overwrites it with the
-		# File's real content type.
+		# media_url is read-only, and this mime_type is only a pre-send display value —
+		# _send overwrites it with the File's real content type.
 		frappe.db.set_value("WhatsApp Message", doc.name, "media_url", attach, update_modified=False)
 		frappe.db.set_value(
 			"WhatsApp Message",
@@ -156,8 +148,7 @@ def send_message(
 def react_to_message(message: str, emoji: str) -> str:
 	"""React to a message with `emoji` and return the created reaction message's name.
 
-	A WhatsApp reaction is its own message document carrying `reaction` plus the target's
-	`context_message_id`; `get_messages` folds it back onto the message it points at.
+	A reaction is its own message document; `get_messages` folds it back onto its target.
 	"""
 	target = _get_permitted_message(message)
 	context_message_id = _acknowledged_message_id(target, _("react to"))
@@ -222,8 +213,8 @@ def send_template(
 def _validate_references(references: str) -> list[tuple[str, str]]:
 	"""Parse the client-supplied reference list, dropping duplicates.
 
-	This is the security boundary of `get_messages`: the caller chooses the scope, so
-	every pair is checked for existence and read permission.
+	The security boundary of `get_messages`: the caller chooses the scope, so every pair
+	is checked for existence and read permission.
 	"""
 	try:
 		parsed = frappe.parse_json(references or "[]") or []
@@ -266,10 +257,8 @@ def _validate_reference(reference_doctype: str, reference_docname: str) -> None:
 def _conversation_order(message: dict) -> tuple:
 	"""Oldest first, null-safe.
 
-	`creation` is a datetime on a real row, so a null must never be substituted with a
-	string: sorting would then compare `str` to `datetime` and raise. Nulls are grouped
-	by the leading flag instead, and `name` breaks ties left over from a same-second
-	insert of two messages under different references.
+	The leading flag groups nulls: substituting "" for a missing `creation` would compare
+	`str` to `datetime` and raise. `name` breaks same-second ties across references.
 	"""
 	creation = message.get("creation")
 	return (creation is not None, creation or "", message.get("name") or "")
@@ -278,18 +267,10 @@ def _conversation_order(message: dict) -> tuple:
 def _fold_reactions(messages: list[dict]) -> list[dict]:
 	"""Fold reaction rows onto the message they target and drop the rows themselves.
 
-	Reactions arrive as separate message documents carrying `reaction` +
-	`context_message_id`. Each participant keeps one reaction per message — reacting
-	again replaces their own — so the latest per (target, direction) wins and both
-	sides' reactions can be shown together. Who reacted is presentation: consumers
-	label a reaction from its `direction`.
-
-	A reaction row is identified by `reaction` being non-null, not by it being truthy:
-	retracting a reaction sends an otherwise identical row with an *empty* emoji (see
-	`webhook._create_incoming_message`, and Meta's reaction message with no `emoji` key).
-	Such a row removes the entry it retracts instead of adding one. A message that is not
-	a reaction stores NULL — the webhook's non-reaction branch sets `reaction` to None
-	explicitly, and the `reaction` Data column is nullable with no default.
+	Each participant keeps one reaction per message, so the latest per (target, direction)
+	wins. A row is a reaction when `reaction` is non-null, not when it is truthy: a
+	retraction arrives as the same row with an *empty* emoji and removes what it retracts,
+	while a non-reaction message stores NULL.
 	"""
 	reactions_by_target: dict[str, dict[str, str]] = {}
 	folded = []
@@ -410,10 +391,8 @@ def _get_permitted_message(name: str) -> Document:
 def _acknowledged_message_id(target: Document, action: str) -> str:
 	"""Return the target's WhatsApp `message_id`, throwing if Meta has not issued one yet.
 
-	A Pending or Failed message has no `message_id`, so there is nothing to point at. The
-	send path degrades silently rather than complaining — `WhatsAppMessage._build_payload`
-	only emits a reaction payload when `context_message_id` is set, so a reaction would go
-	out as a plain text message containing the bare emoji, and a reply would lose its quote.
+	Thrown here because the send path degrades silently: with no `context_message_id` a
+	reaction goes out as a text message of the bare emoji, and a reply loses its quote.
 	"""
 	if not target.message_id:
 		frappe.throw(
@@ -433,13 +412,8 @@ def _resolve_reply_context(reply_to: str) -> str:
 def _resolve_attachment(file_url: str) -> str:
 	"""Resolve a client-supplied file URL to the File docname the send path expects.
 
-	Media is sent by uploading the file to Meta and referencing the returned media_id. The
-	upload path (`WhatsAppMessage._send`) keys off `attach`, which it resolves as a File
-	*docname* (`frappe.get_doc("File", attach)`), so a URL has to be mapped here.
-
-	Copying an attachment between documents creates a second File row sharing the same
-	`file_url`, so this can match more than one; the oldest — the original upload — is
-	taken, which keeps repeated sends of the same URL resolving identically.
+	`WhatsAppMessage._send` resolves `attach` as a File docname, so a URL must be mapped.
+	Copies share a `file_url`, so the oldest — the original upload — wins.
 	"""
 	file_docname = frappe.db.get_value(
 		"File", {"file_url": file_url}, "name", order_by="creation asc, name asc"
@@ -505,9 +479,8 @@ def _resolve_to_profile(to_value: str, create_if_missing: bool = False) -> str |
 def _validate_template_is_approved(template_name: str) -> None:
 	"""Throw unless the template is Approved.
 
-	`get_sendable_templates` only offers Approved ones to a picker, but the endpoint takes
-	any name. Meta will not render a template it has not approved, so a Pending, Rejected
-	or Deleted one is rejected here rather than turned into a Failed message.
+	Meta will not render an unapproved template, so reject it here rather than let it
+	become a Failed message — the endpoint takes any name, not just what a picker offered.
 	"""
 	status = frappe.db.get_value("WhatsApp Template", template_name, "status")
 	if status != "Approved":
@@ -521,9 +494,8 @@ def _validate_template_is_approved(template_name: str) -> None:
 def _validate_template_for_reference(template_name: str, reference_doctype: str | None) -> None:
 	"""Enforce the "reference DocType drives all parameters" invariant.
 
-	Per DESIGN_DECISIONS.md a template with variables resolves them from a single
-	document of the template's bound reference_doctype, so sending such a template from
-	a different doctype (or from none) cannot resolve values.
+	Variables resolve from one document of the template's bound reference_doctype, so
+	sending from a different doctype (or none) cannot fill them. See DESIGN_DECISIONS.md.
 	"""
 	if not frappe.db.exists("WhatsApp Template", template_name):
 		frappe.throw(
@@ -564,16 +536,9 @@ def _validate_template_for_reference(template_name: str, reference_doctype: str 
 def _submit(doc: Document, failure_summary: str) -> None:
 	"""Submit an already-inserted message, recording any failure on the record itself.
 
-	Re-raising would roll back the whole request, discarding both the message row and
-	the WhatsApp Log entry describing why it failed. Instead the failure is logged and
-	stamped onto the message as status "Failed" plus `error_message`, which is what the
-	caller reads back from `get_messages` and renders as a failed bubble.
-
-	`_send` reports its failure with `frappe.throw`, which leaves the message in
-	`message_log` even once the exception is swallowed. That would reach the client as a
-	red error dialog on an HTTP 200 *in addition to* the Failed bubble, so anything the
-	failed submit put there is dropped and the persisted status is the only channel. The
-	`WhatsApp Log` entry is unaffected — it is a separate record.
+	Re-raising would roll back the request, discarding the row and the log entry that
+	explains it. The message_log is drained because `_send` throws: its message would
+	otherwise reach the client as an error dialog on an HTTP 200, beside the Failed bubble.
 	"""
 	message_log_depth = len(frappe.get_message_log())
 	try:

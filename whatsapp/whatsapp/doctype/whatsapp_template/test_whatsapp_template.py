@@ -170,11 +170,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 
 
 class IntegrationTestGetSendableTemplates(IntegrationTestCase):
-	"""`get_sendable_templates` powers the template picker in a conversation view.
-
-	A template is sendable from a DocType when it is bound to that DocType, or when it is
-	unbound and has no variables to resolve (see DESIGN_DECISIONS.md).
-	"""
+	"""Sendable means bound to the DocType, or unbound with no variables to resolve."""
 
 	def setUp(self):
 		super().setUp()

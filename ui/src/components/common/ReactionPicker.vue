@@ -1,8 +1,5 @@
 <script lang="ts">
-/**
- * The reaction bar's emojis. Fixed by design — there is no picker and no emoji search, so
- * every caller references this list rather than each restating it.
- */
+/** Fixed by design — there is no emoji search, and callers share this list. */
 export const REACTION_EMOJIS: string[] = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 </script>
 
@@ -43,7 +40,7 @@ function choose(emoji: string, togglePopover: () => void) {
 			<div
 				class="flex items-center justify-center gap-1 rounded-full bg-surface-elevation-2 px-2 py-1 shadow-2xl ring-1 ring-black ring-opacity-5"
 			>
-				<!-- P12: a bare emoji has no accessible name, so each button gets one -->
+				<!-- a bare emoji has no accessible name, so each button gets one -->
 				<Button
 					v-for="emoji in emojis"
 					:key="emoji"

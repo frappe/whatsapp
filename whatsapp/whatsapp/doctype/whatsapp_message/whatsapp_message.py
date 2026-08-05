@@ -90,17 +90,11 @@ class WhatsAppMessage(Document):
 	def notify_change(self) -> None:
 		"""Tell any host rendering the reference document to refetch its messages.
 
-		Published to the reference document's room, the way `Communication.notify_change`
-		is: a client joins one only via `doc_subscribe`, which the socket server grants
-		after checking read permission on that document. Without doctype/docname
-		`publish_realtime` falls back to the site room, which every Desk user is in.
-
-		A message with no reference has no room and no conversation view to refresh, so it
-		publishes nothing rather than broadcasting.
-
-		`after_commit` keeps a client from refetching rows the transaction has not written
-		yet. Paths that write with `frappe.db.set_value` skip controller hooks and must call
-		this themselves.
+		Scoped to that document's room, as `Communication.notify_change` is: joining one
+		needs read permission, while the no-doctype fallback is the site room every Desk
+		user is in — hence also the early return. `after_commit` keeps a client from
+		refetching rows the transaction has not written yet, and paths that write with
+		`frappe.db.set_value` skip controller hooks and must call this themselves.
 		"""
 		if not (self.reference_doctype and self.reference_docname):
 			return

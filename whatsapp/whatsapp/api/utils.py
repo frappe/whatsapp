@@ -77,12 +77,9 @@ def get_template_variables(text: str) -> list[str]:
 def parse_template_parameters(string: str | None, parameters) -> str | None:
 	"""Substitute `{{var}}` placeholders in `string` using `parameters`.
 
-	Parameters are stored in three shapes:
-	- dict: named templates (the authoring default) and synced positional templates
-	  with numeric-string keys → substitute `{{<key>}}` per entry
-	- list: legacy positional shape → substitute `{{1}}`, `{{2}}`, … by index
-	- scalar (str/int/float): header storage, which keeps only the single value
-	  (Meta's header section takes one variable) → substitute the first placeholder
+	Stored in three shapes: a dict substitutes `{{<key>}}` per entry, a list substitutes
+	`{{1}}`, `{{2}}`, … by index, and a scalar (header storage, which holds Meta's single
+	header variable) substitutes the first placeholder only.
 	"""
 	if not string or parameters is None:
 		return string
@@ -126,14 +123,8 @@ def mime_type_for_content_type(content_type: str) -> str:
 def humanize_error_message(raw: str | None) -> str | None:
 	"""Reduce a stored WhatsApp error to its human-readable message.
 
-	`error_message` can be stored in several shapes depending on where the failure
-	was captured:
-	- the raw Meta send response: ``{"error": {"message": ..., "code": ...}}``
-	- the webhook status payload's errors array: ``[{"message": ..., "title": ...}]``
-	- an already-plain string (e.g. "Code 131030: ...")
-
-	Return just the human message (e.g. "(#131030) Recipient phone number not in
-	allowed list"), falling back to the original value when it can't be parsed.
+	Handles a Meta send response (`{"error": {...}}`), a webhook errors array and an
+	already-plain string, falling back to the original value when it can't be parsed.
 	"""
 	if not raw:
 		return raw

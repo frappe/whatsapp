@@ -609,12 +609,8 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 def get_sendable_templates(reference_doctype: str) -> list[dict]:
 	"""Return Approved templates that can be sent from the given DocType.
 
-	A template is sendable from `reference_doctype` when either:
-	- it is bound to that doctype (variables resolve from the open document), or
-	- it is unbound AND has no variables (nothing to resolve).
-
-	Unbound templates with variables are excluded because their variables cannot be
-	auto-filled (see DESIGN_DECISIONS.md).
+	Sendable means bound to that doctype, or unbound with no variables. Unbound templates
+	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md).
 	"""
 	templates = frappe.get_all(
 		"WhatsApp Template",
@@ -644,8 +640,8 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 	if not sendable:
 		return []
 
-	# buttons is a child table, which frappe.get_all on the parent cannot return no
-	# matter what is in the field list — it needs its own query keyed on `parent`.
+	# A child table needs its own query: frappe.get_all on the parent cannot return one,
+	# whatever is in the field list.
 	buttons_by_template: dict[str, list[dict]] = {}
 	for row in frappe.get_all(
 		"WhatsApp Template Button",

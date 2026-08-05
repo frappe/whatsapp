@@ -8,25 +8,14 @@ const MIME_CONTENT_TYPE_MAP: Record<string, MediaKind> = {
   "video/": "video",
 };
 
-/**
- * The attachment fields these helpers read. Structural, so any richer type carrying the same
- * field names — `WhatsAppMessage` above all — satisfies it with no conversion, and `utils`
- * still owes `components` nothing.
- */
+/** Structural, so `WhatsAppMessage` satisfies it without `utils` importing `components`. */
 export interface MediaAttachment {
   media_url?: string;
   file_name?: string;
   file_size?: number;
 }
 
-/**
- * Pick the render kind for a message from its media's MIME type.
- *
- * This derivation used to live server-side (CRM's `_infer_content_type`, which rewrote
- * `mime_type` into a `content_type` field before the UI ever saw it). It belongs here: the
- * message now carries the native `mime_type` and the UI decides how to draw it, so the
- * server-side helper becomes deletable once its host is wired to this package.
- */
+/** Pick the render kind for a message from its media's MIME type. */
 export function contentTypeFromMime(mimeType?: string): MediaKind {
   if (!mimeType) return "text";
   const mime = mimeType.toLowerCase();
@@ -57,12 +46,7 @@ export function documentMeta(attachment: MediaAttachment): string {
   return [ext, size].filter(Boolean).join(" · ");
 }
 
-/**
- * Whether a media message's body is a caption worth rendering below the media.
- *
- * Media stores its caption in `message`, which is empty when there is none — or, on legacy
- * rows, the file URL repeated back.
- */
+/** Legacy rows store the file URL back in `message`, which is not a caption. */
 export function hasCaption(caption?: string): boolean {
   return Boolean(caption && !caption.startsWith("/files/"));
 }

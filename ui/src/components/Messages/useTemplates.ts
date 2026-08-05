@@ -14,10 +14,6 @@ const TEMPLATE_API =
 /**
  * The template controller: which templates may be sent from a DocType, and the two writes
  * that go with them.
- *
- * Kept apart from `useMessages()` because a template send composes nothing — the body is
- * rendered server-side from the reference document — and because the list is a property of
- * the DocType, not of the conversation.
  */
 export function useTemplates(
   options: UseTemplatesOptions
@@ -26,7 +22,7 @@ export function useTemplates(
   const referenceDocname = () => toValue(options.referenceDocname) ?? "";
   const recipient = () => toValue(options.to) ?? "";
 
-  // Failures a resource cannot hold: the guards this composable applies before calling one.
+  // Failures a resource cannot hold: the guards applied before calling one.
   const guardError = ref<unknown>(null);
 
   const list = createResource({
@@ -103,13 +99,11 @@ export function useTemplates(
     }
   }
 
-  // A DocType change replaces the whole offering, so refetch on it (and on first read).
+  // A DocType change replaces the whole offering.
   watch(referenceDoctype, () => reload(), { immediate: true });
 
-  // Returned as a `reactive` object so a component can spread it with `v-bind`: `v-bind`
-  // does not unwrap refs nested in a plain object, but `reactive` unwraps them, so each
-  // member binds as a live value. Read members off the returned object rather than
-  // destructuring, which would drop reactivity.
+  // `reactive`, not a plain object: `v-bind` does not unwrap nested refs but `reactive`
+  // does, so each member binds as a live value.
   return reactive({
     templates,
     loading,

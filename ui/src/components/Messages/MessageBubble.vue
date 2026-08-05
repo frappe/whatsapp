@@ -25,11 +25,7 @@ const isReply = computed(() => Boolean(props.message.context_message_id));
 
 const contentType = computed(() => contentTypeFromMime(props.message.mime_type));
 
-/**
- * Who a message is from, by direction alone. There are only two participants, so the pair of
- * labels covers every name this bubble shows — its own sender, the quoted message's sender,
- * and each reactor — and no name has to travel on the wire.
- */
+/** Two participants, so direction alone names every sender this bubble shows. */
 function nameFor(direction?: WhatsAppDirection) {
 	return direction === "Incoming" ? props.senderName : props.youLabel;
 }
@@ -62,11 +58,7 @@ function openFileInAnotherTab(url?: string) {
 			<Badge theme="red" :label="message.status" class="absolute -top-2 right-0" />
 		</Tooltip>
 
-		<!--
-			The quote renders reply_message/reply_to_* only. `header`/`footer` describe
-			*this* message's own template, and a host whose API overwrites them with the
-			replied-to message's would make this block lie either way. Don't add them back.
-		-->
+		<!-- reply_message/reply_to_* only: `header`/`footer` describe *this* message's template -->
 		<div
 			v-if="isReply"
 			class="mb-1 cursor-pointer rounded border-0 border-l-4 bg-surface-gray-3 p-2 text-ink-gray-5"
@@ -181,9 +173,8 @@ function openFileInAnotherTab(url?: string) {
 			class="absolute bottom-1 right-2 flex items-end gap-1 whitespace-nowrap text-ink-gray-5"
 		>
 			<!--
-				dayjsLocal, not dayjs: `creation` is naive and stored in the site's
-				system timezone, and only dayjsLocal converts it to the viewer's.
-				Plain dayjs would read it as browser-local and shift every stamp.
+				dayjsLocal, not dayjs: `creation` is naive and in the site's timezone,
+				so plain dayjs would read it as browser-local and shift every stamp.
 			-->
 			<Tooltip :text="dayjsLocal(message.creation).format('ddd, MMM D, YYYY')">
 				<div class="text-2xs">

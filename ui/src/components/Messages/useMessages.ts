@@ -16,9 +16,6 @@ const API = "whatsapp.whatsapp.api.messages";
 /**
  * The conversation controller: the messages attached to a set of reference documents, what
  * is being composed for them, and the sends that join the two.
- *
- * It owns its fetching, as `useNotifications` and `useActivityTimeline` do — the endpoints
- * are this app's own and host-agnostic, so nothing here needs a host adapter.
  */
 export function useMessages(options: UseMessagesOptions): MessagesController {
   const references = () => toValue(options.references) ?? [];
@@ -28,32 +25,28 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   const pendingMedia = ref<MediaFile>();
   const pendingType = ref<WhatsAppContentType>("document");
   const replyTo = ref<WhatsAppMessage | null>(null);
-  // Failures a resource cannot hold: the guards this composable applies before calling one.
+  // Failures a resource cannot hold: the guards applied before calling one.
   const guardError = ref<unknown>(null);
 
   const list = createResource({
     url: `${API}.get_messages`,
-    // `references` is annotated `str` on the endpoint and the app validates whitelisted
-    // arguments against those annotations, so the pairs must travel as JSON text — a raw
-    // array is rejected before the method runs.
+    // The endpoint annotates `references` as `str` and the app validates whitelisted
+    // arguments against those annotations, so a raw array is rejected before it runs.
     makeParams: () => ({ references: JSON.stringify(references()) }),
   });
 
   const sendResource = createResource({ url: `${API}.send_message` });
   const reactResource = createResource({ url: `${API}.react_to_message` });
 
-  // Sorted here, not taken as given: `get_messages` reads each reference with its own query
-  // and concatenates, so rows are ordered within a reference but grouped by it. A conversation
-  // is one chronological run across every reference.
-  // `creation` is an ISO-ish stamp, so it compares correctly as a string.
+  // `get_messages` reads each reference with its own query, so rows arrive grouped by
+  // reference. `creation` is an ISO-ish stamp, so it compares correctly as a string.
   const messages = computed<WhatsAppMessage[]>(() =>
     [...((list.data as WhatsAppMessage[]) ?? [])].sort((a, b) =>
       (a.creation ?? "") < (b.creation ?? "") ? -1 : 1
     )
   );
   const loading = computed<boolean>(() => Boolean(list.loading));
-  // Surfaced rather than toasted: this package has no notification surface of its own, and a
-  // host's is its own choice. A resource clears its error when its next call starts.
+  // A resource clears its error when its next call starts.
   const error = computed<unknown>(
     () =>
       guardError.value ??
@@ -82,32 +75,24 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     replyTo.value = null;
   }
 
-  /** Stage an upload for the next send; `type` picks the preview and the outgoing kind. */
   function attach(file: MediaFile, type: WhatsAppContentType = "document") {
     pendingMedia.value = file;
     pendingType.value = type;
   }
 
-  /** Drop the staged upload — an abandoned attachment must not ride along on the next send. */
+  /** An abandoned attachment must not ride along on the next send. */
   function clearAttachment() {
     pendingMedia.value = undefined;
     pendingType.value = "document";
   }
 
-  // Same guard buildPayload() applies, exposed so an input can disable its send affordance
-  // instead of letting a click no-op.
   const canSend = computed(() =>
     Boolean(draft.value.trim() || pendingMedia.value)
   );
 
   /**
-   * Assemble what is currently staged, or `null` when there is nothing to send — no body
-   * and no attachment. A bare attachment is valid; an empty message is not.
-   *
-   * `overrides.message` supplies a body from somewhere other than the draft. A media
-   * caption is typed in the preview dialog, not in the input, and the draft it leaves
-   * behind is a separate unsent message — passing the caption here keeps the two apart
-   * instead of one overwriting the other. The guard applies to whichever body wins.
+   * `overrides.message` supplies a body from outside the draft — a caption typed in the
+   * preview dialog — so the draft survives as the separate unsent message it is.
    */
   function buildPayload(
     overrides?: Pick<SendMessagePayload, "message">
@@ -123,7 +108,6 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     };
   }
 
-  /** Clear everything a text send consumed — the draft, the attachment and the reply. */
   function reset() {
     draft.value = "";
     clearAttachment();
@@ -133,8 +117,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   async function send(
     overrides?: Pick<SendMessagePayload, "message">
   ): Promise<string | null> {
-    // Read synchronously, before any await: dismissing the media preview clears the
-    // attachment, and that happens while this call is in flight.
+    // Read before any await: dismissing the media preview clears the attachment, and that
+    // happens while this call is in flight.
     const payload = buildPayload(overrides);
     if (!payload) return null;
 
@@ -199,8 +183,6 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
 
   const socket = getSocketInstance();
   if (socket) {
-    // Published by the app's `WhatsApp Message.notify_change()`, so an inbound message, a
-    // status change and another agent's send all land here.
     const onMessage = (payload: unknown) => {
       const event = (payload ?? {}) as Partial<
         Record<"reference_doctype" | "reference_docname", string>
@@ -213,9 +195,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
       if (concerns) reload();
     };
 
-    // The event is published to each reference document's room, and a client is in no room
-    // until it asks: `doc_subscribe` is what the socket server permission-checks and joins.
-    // Skip this and the handler above is simply never called.
+    // The app publishes on each reference document's room, and a client is in no room until
+    // it asks: `doc_subscribe` is what the socket server permission-checks and joins.
     let subscribed: MessageReference[] = [];
     const unsubscribeAll = () => {
       for (const [doctype, docname] of subscribed) {
@@ -232,18 +213,15 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     watch(referencesKey, resubscribe, { immediate: true });
 
     socket.on("whatsapp_message", onMessage);
-    // Scope disposal, not unmount: the controller belongs to whatever scope created it, and
-    // a host may keep one alive across a component's lifetime.
+    // Scope disposal, not unmount: a host may keep a controller alive across a component.
     onScopeDispose(() => {
       socket.off("whatsapp_message", onMessage);
       unsubscribeAll();
     });
   }
 
-  // Returned as a `reactive` object so a component can spread it with `v-bind="messages"`:
-  // `v-bind` does not unwrap refs nested in a plain object, but `reactive` unwraps them, so
-  // each member binds as a live value. Read members off the returned object
-  // (e.g. `messages.draft`) rather than destructuring, which would drop reactivity.
+  // `reactive`, not a plain object: `v-bind` does not unwrap nested refs but `reactive`
+  // does, so each member binds as a live value.
   return reactive({
     messages,
     loading,

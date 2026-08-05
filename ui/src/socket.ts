@@ -7,14 +7,8 @@ export interface RealtimeSocket {
 }
 
 /**
- * Resolve the host's socket.io connection, without this package owning one.
- *
- * A host exposes it either by `provide("socket", …)` / `provide("$socket", …)` at the app
- * root or as an `app.config.globalProperties.$socket` global; both are tried, in that order.
- * Must be called during `setup()`, since injection is only possible there.
- *
- * This mirrors `@framework/ui`'s helper rather than importing it — this package takes no
- * dependency on that one.
+ * Resolve the host's socket.io connection: `provide("socket"|"$socket", …)` or a `$socket`
+ * global, in that order. Must be called during `setup()`, since injection only works there.
  */
 export function getSocketInstance(): RealtimeSocket | undefined {
   const instance = getCurrentInstance();

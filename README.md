@@ -90,8 +90,7 @@ Permissions guard on the reference document. The app has no role model of its ow
 
 Shared Vue components for rendering WhatsApp conversations, in [`ui/`](ui/). Ships raw source
 consumed by a host's bundler; `frappe-ui` and `vue` are peer dependencies. See
-[`ui/README.md`](ui/README.md) to install it and
-[`ui/src/components/Messages/README.md`](ui/src/components/Messages/README.md) for usage.
+[`ui/README.md`](ui/README.md) to install and use it.
 
 #### Account & Configuration
 

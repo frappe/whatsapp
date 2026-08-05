@@ -3,12 +3,8 @@
 
 """Tests for the conversation API in `whatsapp.whatsapp.api.messages`.
 
-Most of this logic used to live in `crm.api.whatsapp`; the suite there is the ancestor of
-this one. Two contract changes are asserted here on purpose:
-
-- `status` is Title Case and passes through the API untouched (CRM lowercased it).
-- `from_name` and `reply_to_from` no longer exist on the wire — the consumer labels a
-  message from its `direction` and a host-supplied sender name.
+Descended from `crm.api.whatsapp`'s suite, so two contract changes are asserted on purpose:
+`status` passes through in Title Case, and `from_name`/`reply_to_from` are off the wire.
 """
 
 import datetime
@@ -402,10 +398,8 @@ class TestGetMessages(UnitTestCase):
 		self.assertEqual(messages[0]["reactions"], [])
 
 	# --- reaction removal ------------------------------------------------------------
-	#
-	# Retracting a reaction arrives as a reaction row with an *empty* emoji (Meta omits
-	# the `emoji` key; `webhook._create_incoming_message` stores ""). A non-reaction
-	# message stores NULL, so "" vs None is what tells the two apart.
+	# A retraction arrives as a reaction row with an empty emoji; a non-reaction message
+	# stores NULL, so "" vs None is what tells the two apart.
 
 	def test_a_reaction_removal_retracts_the_reaction_it_points_at(self):
 		rows = [
@@ -608,7 +602,7 @@ class TestGetMessages(UnitTestCase):
 	# --- contract: removed fields ----------------------------------------------------
 
 	def test_no_from_name_and_no_reply_to_from_anywhere(self):
-		"""R6: sender labelling is presentation and is supplied by the host, not the API."""
+		"""Sender labelling is presentation, supplied by the host rather than the API."""
 		templates = {"tpl_a": _template_doc(template_name="tpl_a", message="Hello {{name}}")}
 		rows = [
 			_message_row("m1", message_id="wamid.1", message="ping", creation="2026-01-01 00:00:01"),

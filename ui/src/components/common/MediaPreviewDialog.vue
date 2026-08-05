@@ -42,7 +42,6 @@ function onEnter(event: KeyboardEvent) {
 	submit();
 }
 
-// Reset the caption each time the dialog opens, and focus the input.
 watch(
 	() => props.open,
 	(value) => {
@@ -57,7 +56,6 @@ watch(
 <template>
 	<Dialog v-model="show" :options="{ title: dialogTitle, size: 'lg' }">
 		<template #body-content>
-			<!-- media preview -->
 			<div class="flex justify-center rounded-md bg-surface-gray-2 p-2">
 				<img
 					v-if="type === 'image'"
