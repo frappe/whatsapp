@@ -341,9 +341,14 @@ reaction — see [Design decisions](#design-decisions).
 
 ### Realtime
 
-`useMessages()` resolves the host's socket.io connection with `getSocketInstance()` and
-subscribes to the app's `whatsapp_message` event, reloading when the event names one of its
-references. That covers an inbound message, a status change, and another agent's send.
+`useMessages()` resolves the host's **existing** socket.io connection and subscribes to the
+app's `whatsapp_message` event, reloading when the event names one of its references. That
+covers an inbound message, a status change, and another agent's send.
+
+It never calls frappe-ui's `initSocket()`: that opens a *new* connection, and a second one
+alongside the host's would mean duplicate room joins and doubled events. What it reads is the
+`$socket` global frappe-ui's own plugin sets, so a host using that plugin needs no extra
+wiring.
 
 The app publishes that event to each reference **document's** room rather than site-wide, so
 the controller also emits `doc_subscribe` for every reference — the socket server checks read

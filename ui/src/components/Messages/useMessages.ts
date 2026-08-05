@@ -1,6 +1,14 @@
-import { computed, onScopeDispose, reactive, ref, toValue, watch } from "vue";
+import {
+  computed,
+  getCurrentInstance,
+  inject,
+  onScopeDispose,
+  reactive,
+  ref,
+  toValue,
+  watch,
+} from "vue";
 import { createResource } from "frappe-ui";
-import { getSocketInstance } from "../../socket";
 import type {
   MediaFile,
   MessageReference,
@@ -12,6 +20,40 @@ import type {
 } from "./types";
 
 const API = "whatsapp.whatsapp.api.messages";
+
+/** The socket methods used here. Structural, so this package never imports socket.io. */
+interface RealtimeSocket {
+  emit(event: string, ...args: unknown[]): void;
+  on(event: string, handler: (...args: unknown[]) => void): void;
+  off(event: string, handler: (...args: unknown[]) => void): void;
+}
+
+/**
+ * The host's existing connection, never a new one — frappe-ui's `initSocket()` would open a
+ * second. Its plugin sets the `$socket` global this reads; a host may `provide()` one instead.
+ */
+function resolveSocket(): RealtimeSocket | undefined {
+  const instance = getCurrentInstance();
+  if (!instance) {
+    throw new Error("useMessages() must be called during setup().");
+  }
+
+  const globals = instance.appContext.config.globalProperties;
+  const socket =
+    inject<RealtimeSocket | undefined>("socket", undefined) ??
+    inject<RealtimeSocket | undefined>("$socket", undefined) ??
+    (globals.socket as RealtimeSocket | undefined) ??
+    (globals.$socket as RealtimeSocket | undefined);
+
+  if (!socket && import.meta.env?.DEV) {
+    console.warn(
+      "useMessages: no socket found, so live updates are off. Expose one via " +
+        "provide('socket'|'$socket', …) or a $socket global."
+    );
+  }
+
+  return socket;
+}
 
 /**
  * The conversation controller: the messages attached to a set of reference documents, what
@@ -181,7 +223,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   const referencesKey = computed(() => JSON.stringify(references()));
   watch(referencesKey, () => reload(), { immediate: true });
 
-  const socket = getSocketInstance();
+  const socket = resolveSocket();
   if (socket) {
     const onMessage = (payload: unknown) => {
       const event = (payload ?? {}) as Partial<
