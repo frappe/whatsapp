@@ -1,8 +1,8 @@
 app_name = "whatsapp"
-app_title = "WhatsApp"
-app_publisher = "pratham@frappe.io"
-app_description = "Official whatsapp integration for frappe crm"
-app_email = "pratham@frappe.io"
+app_title = "WhatsApp Integration"
+app_publisher = "Frappe Technologies Pvt. Ltd."
+app_description = "Official Whatsapp Integration for Frappe Apps"
+app_email = "developers@frappe.io"
 app_license = "mit"
 
 # Apps
