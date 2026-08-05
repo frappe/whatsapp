@@ -1,9 +1,9 @@
 [project]
 name = "whatsapp"
 authors = [
-    { name = "pratham@frappe.io", email = "pratham@frappe.io"}
+    { name = "Frappe Technologies Pvt. Ltd.", email = "developers@frappe.io"}
 ]
-description = "Official whatsapp integration for frappe crm"
+description = "Official Whatsapp Integration for Frappe Apps"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
