@@ -14,7 +14,7 @@
  "method": "on_receive",
  "minutes_offset": 0,
  "modified": "2026-05-22 15:53:51.484136",
- "modified_by": "test@example.com",
+ "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Received",
  "owner": "Administrator",

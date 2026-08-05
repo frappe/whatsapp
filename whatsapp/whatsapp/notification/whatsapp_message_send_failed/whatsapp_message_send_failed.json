@@ -14,7 +14,7 @@
  "method": "on_send_failed",
  "minutes_offset": 0,
  "modified": "2026-05-22 15:53:51.500046",
- "modified_by": "test@example.com",
+ "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Send Failed",
  "owner": "Administrator",
