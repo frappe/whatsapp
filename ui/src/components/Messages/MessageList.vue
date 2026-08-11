@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<MessageListProps>(), {
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
 	replyLabel: "Reply",
+	replyingToLabel: "Replying to",
 	failedMessageLabel: "Failed to send message",
 	reactLabel: "React",
 	emptyLabel: "No messages yet",
@@ -159,6 +160,7 @@ onBeforeUnmount(() => clearTimeout(flashTimer));
 						:you-label="youLabel"
 						:reacted-by-label="reactedByLabel"
 						:reply-label="replyLabel"
+						:replying-to-label="replyingToLabel"
 						:failed-message-label="failedMessageLabel"
 						@reply="emit('reply', $event)"
 						@jump-to="scrollToMessage"

@@ -217,6 +217,14 @@ smaller gain. At `gray-2` one nested value reads on both, so direction styles th
 Bubble and nothing inside it. Direction was always carried mainly by row
 alignment — the shade is a second, quieter cue.
 
+**A Quote is a rule beside two lines, not a card.** In both places one is drawn — inside a
+Bubble, and in the composer above the field — it is a `border-l-2` and two stacked lines,
+with no fill of its own. The Bubble's quote takes a fill on hover only, because it is a
+button that scrolls to the original and losing the resting fill also lost that affordance;
+that fill is one shade for both **Direction**s, per the rule above. The composer's is inside
+the box's border rather than floating above it, so the box is a single control and a Host's
+gutter has one thing to inset.
+
 **A Bubble's footer sits outside its coloured body.** That is what makes the blue
 `Read` mark legible: inside, it was 1.06:1 against the body. It also removes the
 padding that was reserving room for an overlaid timestamp, and gives a failure

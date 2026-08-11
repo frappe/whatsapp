@@ -357,7 +357,8 @@ string for the whole conversation, so it is a prop:
 
 That one rule covers every place a name appears: the reply quote's header, the reaction
 tooltip (`reactedByLabel`), and the input's reply preview. `MessageList`, `MessageBubble` and
-`MessageInput` all take both props. There is no `from_name` field and no reactor name on a
+`MessageInput` all take both props, and all three prefix the quoted name with `replyingToLabel`
+(default `"Replying to"`). There is no `from_name` field and no reactor name on a
 reaction — see [Design decisions](#design-decisions).
 
 ### Realtime
@@ -412,8 +413,9 @@ is rendered as a `<kbd>` in that tooltip with the modifier detected from the pla
 
 ### Host controls in the input
 
-`MessageInput` is one control, not a field beside a button row: the actions sit **inside** the
-bordered box, so they share its focus ring and its drop target. The `leading-actions` slot is
+`MessageInput` is one control, not a field beside a button row: the reply preview and the
+actions both sit **inside** the bordered box, so they share its focus ring and its drop
+target. The `leading-actions` slot is
 rendered at the start of that action row — before the attach and send buttons — for controls
 that are the host's rather than the package's. Leave the icon's colour to the `Button`, as the
 built-in two do, so the row stays uniform:
@@ -435,11 +437,10 @@ CRM uses it for the template picker, since the picker itself is host chrome — 
 
 ### Where a `class` lands
 
-`MessageInput` has a single root wrapping the reply preview and the composer, so a `class`
-lands on both. **It draws no page padding of its own**, so that `class` is where a host
-supplies its gutter — and because the two share a root, they stay flush with each other.
-(It was two roots with `$attrs` bound to the composer alone, which left the reply preview
-hanging wider than the box below it.)
+`MessageInput`'s reply preview sits **inside** the composer's border, above the field, so there
+is only one box for a host to inset. **It draws no page padding of its own**, so a `class` is
+where a host supplies its gutter; it lands on the root above the composer. (The preview was
+once a separate card floating above the box, which left the two to be kept flush by hand.)
 
 `MessageList` inherits attrs normally, so a `class` lands on the list root. It is bound with
 explicit props rather than `v-bind="controller"`, which is what makes that safe: spreading the

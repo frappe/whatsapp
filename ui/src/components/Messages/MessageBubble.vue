@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<MessageBubbleProps>(), {
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
 	replyLabel: "Reply",
+	replyingToLabel: "Replying to",
 	failedMessageLabel: "Failed to send message",
 });
 
@@ -54,15 +55,22 @@ function nameFor(direction?: WhatsAppDirection) {
 				:id="message.name"
 				class="relative w-fit min-w-0 max-w-full break-words rounded-lg bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
 			>
-				<!-- reply_message/reply_to_* only: `header`/`footer` describe *this* message's template -->
+				<!--
+					reply_message/reply_to_* only: `header`/`footer` describe *this* message's template.
+
+					The fill is hover-only, so the quote reads as a rule beside two lines rather
+					than a card nested in the bubble. One shade for both directions, per the rule
+					that direction styles the bubble and nothing inside it — which is why this is
+					`gray-3` and not a shade picked per surface.
+				-->
 				<button
 					v-if="isReply"
 					type="button"
-					class="mb-1 block w-full rounded border-l-2 border-outline-gray-3 bg-surface-gray-4 p-2 text-left text-ink-gray-7"
+					class="mb-1.5 block w-full rounded-r border-l-2 border-outline-gray-3 px-2 py-0.5 text-left text-ink-gray-7 transition-colors hover:bg-surface-gray-3"
 					@click="() => message.reply_to && emit('jump-to', message.reply_to)"
 				>
-					<div class="mb-0.5 text-sm text-ink-gray-6">
-						{{ nameFor(message.reply_to_direction) }}
+					<div class="text-sm text-ink-gray-6">
+						{{ replyingToLabel }} {{ nameFor(message.reply_to_direction) }}
 					</div>
 					<!-- clamped, not cropped: a fixed max-height slices the last line in half -->
 					<div

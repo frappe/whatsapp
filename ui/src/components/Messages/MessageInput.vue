@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<MessagesController & MessageInputProps>()
 	captionPlaceholder: "Add a caption...",
 	sendLabel: "Send",
 	replyingToLabel: "Replying to",
+	dismissReplyLabel: "Dismiss reply",
 });
 
 const emit = defineEmits<{
@@ -169,38 +170,16 @@ defineExpose({ focus });
 </script>
 
 <template>
-	<!--
-		Single root, so a host's `class` insets the reply preview and the composer together.
-		They were two roots, and a gutter passed in landed on the composer alone.
-	-->
+	<!-- The dialog is a sibling of the composer, so a host's `class` needs a root above both. -->
 	<div class="flex flex-col">
-		<div v-if="replyTo" class="flex items-center gap-2 pb-2">
-			<div
-				class="min-w-0 flex-1 rounded border-l-2 border-outline-gray-3 bg-surface-gray-3 p-2"
-			>
-				<div class="mb-0.5 text-sm text-ink-gray-6">
-					{{ replyingToLabel }} {{ replyToName }}
-				</div>
-				<!-- clamped, not cropped: a fixed max-height slices the last line in half -->
-				<div
-					class="line-clamp-2 text-p-base text-ink-gray-7"
-					v-html="formatWhatsAppMessage(replyTo.message)"
-				/>
-			</div>
-
-			<Button variant="ghost" aria-label="Dismiss reply" @click="clearReply()">
-				<template #icon>
-					<span class="lucide-circle-x size-4 text-ink-gray-6" aria-hidden="true" />
-				</template>
-			</Button>
-		</div>
-
 		<!--
-			One control rather than a field beside a button row: the actions sit inside the box
-			so they share its focus ring, its disabled state and its drop target.
+			One control rather than a field beside a button row: the reply preview, the field and
+			the actions all sit inside the box, so they share its focus ring, its disabled state
+			and its drop target. `overflow-hidden` keeps the preview's fill inside the rounded
+			corners — the attach menu and the send tooltip both portal out, so neither is clipped.
 		-->
 		<div
-			class="rounded-lg border bg-surface-base transition-colors focus-within:border-outline-gray-3"
+			class="overflow-hidden rounded-lg border bg-surface-base transition-colors focus-within:border-outline-gray-3"
 			:class="
 				draggingOver ? 'border-outline-blue-3 bg-surface-blue-1' : 'border-outline-gray-2'
 			"
@@ -209,6 +188,29 @@ defineExpose({ focus });
 			@drop.prevent="onDrop"
 			@paste="onPaste"
 		>
+			<!-- a rule and two lines rather than a nested card: the preview belongs to the box -->
+			<div
+				v-if="replyTo"
+				class="flex items-center gap-2 border-b border-outline-gray-2 bg-surface-gray-1 py-2 pl-2.5 pr-1.5"
+			>
+				<div class="min-w-0 flex-1 border-l-2 border-outline-gray-3 pl-2">
+					<div class="text-sm text-ink-gray-6">
+						{{ replyingToLabel }} {{ replyToName }}
+					</div>
+					<!-- clamped, not cropped: a fixed max-height slices the last line in half -->
+					<div
+						class="line-clamp-2 text-p-base text-ink-gray-7"
+						v-html="formatWhatsAppMessage(replyTo.message)"
+					/>
+				</div>
+
+				<Button variant="ghost" :aria-label="dismissReplyLabel" @click="clearReply()">
+					<template #icon>
+						<span class="lucide-circle-x size-4 text-ink-gray-6" aria-hidden="true" />
+					</template>
+				</Button>
+			</div>
+
 			<!-- placeholder overridden: ghost's own is ink-gray-3, 1.5:1 on white -->
 			<Textarea
 				ref="textareaRef"

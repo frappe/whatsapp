@@ -170,6 +170,8 @@ export interface MessageListProps {
   reactedByLabel?: string;
   /** default "Reply" */
   replyLabel?: string;
+  /** default "Replying to" — prefixes the sender named in a bubble's reply quote */
+  replyingToLabel?: string;
   /** default "Failed to send message" */
   failedMessageLabel?: string;
   /** default "React" — accessible name of the reaction trigger */
@@ -207,6 +209,8 @@ export interface MessageBubbleProps {
   reactedByLabel?: string;
   /** default "Reply" */
   replyLabel?: string;
+  /** default "Replying to" — prefixes the sender named in the reply quote */
+  replyingToLabel?: string;
   /** default "Failed to send message" */
   failedMessageLabel?: string;
 }
@@ -333,8 +337,8 @@ export interface TemplatesController {
  * The default input area. Holds no composing state of its own — it reads and writes the
  * controller spread onto it with `v-bind="messages"`.
  *
- * Draws no page padding of its own; a host supplies it, and a `class` lands on the root that
- * wraps both the reply preview and the composer, so the two stay flush with each other.
+ * The reply preview sits inside the composer's border, above the field. Draws no page padding
+ * of its own; a host supplies it, and a `class` lands on the root above the composer.
  * Accepts a dropped or pasted file as well as a picked one. Sending is ctrl/cmd+enter,
  * leaving a bare enter to break the line.
  *
@@ -359,6 +363,8 @@ export interface MessageInputProps {
   captionPlaceholder?: string;
   /** default "Replying to" — prefixes the quoted message's sender in the reply preview */
   replyingToLabel?: string;
+  /** default "Dismiss reply" — accessible name of the reply preview's close button */
+  dismissReplyLabel?: string;
   /**
    * default "Send". The send button is icon-only, so this is its tooltip and its accessible
    * name. Do not append the keyboard hint — the tooltip renders it, and which modifier to
