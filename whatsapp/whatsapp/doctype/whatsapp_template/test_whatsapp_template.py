@@ -6,6 +6,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.whatsapp.api.test_messages import WithoutHostAccessGuards
 from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import get_sendable_templates
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
@@ -169,7 +170,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		self.assertEqual(fields_by_name.get("otp", ""), "")
 
 
-class IntegrationTestGetSendableTemplates(IntegrationTestCase):
+class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTestCase):
 	"""Sendable means bound to the DocType, or unbound with no variables to resolve."""
 
 	def setUp(self):

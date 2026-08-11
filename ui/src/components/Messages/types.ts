@@ -326,6 +326,13 @@ export interface MessageInputProps {
   uploadVideoLabel?: string;
   /** default "Add a caption..." — forwarded to the media preview dialog */
   captionPlaceholder?: string;
+  /** default "Replying to" — prefixes the quoted message's sender in the reply preview */
+  replyingToLabel?: string;
+  /**
+   * default "Send". Sending is ctrl/cmd+enter; the hint is part of this label rather than a
+   * prop of its own, because only the host knows which modifier to name on the user's platform.
+   */
+  sendLabel?: string;
   disabled?: boolean;
 }
 

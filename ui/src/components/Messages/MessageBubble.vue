@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
 import { computed } from "vue";
-import { Badge, Dropdown, Tooltip, dayjsLocal } from "frappe-ui";
+import { Badge, Button, Dropdown, Tooltip, dayjsLocal } from "frappe-ui";
 import TemplateContent from "./TemplateContent.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
 import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "../../utils/media";
@@ -61,20 +61,10 @@ function openFileInAnotherTab(url?: string) {
 		<!-- reply_message/reply_to_* only: `header`/`footer` describe *this* message's template -->
 		<div
 			v-if="isReply"
-			class="mb-1 cursor-pointer rounded border-0 border-l-4 bg-surface-gray-3 p-2 text-ink-gray-5"
-			:class="
-				message.reply_to_direction == 'Incoming' ? 'border-green-500' : 'border-blue-400'
-			"
+			class="mb-1 cursor-pointer rounded border-l-2 border-outline-gray-3 bg-surface-gray-3 p-2 text-ink-gray-7"
 			@click="() => message.reply_to && emit('jump-to', message.reply_to)"
 		>
-			<div
-				class="mb-1 text-sm-bold"
-				:class="
-					message.reply_to_direction == 'Incoming'
-						? 'text-ink-green-5'
-						: 'text-ink-blue-link'
-				"
-			>
+			<div class="mb-0.5 text-sm text-ink-gray-5">
 				{{ nameFor(message.reply_to_direction) }}
 			</div>
 			<div class="flex flex-col gap-2 max-h-12 overflow-hidden">
@@ -82,22 +72,30 @@ function openFileInAnotherTab(url?: string) {
 			</div>
 		</div>
 
+		<!-- same chip treatment as the reaction row, so the two read as one family -->
 		<div
 			v-if="message.status != 'Failed'"
-			class="absolute -right-0.5 -top-0.5 flex cursor-pointer gap-1 rounded-full bg-surface-white pb-2 pl-2 pr-1.5 pt-1.5 opacity-0 group-hover/message:opacity-100"
-			:style="{
-				background:
-					'radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 35%, rgba(238, 130, 238, 0) 100%)',
-			}"
+			class="absolute -right-1 -top-1 opacity-0 transition-opacity group-hover/message:opacity-100"
 		>
 			<Dropdown :options="messageOptions">
-				<span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
+				<Button
+					variant="ghost"
+					class="!size-5 !rounded-full border bg-surface-base shadow-sm"
+					aria-label="Message actions"
+				>
+					<template #icon>
+						<span
+							class="lucide-chevron-down size-3.5 text-ink-gray-5"
+							aria-hidden="true"
+						/>
+					</template>
+				</Button>
 			</Dropdown>
 		</div>
 
 		<div
 			v-if="message.reactions?.length"
-			class="absolute -bottom-5 flex gap-0.5 rounded-full border bg-surface-white p-1 pb-[3px] shadow-sm"
+			class="absolute -bottom-5 flex gap-0.5 rounded-full border bg-surface-base p-1 pb-[3px] shadow-sm"
 		>
 			<Tooltip
 				v-for="(reaction, i) in message.reactions"

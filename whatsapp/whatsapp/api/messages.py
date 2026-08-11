@@ -17,6 +17,7 @@ from whatsapp.whatsapp.api.utils import (
 	log,
 	mime_type_for_content_type,
 	parse_template_parameters,
+	run_access_guards,
 )
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
 
@@ -50,6 +51,8 @@ def get_messages(references: str) -> list[dict]:
 	`references` is a client-supplied JSON list of `[doctype, docname]` pairs, so every
 	pair is checked for existence and read permission first.
 	"""
+	run_access_guards()
+
 	pairs = _validate_references(references)
 	if not pairs:
 		return []
@@ -88,6 +91,8 @@ def send_message(
 	reference_docname: str | None = None,
 ) -> str:
 	"""Send a text or media message and return the created WhatsApp Message's name."""
+	run_access_guards()
+
 	if not (message or "").strip() and not attach:
 		frappe.throw(_("Cannot send an empty message."))
 
@@ -150,6 +155,8 @@ def react_to_message(message: str, emoji: str) -> str:
 
 	A reaction is its own message document; `get_messages` folds it back onto its target.
 	"""
+	run_access_guards()
+
 	target = _get_permitted_message(message)
 	context_message_id = _acknowledged_message_id(target, _("react to"))
 
@@ -178,6 +185,8 @@ def send_template(
 	reference_docname: str | None = None,
 ) -> str:
 	"""Send an approved template and return the created WhatsApp Message's name."""
+	run_access_guards()
+
 	if reference_doctype and reference_docname:
 		_validate_reference(reference_doctype, reference_docname)
 

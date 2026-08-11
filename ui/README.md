@@ -238,7 +238,12 @@ async function submit() {
     Replying to {{ messages.replyTo.direction === "Incoming" ? contactName : "You" }}
     <button @click="messages.clearReply()">×</button>
   </div>
-  <textarea v-model="messages.draft" @keydown.enter.exact.prevent="submit" />
+  <!-- MessageInput sends on ctrl/cmd+enter, leaving a bare enter to break the line -->
+  <textarea
+    v-model="messages.draft"
+    @keydown.ctrl.enter.prevent="submit"
+    @keydown.meta.enter.prevent="submit"
+  />
   <button :disabled="!messages.canSend" @click="submit">Send</button>
 </template>
 ```
@@ -381,6 +386,27 @@ than baked into the package.
 
 `MessageInput` exposes `focus()`, and focuses itself whenever `replyTo` becomes set.
 
+### Host controls in the input
+
+`MessageInput` has a `leading-actions` slot, rendered at the start of its button row — before
+the attach and send buttons — for controls that are the host's rather than the package's.
+Leave the icon's colour to the `Button`, as the built-in two do, so the row stays uniform:
+
+```vue
+<MessageInput v-bind="messages" :sender-name="contactName">
+  <template #leading-actions>
+    <Button variant="ghost" :tooltip="__('Send Template')" @click="showTemplates = true">
+      <template #icon>
+        <span class="lucide-layout-template size-4.5" aria-hidden="true" />
+      </template>
+    </Button>
+  </template>
+</MessageInput>
+```
+
+CRM uses it for the template picker, since the picker itself is host chrome — see
+[Sending a template](#sending-a-template).
+
 ### Where a `class` lands
 
 `MessageInput` sets `inheritAttrs: false` — its template has multiple roots, which Vue cannot
@@ -446,9 +472,21 @@ check the message and its reference the same way.
 
 The WhatsApp app has **no role model of its own yet** (its open gap
 [#10](https://github.com/ps173/frappe-whatsapp/issues/10) — everything else requires System
-Manager). So this check is *orthogonal* to a host's role policy, not a superset of it: a host
-that gates WhatsApp access by role must keep that gate in front of these endpoints rather than
-assume the app's reference check subsumes it.
+Manager). So this check is *orthogonal* to a host's role policy, not a superset of it: passing
+it says the caller may read the deal, not that the caller is allowed to use WhatsApp at all.
+
+A host with its own policy registers a guard in its `hooks.py`:
+
+```python
+whatsapp_access_guard = ["crm.api.whatsapp.validate_access"]
+```
+
+Every endpoint listed above calls the registered guards before it does anything else, and a
+guard throws to deny — `frappe.throw(_("Not permitted"), frappe.PermissionError)` is the usual
+body. A guard takes no arguments: the reference document is already checked per call, so what
+is left for the host to answer is the one question the app cannot, whether this user may use
+WhatsApp at all. The app registers nothing itself, so an unregistered hook leaves the endpoints
+exactly as they were.
 
 ## Conventions
 

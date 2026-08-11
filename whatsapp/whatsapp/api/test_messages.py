@@ -10,6 +10,7 @@ Descended from `crm.api.whatsapp`'s suite, so two contract changes are asserted 
 import datetime
 import json
 import secrets
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -31,6 +32,23 @@ from whatsapp.whatsapp.api.utils import (
 	parse_template_parameters,
 )
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
+from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import (
+	create_template_and_push,
+	get_sendable_templates,
+)
+
+
+class WithoutHostAccessGuards:
+	"""Clears `whatsapp_access_guard` for every test in the class.
+
+	`frappe.get_hooks` is bench-global, so a guard registered by any host app that happens to be
+	installed alongside this one (CRM's role check, for one) would otherwise decide this app's
+	test results. Mix this in wherever a test calls a guarded endpoint for its own reasons.
+	"""
+
+	def setUp(self):
+		super().setUp()
+		self.enterContext(self.patch_hooks({"whatsapp_access_guard": []}))
 
 
 def _message_row(name: str, **overrides) -> dict:
@@ -204,7 +222,45 @@ class TestContentTypeInference(UnitTestCase):
 		self.assertEqual(mime_type_for_content_type("sticker"), "")
 
 
-class TestGetMessagesReferenceGuard(UnitTestCase):
+def _deny_access() -> None:
+	frappe.throw("Denied by host guard", frappe.PermissionError)
+
+
+class TestAccessGuard(UnitTestCase):
+	"""`whatsapp_access_guard` is the seam a host uses for the role policy this app lacks."""
+
+	HOOK: ClassVar = {"whatsapp_access_guard": [f"{__name__}._deny_access"]}
+
+	def test_a_throwing_guard_blocks_every_client_facing_endpoint(self):
+		"""Each call would otherwise fail its own validation, so PermissionError means the guard won."""
+		endpoints = [
+			(get_messages, ('[["ToDo", "TODO-0001"]]',)),
+			(send_message, ("15550001111", "hello")),
+			(react_to_message, ("m1", "👍")),
+			(send_template, ("tpl", "15550001111")),
+			(get_sendable_templates, ("ToDo",)),
+			(create_template_and_push, ({}, "_Test Account")),
+		]
+		with self.patch_hooks(self.HOOK):
+			for endpoint, args in endpoints:
+				with self.subTest(endpoint=endpoint.__name__):
+					with self.assertRaisesRegex(frappe.PermissionError, "Denied by host guard"):
+						endpoint(*args)
+
+	def test_the_guard_runs_before_the_endpoint_reads_anything(self):
+		with self.patch_hooks(self.HOOK), patch("frappe.db.exists") as exists:
+			with self.assertRaises(frappe.PermissionError):
+				get_messages('[["ToDo", "TODO-0001"]]')
+		exists.assert_not_called()
+
+	def test_endpoints_are_unchanged_when_no_guard_is_registered(self):
+		with self.patch_hooks({"whatsapp_access_guard": []}):
+			self.assertEqual(get_messages("[]"), [])
+			with self.assertRaises(frappe.ValidationError):
+				send_message("15550001111")
+
+
+class TestGetMessagesReferenceGuard(WithoutHostAccessGuards, UnitTestCase):
 	"""`references` comes from the client, so it is the security boundary of the read."""
 
 	def _permissive_doc(self, *args, **kwargs):
@@ -283,7 +339,7 @@ class TestGetMessagesReferenceGuard(UnitTestCase):
 		self.assertEqual(get_all.call_count, 1)
 
 
-class TestGetMessages(UnitTestCase):
+class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 	"""Shape of the wire model returned to a conversation view."""
 
 	def _run(self, rows, references=None, templates=None, files=None):
@@ -902,7 +958,7 @@ class TestGetMessages(UnitTestCase):
 		self.assertNotIn("file_name", message)
 
 
-class TestSendMessageValidation(UnitTestCase):
+class TestSendMessageValidation(WithoutHostAccessGuards, UnitTestCase):
 	def test_empty_message_without_attachment_is_rejected(self):
 		"""Whitespace-only text and no attachment must not create or send anything."""
 		with patch("frappe.new_doc") as new_doc:
@@ -977,7 +1033,7 @@ class TestValidateTemplateIsApproved(UnitTestCase):
 				_validate_template_is_approved("tpl_a")
 
 
-class TestReactToMessagePermissions(UnitTestCase):
+class TestReactToMessagePermissions(WithoutHostAccessGuards, UnitTestCase):
 	def test_missing_message_is_rejected(self):
 		with patch("frappe.db.exists", return_value=False):
 			with self.assertRaises(frappe.DoesNotExistError):
@@ -1013,7 +1069,7 @@ class TestReactToMessagePermissions(UnitTestCase):
 		new_doc.assert_not_called()
 
 
-class TestSendTemplatePermissions(UnitTestCase):
+class TestSendTemplatePermissions(WithoutHostAccessGuards, UnitTestCase):
 	def test_unreadable_reference_document_is_rejected(self):
 		doc = MagicMock()
 		doc.has_permission.return_value = False
@@ -1130,7 +1186,7 @@ class TestValidateTemplateForReference(UnitTestCase):
 			self.assertNotIn("amount", message)
 
 
-class IntegrationTestSendMessage(IntegrationTestCase):
+class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 	"""Round trips that need a real `WhatsApp Message` document."""
 
 	def setUp(self):

@@ -133,6 +133,10 @@ app_license = "mit"
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }
+#
+# Hosts with their own access policy register a guard here; it is called before every
+# client-facing message/template endpoint and throws to deny.
+# whatsapp_access_guard = ["crm.api.whatsapp.validate_access"]
 
 # Document Events
 # ---------------

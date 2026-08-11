@@ -68,6 +68,17 @@ class ParsedTemplateDoc(TypedDict):
 	variable_format: str
 
 
+def run_access_guards() -> None:
+	"""Run the host's `whatsapp_access_guard` hooks; a guard throws to deny.
+
+	This app has no role model of its own (issue #10), so a host that gates WhatsApp access
+	by role has nowhere else to enforce it once its UI calls these endpoints directly. No
+	arguments: the endpoints already permission-check the reference document per call.
+	"""
+	for method in frappe.get_hooks("whatsapp_access_guard"):
+		frappe.get_attr(method)()
+
+
 def get_template_variables(text: str) -> list[str]:
 	if not text:
 		return []

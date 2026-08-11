@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { Button, Dropdown, FileUploader, Textarea } from "frappe-ui";
 import MediaPreviewDialog from "../common/MediaPreviewDialog.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
@@ -25,6 +25,8 @@ const props = withDefaults(defineProps<MessagesController & MessageInputProps>()
 	uploadImageLabel: "Upload Image",
 	uploadVideoLabel: "Upload Video",
 	captionPlaceholder: "Add a caption...",
+	sendLabel: "Send",
+	replyingToLabel: "Replying to",
 });
 
 const emit = defineEmits<{
@@ -32,7 +34,7 @@ const emit = defineEmits<{
 }>();
 
 // View state only; nothing here is part of the message being composed.
-const rows = ref(1);
+const MAX_ROWS = 6;
 const textareaRef = ref<{ el?: HTMLTextAreaElement } | null>(null);
 const acceptedFileTypes = ref<string>();
 const showMediaPreview = ref(false);
@@ -48,9 +50,28 @@ const replyToName = computed(() =>
 	props.replyTo?.direction === "Incoming" ? props.senderName : props.youLabel
 );
 
+const sendable = computed(() => props.canSend && !props.disabled);
+
 function focus() {
 	nextTick(() => textareaRef.value?.el?.focus());
 }
+
+/**
+ * Grow with the content rather than with focus. `height: auto` first so scrollHeight reports
+ * the text's own height instead of the height already set on the element.
+ */
+function autosize() {
+	const el = textareaRef.value?.el;
+	if (!el) return;
+	el.style.height = "auto";
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+	const max = lineHeight * MAX_ROWS;
+	el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+	el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
+}
+
+watch(() => props.draft, () => nextTick(autosize));
+onMounted(autosize);
 
 /**
  * The payload is built only to be reported: reading it before the send lets the emit
@@ -63,10 +84,8 @@ async function submit(overrides?: Pick<SendMessagePayload, "message">) {
 	if (name && payload) emit("send", payload);
 }
 
-function sendText(event: KeyboardEvent) {
-	if (event.shiftKey) return;
+function sendText() {
 	submit();
-	textareaRef.value?.el?.blur();
 }
 
 // Preview first rather than sending immediately, so the user can add a caption.
@@ -130,56 +149,58 @@ defineExpose({ focus });
 </script>
 
 <template>
-	<div v-if="replyTo" class="flex items-center justify-around gap-2 px-3 pt-2 sm:px-10">
-		<div
-			class="mb-1 flex-1 rounded border-0 border-l-4 bg-surface-gray-2 p-2 text-base text-ink-gray-5"
-			:class="replyTo.direction == 'Incoming' ? 'border-green-500' : 'border-blue-400'"
-		>
-			<div
-				class="mb-1 text-sm-bold"
-				:class="
-					replyTo.direction == 'Incoming' ? 'text-ink-green-5' : 'text-ink-blue-link'
-				"
-			>
-				{{ replyToName }}
+	<div v-if="replyTo" class="flex items-center gap-2 px-3 pt-2 sm:px-10">
+		<div class="min-w-0 flex-1 rounded border-l-2 border-outline-gray-3 bg-surface-gray-1 p-2">
+			<div class="mb-0.5 text-sm text-ink-gray-5">
+				{{ replyingToLabel }} {{ replyToName }}
 			</div>
 			<div
-				class="max-h-12 overflow-hidden"
+				class="max-h-12 overflow-hidden text-base text-ink-gray-7"
 				v-html="formatWhatsAppMessage(replyTo.message)"
 			/>
 		</div>
 
-		<Button variant="ghost" icon="lucide-x" aria-label="Dismiss reply" @click="clearReply()" />
+		<Button variant="ghost" aria-label="Dismiss reply" @click="clearReply()">
+			<template #icon>
+				<span class="lucide-circle-x size-4 text-ink-gray-5" aria-hidden="true" />
+			</template>
+		</Button>
 	</div>
 
 	<div class="flex items-end gap-2 px-3 py-2.5 sm:px-10" v-bind="$attrs">
-		<div class="flex h-8 items-center gap-2">
-			<FileUploader :file-types="acceptedFileTypes" @success="onUpload">
-				<template #default="{ openFileSelector }">
-					<div class="flex items-center space-x-2">
-						<Dropdown :options="uploadOptions(openFileSelector)">
-							<span
-								class="lucide-plus size-4.5 cursor-pointer text-ink-gray-5"
-								:class="disabled ? 'pointer-events-none opacity-50' : ''"
-								aria-label="Attach a file"
-							/>
-						</Dropdown>
-					</div>
-				</template>
-			</FileUploader>
-		</div>
-
 		<Textarea
 			ref="textareaRef"
 			v-model="draft"
-			class="min-h-8 w-full"
-			:rows="rows"
+			class="min-h-8 w-full resize-none"
+			:rows="1"
 			:placeholder="placeholder"
 			:disabled="disabled"
-			@focus="rows = 6"
-			@blur="rows = 1"
-			@keydown.enter.stop="sendText"
+			@keydown.ctrl.enter.stop="sendText"
+			@keydown.meta.enter.stop="sendText"
 		/>
+
+		<div class="flex h-8 items-center gap-1">
+			<slot name="leading-actions" />
+
+			<FileUploader :file-types="acceptedFileTypes" @success="onUpload">
+				<template #default="{ openFileSelector }">
+					<Dropdown :options="uploadOptions(openFileSelector)">
+						<Button variant="ghost" :disabled="disabled" aria-label="Attach a file">
+							<template #icon>
+								<span class="lucide-plus size-4.5" aria-hidden="true" />
+							</template>
+						</Button>
+					</Dropdown>
+				</template>
+			</FileUploader>
+
+			<Button
+				variant="solid"
+				:disabled="!sendable"
+				:label="sendLabel"
+				@click="submit()"
+			/>
+		</div>
 	</div>
 
 	<MediaPreviewDialog
