@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { Button, Dialog, Textarea, formatBytes } from "frappe-ui";
+import { Button, Dialog, Textarea } from "frappe-ui";
+import { documentMeta, documentName } from "../../utils/media";
 import type { MediaPreviewDialogProps } from "./types";
 
 const props = withDefaults(defineProps<MediaPreviewDialogProps>(), {
@@ -30,16 +31,17 @@ const dialogTitle = computed(() => {
 	return "Send a file";
 });
 
-const fileSize = computed(() => (props.file?.file_size ? formatBytes(props.file.file_size) : ""));
+// The same derivations the bubble uses, so a file is named and sized identically either side
+// of the send. `MediaFile` calls the URL `file_url`; `MediaAttachment` calls it `media_url`.
+const attachment = computed(() => ({
+	media_url: props.file?.file_url,
+	file_name: props.file?.file_name,
+	file_size: props.file?.file_size,
+}));
 
 function submit() {
 	emit("send", caption.value);
 	show.value = false;
-}
-
-function onEnter(event: KeyboardEvent) {
-	if (event.shiftKey) return;
-	submit();
 }
 
 watch(
@@ -60,6 +62,7 @@ watch(
 				<img
 					v-if="type === 'image'"
 					:src="file?.file_url"
+					:alt="documentName(attachment, 'Image')"
 					class="max-h-80 rounded-md object-contain"
 				/>
 				<video
@@ -74,23 +77,23 @@ watch(
 						aria-hidden="true"
 					/>
 					<div class="flex min-w-0 flex-col">
-						<div class="truncate text-ink-gray-8">{{ file?.file_name }}</div>
-						<div v-if="fileSize" class="text-sm text-ink-gray-5">
-							{{ fileSize }}
+						<div class="truncate text-ink-gray-8">{{ documentName(attachment) }}</div>
+						<div v-if="documentMeta(attachment)" class="text-sm text-ink-gray-6">
+							{{ documentMeta(attachment) }}
 						</div>
 					</div>
 				</div>
 			</div>
 
-			<!-- caption (negative bottom margin trims the Dialog body's default pb-6) -->
-			<div class="-mb-4 mt-3 flex items-end gap-2">
+			<div class="mt-3">
 				<Textarea
 					ref="captionRef"
 					v-model="caption"
 					class="w-full"
 					:rows="1"
 					:placeholder="captionPlaceholder"
-					@keydown.enter.stop="onEnter"
+					@keydown.ctrl.enter.stop="submit"
+					@keydown.meta.enter.stop="submit"
 				/>
 			</div>
 		</template>

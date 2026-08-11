@@ -124,21 +124,34 @@ function react({ messageName, emoji }: ReactPayload) {
       <MessageList
         :messages="messages.messages"
         :loading="messages.loading"
+        :error="messages.error"
         :sender-name="contactName"
         @reply="messages.setReplyTo"
         @react="react"
       />
     </div>
-    <MessageInput v-bind="messages" :sender-name="contactName" />
+    <!-- the composer draws no page padding of its own either -->
+    <MessageInput
+      v-bind="messages"
+      :sender-name="contactName"
+      class="mx-3 mb-2.5 sm:mx-10"
+    />
   </div>
 </template>
 ```
 
-`MessageList` takes explicit props, so bind the two it reads (`messages`, `loading`) rather
-than spreading the whole controller — the controller's verbs would otherwise land on it as
-fall-through attrs and be stamped into the DOM. Its actions are **events**: wire `@reply` to
-`setReplyTo` so a message picked in the list becomes the reply the input quotes, and `@react`
-to `react()`.
+`MessageList` takes explicit props, so bind the three it reads (`messages`, `loading`,
+`error`) rather than spreading the whole controller — the controller's verbs would otherwise
+land on it as fall-through attrs and be stamped into the DOM. Its actions are **events**: wire
+`@reply` to `setReplyTo` so a message picked in the list becomes the reply the input quotes,
+and `@react` to `react()`.
+
+Bind `error` as well as `loading`: without it a failed fetch falls through to the empty state
+and reads as "this conversation has no messages", which is a different and untrue claim.
+
+The conversation runs flat in send order, broken only by a **day separator** between calendar
+days (`todayLabel` / `yesterdayLabel` are props, like every other string). Consecutive messages
+are not grouped.
 
 `MessageInput` is the one component that *does* take the whole controller.
 `v-bind="messages"` spreads its data members as props (the controller is a `reactive` object,
@@ -276,7 +289,7 @@ const messages = useMessages({
 });
 
 // controller (a reactive object):
-// messages, loading, error, reload, send, react,
+// messages, loading, sending, error, reload, send, react,
 // draft, pendingMedia, pendingType, replyTo, canSend,
 // setDraft, setReplyTo, clearReply, attach, clearAttachment, buildPayload, reset
 ```
@@ -303,6 +316,9 @@ const messages = useMessages({ references, to: () => props.phone });
 
 `messages` is sorted oldest-first across every reference: each one is read by its own query,
 so the rows arrive grouped, and a conversation is one chronological run through all of them.
+
+`sending` is true while a send is in flight, and `canSend` is false for its duration — which is
+what stops a second ctrl/cmd+enter during the round trip from posting the same draft twice.
 
 `error` holds the last failure of the fetch, a send or a reaction, and is `null` while
 healthy. The verbs never throw — they return `null` — because this package has no notification
@@ -386,11 +402,21 @@ than baked into the package.
 
 `MessageInput` exposes `focus()`, and focuses itself whenever `replyTo` becomes set.
 
+### Attaching a file
+
+Three ways in, all landing on the same preview dialog: the attach menu, a **drop** anywhere on
+the composer, and a **paste** carrying a file. Pasting text is still a paste. `sendLabel` is
+the send button's tooltip and accessible name — the button is icon-only, and the keyboard hint
+is rendered as a `<kbd>` in that tooltip with the modifier detected from the platform, so do
+**not** append it to the label yourself.
+
 ### Host controls in the input
 
-`MessageInput` has a `leading-actions` slot, rendered at the start of its button row — before
-the attach and send buttons — for controls that are the host's rather than the package's.
-Leave the icon's colour to the `Button`, as the built-in two do, so the row stays uniform:
+`MessageInput` is one control, not a field beside a button row: the actions sit **inside** the
+bordered box, so they share its focus ring and its drop target. The `leading-actions` slot is
+rendered at the start of that action row — before the attach and send buttons — for controls
+that are the host's rather than the package's. Leave the icon's colour to the `Button`, as the
+built-in two do, so the row stays uniform:
 
 ```vue
 <MessageInput v-bind="messages" :sender-name="contactName">
@@ -409,9 +435,11 @@ CRM uses it for the template picker, since the picker itself is host chrome — 
 
 ### Where a `class` lands
 
-`MessageInput` sets `inheritAttrs: false` — its template has multiple roots, which Vue cannot
-auto-inherit onto at all — and binds `$attrs` onto its input row instead. So a `class` does
-land, on the row rather than on the reply preview above it.
+`MessageInput` has a single root wrapping the reply preview and the composer, so a `class`
+lands on both. **It draws no page padding of its own**, so that `class` is where a host
+supplies its gutter — and because the two share a root, they stay flush with each other.
+(It was two roots with `$attrs` bound to the composer alone, which left the reply preview
+hanging wider than the box below it.)
 
 `MessageList` inherits attrs normally, so a `class` lands on the list root. It is bound with
 explicit props rather than `v-bind="controller"`, which is what makes that safe: spreading the
@@ -554,6 +582,14 @@ blanket rule is what kept this package fetch-free for longer than it should have
   and the grid are host layout. See [Sending a template](#sending-a-template).
 - **No socket of its own.** `useMessages()` uses the host's, via `provide("socket", …)` or a
   `$socket` global; without one, live updates are simply off.
+- **No scroll container, and so no autoscroll or jump-to-latest.** `MessageList` is
+  layout-neutral; the host owns the element that scrolls. Where a host puts several kinds of
+  activity in one feed, scroll behaviour belongs to that feed rather than to WhatsApp — see
+  [CONTEXT.md](CONTEXT.md#design-decisions).
+- **No avatars.** `MessageList` has an `avatar` slot that renders nothing, and reserves no
+  width, unless a host fills it: this package knows a **sender name**, not a contact record.
+- **No message grouping.** Consecutive messages are not merged; the only structure the list
+  imposes is a **day separator**.
 - **No account or settings management.** Choosing the WhatsApp account and enabling the
   channel stay in the host (or the desk UI). Editing templates is desk-side too: point a
   "create a template" affordance at `/app/whatsapp-template/new`, or call the controller's

@@ -1,7 +1,8 @@
 import type { MediaFile, MediaKind } from "../../types";
 
 /**
- * Caption-before-send dialog for an uploaded file.
+ * Caption-before-send dialog for an uploaded file. Sends on ctrl/cmd+enter, matching the
+ * composer — a bare enter breaks the line in both.
  *
  * Emits: `send` (`caption: string`), `update:open` (`boolean`) for `v-model:open`.
  */

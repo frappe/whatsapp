@@ -128,8 +128,12 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     pendingType.value = "document";
   }
 
-  const canSend = computed(() =>
-    Boolean(draft.value.trim() || pendingMedia.value)
+  // Guards the double-send: `send()` awaits, and without this a second ctrl+enter during
+  // the round trip posts the same draft twice.
+  const sending = ref(false);
+
+  const canSend = computed(
+    () => !sending.value && Boolean(draft.value.trim() || pendingMedia.value)
   );
 
   /**
@@ -176,6 +180,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     const [referenceDoctype, referenceDocname] = references()[0] ?? [];
 
     let name: string | null = null;
+    sending.value = true;
     try {
       name = (await sendResource.submit({
         to,
@@ -189,6 +194,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     } catch {
       // reported through `error`; the draft survives so the send can be retried
       return null;
+    } finally {
+      sending.value = false;
     }
 
     if (payload.attach) {
@@ -267,6 +274,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   return reactive({
     messages,
     loading,
+    sending,
     error,
     reload,
     send,
