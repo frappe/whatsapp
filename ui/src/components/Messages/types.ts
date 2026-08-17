@@ -143,13 +143,21 @@ export interface ReactPayload {
 
 /**
  * The conversation. Layout-neutral — no scroll container, no padding — and inherits attrs.
+ * Messages run flat in send order; the only structure imposed is a rule between calendar days.
+ *
  * Emits: `reply` ({@link WhatsAppMessage} — hand it to `setReplyTo`), `react` ({@link ReactPayload}).
+ * Slots: `avatar` (`{ message }`) — renders nothing, and reserves no width, unless supplied.
  */
 export interface MessageListProps {
   /** oldest first, as {@link MessagesController.messages} holds them */
   messages: WhatsAppMessage[];
   /** first-load spinner; only meaningful while `messages` is empty */
   loading?: boolean;
+  /**
+   * last failure, as {@link MessagesController.error} holds it. Shown instead of the empty
+   * state while there are no messages, so a failed fetch cannot read as an empty conversation.
+   */
+  error?: unknown;
   /** applied to every message row, for a host that needs to find rows in the DOM */
   rowClass?: string;
 
@@ -162,17 +170,34 @@ export interface MessageListProps {
   reactedByLabel?: string;
   /** default "Reply" */
   replyLabel?: string;
+  /** default "Replying to" — prefixes the sender named in a bubble's reply quote */
+  replyingToLabel?: string;
   /** default "Failed to send message" */
   failedMessageLabel?: string;
+  /** default "React" — accessible name of the reaction trigger */
+  reactLabel?: string;
   /** default "No messages yet" */
   emptyLabel?: string;
+  /** default "Messages sent to and from this contact will appear here." — pass "" to omit */
+  emptyDescription?: string;
+  /** default "Could not load messages" — shown when {@link error} is set and there are none */
+  errorLabel?: string;
+  /** default "Today" — day separator label for the current day */
+  todayLabel?: string;
+  /** default "Yesterday" */
+  yesterdayLabel?: string;
   /** default `["👍", "❤️", "😂", "😮", "😢", "🙏"]` */
   reactionEmojis?: string[];
 }
 
 /**
- * One bubble. Picks its body renderer from the message's content type.
+ * One bubble: the coloured body, plus the footer below it carrying the time, the delivery
+ * tick and the reply action. Picks its body renderer from the message's content type.
+ *
  * Emits: `reply` ({@link WhatsAppMessage}), `jump-to` (`name: string`) — the list owns the scroll.
+ * Slots: `actions` — rendered beside the coloured body, next to the built-in reply button and
+ * vertically centred on the bubble. The bubble owns the hover/focus reveal and the `Failed`
+ * guard for the whole pair, so slot content needs neither.
  */
 export interface MessageBubbleProps {
   message: WhatsAppMessage;
@@ -184,6 +209,8 @@ export interface MessageBubbleProps {
   reactedByLabel?: string;
   /** default "Reply" */
   replyLabel?: string;
+  /** default "Replying to" — prefixes the sender named in the reply quote */
+  replyingToLabel?: string;
   /** default "Failed to send message" */
   failedMessageLabel?: string;
 }
@@ -219,6 +246,8 @@ export interface MessagesController {
   messages: WhatsAppMessage[];
   /** a fetch is in flight; pair with `messages.length` for a first-load-only spinner */
   loading: boolean;
+  /** a send is in flight. `canSend` already accounts for it — this is for showing progress */
+  sending: boolean;
   /** last failure of a fetch, a send or a reaction; `null` while healthy. Verbs never throw */
   error: unknown;
   reload: () => Promise<void>;
@@ -308,7 +337,13 @@ export interface TemplatesController {
  * The default input area. Holds no composing state of its own — it reads and writes the
  * controller spread onto it with `v-bind="messages"`.
  *
+ * The reply preview sits inside the composer's border, above the field. Draws no page padding
+ * of its own; a host supplies it, and a `class` lands on the root above the composer.
+ * Accepts a dropped or pasted file as well as a picked one. Sending is ctrl/cmd+enter,
+ * leaving a bare enter to break the line.
+ *
  * Emits: `send` ({@link SendMessagePayload}) **after** the send lands, as a notification.
+ * Slots: `leading-actions` — rendered at the start of the action row, inside the composer.
  * Exposes: `focus()`.
  */
 export interface MessageInputProps {
@@ -326,6 +361,16 @@ export interface MessageInputProps {
   uploadVideoLabel?: string;
   /** default "Add a caption..." — forwarded to the media preview dialog */
   captionPlaceholder?: string;
+  /** default "Replying to" — prefixes the quoted message's sender in the reply preview */
+  replyingToLabel?: string;
+  /** default "Dismiss reply" — accessible name of the reply preview's close button */
+  dismissReplyLabel?: string;
+  /**
+   * default "Send". The send button is icon-only, so this is its tooltip and its accessible
+   * name. Do not append the keyboard hint — the tooltip renders it, and which modifier to
+   * name is detected from the platform.
+   */
+  sendLabel?: string;
   disabled?: boolean;
 }
 

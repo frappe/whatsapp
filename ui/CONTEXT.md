@@ -16,12 +16,15 @@ something a **Bubble** is drawn for.
 _Avoid_: "chat", "note" (CRM's other feed entries).
 
 **Bubble**:
-The rendered form of one Message. The Bubble is presentation and the Message is
-data; "which side is it on", "does it show a tick", "is the media inline" are all
-Bubble questions.
+The rendered form of one Message — the whole of it, including the chrome drawn
+outside its coloured body. The Bubble is presentation and the Message is data;
+"which side is it on", "does it show a tick", "is the media inline" are all
+Bubble questions, even though the tick is not inside the coloured body.
 _Avoid_: "activity" (CRM's name for a row in its mixed Deal/Lead feed, where
 WhatsApp messages sit alongside calls, notes and tasks — that feed is a host
-concern and its vocabulary does not travel with the extracted package).
+concern and its vocabulary does not travel with the extracted package); using
+"bubble" for the coloured body alone (there is one word here for the whole
+rendered Message, and no separate name for the body).
 
 **Participant**:
 One of the two sides of a conversation: the **agent** (the app's user, labelled
@@ -84,6 +87,15 @@ _Avoid_: **"thread"** — a Quote does not group Messages. The conversation stay
 single flat sequence in send order; nothing nests, collapses, or gets counted as
 belonging to a reply.
 
+**Day separator**:
+The labelled rule drawn between the last Message of one calendar day and the
+first of the next. It is the only structure the conversation imposes on its
+Messages — they otherwise run as one flat sequence in send order, with no
+grouping of consecutive Messages by Participant or by time.
+_Avoid_: "date header" (it separates, it does not head a section), "divider"
+(the underlying frappe-ui primitive is called that; the Day separator is the
+thing made of one).
+
 **Template**:
 A pre-approved `WhatsApp Template` document, referenced by docname. This is
 *provenance*: "this Message was sent from a Template, and here is which one."
@@ -119,7 +131,7 @@ name**), and where the UI sits in its layout. It no longer fetches or persists
 Messages; a **Controller** does. Anything requiring knowledge of the Host's own
 DocTypes or roles is by definition a Host concern.
 _Avoid_: "parent app", "consumer" (fine in prose, but "Host" is the term the docs
-and ADRs use).
+use).
 
 **Part**:
 An individually exported piece of the UI — the message list, a bubble, the input,
@@ -171,3 +183,62 @@ side."
 — "There is no thread here. A Quote is a pointer to one earlier Message so we can
 preview it and scroll to it; the conversation stays flat. Grouping is a **Host**
 feature if you want one."
+
+## Design decisions
+
+Only the rules a later change would otherwise undo without noticing, and why. How
+things are built is in the code; what is deliberately absent is in
+[README.md](README.md#not-included).
+
+**frappe-ui is the only vocabulary.** Espresso (the design system) and frappe-ui
+(its Vue implementation) share one token set — identical gray ramp, `420` body
+weight, 14px `text-base`. Reference Espresso for *structure*; write frappe-ui
+class names. Three traps when porting from it: its `rounded-lg` is 10px and
+frappe-ui's is 12px; its `leading-lg` prose line-height is frappe-ui's separate
+`text-p-*` scale; and it is on Tailwind v4 while Hosts are on v3, so
+`*:data-[slot=x]:`, `wrap-break-word` and `field-sizing-content` all need the v3
+spelling.
+
+**Not every utility registers every scale**, and a class for an unregistered pair
+fails *silently*. Per `frappe-ui/tailwind/plugin.js`: `text-`/`stroke-`/
+`placeholder-` take `ink`; `bg-` takes `surface`; `border-`/`ring-`/`divide-` take
+`outline`; `fill-` takes `ink` or `surface`. Two live bugs came from this —
+`ring-surface-base` fell back to Tailwind's default *blue* ring, and
+`bg-outline-gray-1` produced no colour at all, leaving the **Day separator**'s
+rules invisible.
+
+**Both Directions stay light**, incoming `surface-gray-1` and outgoing
+`surface-gray-2`. Two darker treatments were built and reverted: Espresso's
+inverted sent Bubble dominated the column and read as an error state, and it
+forced an on-dark variant onto seven nested surfaces plus a dual-ground
+`TemplateContent`; `surface-gray-3` then sank a Template's button rules and the
+**Quote** into the Bubble, needing the same per-surface variants for a far
+smaller gain. At `gray-2` one nested value reads on both, so direction styles the
+Bubble and nothing inside it. Direction was always carried mainly by row
+alignment — the shade is a second, quieter cue.
+
+**A Quote is a rule beside two lines, not a card.** In both places one is drawn — inside a
+Bubble, and in the composer above the field — it is a `border-l-2` and two stacked lines,
+with no fill of its own. The Bubble's quote takes a fill on hover only, because it is a
+button that scrolls to the original and losing the resting fill also lost that affordance;
+that fill is one shade for both **Direction**s, per the rule above. The composer's is inside
+the box's border rather than floating above it, so the box is a single control and a Host's
+gutter has one thing to inset.
+
+**A Bubble's footer sits outside its coloured body.** That is what makes the blue
+`Read` mark legible: inside, it was 1.06:1 against the body. It also removes the
+padding that was reserving room for an overlaid timestamp, and gives a failure
+reason somewhere to be read rather than hovered. It costs ~20px per Message.
+
+**Contrast is measured, not eyeballed.** `ink-gray-5` lands at 3.8–4.2:1 on the
+light surfaces used here and fails AA for text — `ink-gray-6` is the floor for
+secondary text. The reds are a fill ramp at the low end: `ink-red-4` is 1.5:1,
+`ink-red-7` is the first that passes.
+
+**The message scroller is a Host concern.** Autoscroll, scroll anchoring and
+jump-to-latest belong to whatever feed a Host embeds the conversation in, not to
+WhatsApp. Espresso's implementation is worth reading first: a hidden trailing
+spacer sized `targetScrollTop + clientHeight − contentHeight` is what lets the
+last turn park at the top while a reply streams in below it, and its four scroll
+modes are `following-bottom`, `free-scrolling`, `anchored-to-message` and
+`settling-jump`.

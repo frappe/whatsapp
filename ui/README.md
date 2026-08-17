@@ -124,21 +124,34 @@ function react({ messageName, emoji }: ReactPayload) {
       <MessageList
         :messages="messages.messages"
         :loading="messages.loading"
+        :error="messages.error"
         :sender-name="contactName"
         @reply="messages.setReplyTo"
         @react="react"
       />
     </div>
-    <MessageInput v-bind="messages" :sender-name="contactName" />
+    <!-- the composer draws no page padding of its own either -->
+    <MessageInput
+      v-bind="messages"
+      :sender-name="contactName"
+      class="mx-3 mb-2.5 sm:mx-10"
+    />
   </div>
 </template>
 ```
 
-`MessageList` takes explicit props, so bind the two it reads (`messages`, `loading`) rather
-than spreading the whole controller — the controller's verbs would otherwise land on it as
-fall-through attrs and be stamped into the DOM. Its actions are **events**: wire `@reply` to
-`setReplyTo` so a message picked in the list becomes the reply the input quotes, and `@react`
-to `react()`.
+`MessageList` takes explicit props, so bind the three it reads (`messages`, `loading`,
+`error`) rather than spreading the whole controller — the controller's verbs would otherwise
+land on it as fall-through attrs and be stamped into the DOM. Its actions are **events**: wire
+`@reply` to `setReplyTo` so a message picked in the list becomes the reply the input quotes,
+and `@react` to `react()`.
+
+Bind `error` as well as `loading`: without it a failed fetch falls through to the empty state
+and reads as "this conversation has no messages", which is a different and untrue claim.
+
+The conversation runs flat in send order, broken only by a **day separator** between calendar
+days (`todayLabel` / `yesterdayLabel` are props, like every other string). Consecutive messages
+are not grouped.
 
 `MessageInput` is the one component that *does* take the whole controller.
 `v-bind="messages"` spreads its data members as props (the controller is a `reactive` object,
@@ -238,7 +251,12 @@ async function submit() {
     Replying to {{ messages.replyTo.direction === "Incoming" ? contactName : "You" }}
     <button @click="messages.clearReply()">×</button>
   </div>
-  <textarea v-model="messages.draft" @keydown.enter.exact.prevent="submit" />
+  <!-- MessageInput sends on ctrl/cmd+enter, leaving a bare enter to break the line -->
+  <textarea
+    v-model="messages.draft"
+    @keydown.ctrl.enter.prevent="submit"
+    @keydown.meta.enter.prevent="submit"
+  />
   <button :disabled="!messages.canSend" @click="submit">Send</button>
 </template>
 ```
@@ -271,7 +289,7 @@ const messages = useMessages({
 });
 
 // controller (a reactive object):
-// messages, loading, error, reload, send, react,
+// messages, loading, sending, error, reload, send, react,
 // draft, pendingMedia, pendingType, replyTo, canSend,
 // setDraft, setReplyTo, clearReply, attach, clearAttachment, buildPayload, reset
 ```
@@ -298,6 +316,9 @@ const messages = useMessages({ references, to: () => props.phone });
 
 `messages` is sorted oldest-first across every reference: each one is read by its own query,
 so the rows arrive grouped, and a conversation is one chronological run through all of them.
+
+`sending` is true while a send is in flight, and `canSend` is false for its duration — which is
+what stops a second ctrl/cmd+enter during the round trip from posting the same draft twice.
 
 `error` holds the last failure of the fetch, a send or a reaction, and is `null` while
 healthy. The verbs never throw — they return `null` — because this package has no notification
@@ -336,7 +357,8 @@ string for the whole conversation, so it is a prop:
 
 That one rule covers every place a name appears: the reply quote's header, the reaction
 tooltip (`reactedByLabel`), and the input's reply preview. `MessageList`, `MessageBubble` and
-`MessageInput` all take both props. There is no `from_name` field and no reactor name on a
+`MessageInput` all take both props, and all three prefix the quoted name with `replyingToLabel`
+(default `"Replying to"`). There is no `from_name` field and no reactor name on a
 reaction — see [Design decisions](#design-decisions).
 
 ### Realtime
@@ -381,11 +403,44 @@ than baked into the package.
 
 `MessageInput` exposes `focus()`, and focuses itself whenever `replyTo` becomes set.
 
+### Attaching a file
+
+Three ways in, all landing on the same preview dialog: the attach menu, a **drop** anywhere on
+the composer, and a **paste** carrying a file. Pasting text is still a paste. `sendLabel` is
+the send button's tooltip and accessible name — the button is icon-only, and the keyboard hint
+is rendered as a `<kbd>` in that tooltip with the modifier detected from the platform, so do
+**not** append it to the label yourself.
+
+### Host controls in the input
+
+`MessageInput` is one control, not a field beside a button row: the reply preview and the
+actions both sit **inside** the bordered box, so they share its focus ring and its drop
+target. The `leading-actions` slot is
+rendered at the start of that action row — before the attach and send buttons — for controls
+that are the host's rather than the package's. Leave the icon's colour to the `Button`, as the
+built-in two do, so the row stays uniform:
+
+```vue
+<MessageInput v-bind="messages" :sender-name="contactName">
+  <template #leading-actions>
+    <Button variant="ghost" :tooltip="__('Send Template')" @click="showTemplates = true">
+      <template #icon>
+        <span class="lucide-layout-template size-4.5" aria-hidden="true" />
+      </template>
+    </Button>
+  </template>
+</MessageInput>
+```
+
+CRM uses it for the template picker, since the picker itself is host chrome — see
+[Sending a template](#sending-a-template).
+
 ### Where a `class` lands
 
-`MessageInput` sets `inheritAttrs: false` — its template has multiple roots, which Vue cannot
-auto-inherit onto at all — and binds `$attrs` onto its input row instead. So a `class` does
-land, on the row rather than on the reply preview above it.
+`MessageInput`'s reply preview sits **inside** the composer's border, above the field, so there
+is only one box for a host to inset. **It draws no page padding of its own**, so a `class` is
+where a host supplies its gutter; it lands on the root above the composer. (The preview was
+once a separate card floating above the box, which left the two to be kept flush by hand.)
 
 `MessageList` inherits attrs normally, so a `class` lands on the list root. It is bound with
 explicit props rather than `v-bind="controller"`, which is what makes that safe: spreading the
@@ -446,9 +501,21 @@ check the message and its reference the same way.
 
 The WhatsApp app has **no role model of its own yet** (its open gap
 [#10](https://github.com/ps173/frappe-whatsapp/issues/10) — everything else requires System
-Manager). So this check is *orthogonal* to a host's role policy, not a superset of it: a host
-that gates WhatsApp access by role must keep that gate in front of these endpoints rather than
-assume the app's reference check subsumes it.
+Manager). So this check is *orthogonal* to a host's role policy, not a superset of it: passing
+it says the caller may read the deal, not that the caller is allowed to use WhatsApp at all.
+
+A host with its own policy registers a guard in its `hooks.py`:
+
+```python
+whatsapp_access_guard = ["crm.api.whatsapp.validate_access"]
+```
+
+Every endpoint listed above calls the registered guards before it does anything else, and a
+guard throws to deny — `frappe.throw(_("Not permitted"), frappe.PermissionError)` is the usual
+body. A guard takes no arguments: the reference document is already checked per call, so what
+is left for the host to answer is the one question the app cannot, whether this user may use
+WhatsApp at all. The app registers nothing itself, so an unregistered hook leaves the endpoints
+exactly as they were.
 
 ## Conventions
 
@@ -516,6 +583,14 @@ blanket rule is what kept this package fetch-free for longer than it should have
   and the grid are host layout. See [Sending a template](#sending-a-template).
 - **No socket of its own.** `useMessages()` uses the host's, via `provide("socket", …)` or a
   `$socket` global; without one, live updates are simply off.
+- **No scroll container, and so no autoscroll or jump-to-latest.** `MessageList` is
+  layout-neutral; the host owns the element that scrolls. Where a host puts several kinds of
+  activity in one feed, scroll behaviour belongs to that feed rather than to WhatsApp — see
+  [CONTEXT.md](CONTEXT.md#design-decisions).
+- **No avatars.** `MessageList` has an `avatar` slot that renders nothing, and reserves no
+  width, unless a host fills it: this package knows a **sender name**, not a contact record.
+- **No message grouping.** Consecutive messages are not merged; the only structure the list
+  imposes is a **day separator**.
 - **No account or settings management.** Choosing the WhatsApp account and enabling the
   channel stay in the host (or the desk UI). Editing templates is desk-side too: point a
   "create a template" affordance at `/app/whatsapp-template/new`, or call the controller's

@@ -14,6 +14,7 @@ from whatsapp.whatsapp.api.utils import (
 	log,
 	normalize_template_status,
 	parse_whatsapp_template_to_doc,
+	run_access_guards,
 )
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.whatsapp_account.whatsapp_account import WhatsAppAccount
@@ -538,6 +539,8 @@ def get_doctype_columns(doctype: str) -> list[str]:
 
 @frappe.whitelist()
 def create_template_and_push(doc_data: dict, account_name: str) -> dict:
+	run_access_guards()
+
 	existing_name = doc_data.get("name")
 	is_new = doc_data.get("__islocal", True)
 
@@ -612,6 +615,8 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 	Sendable means bound to that doctype, or unbound with no variables. Unbound templates
 	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md).
 	"""
+	run_access_guards()
+
 	templates = frappe.get_all(
 		"WhatsApp Template",
 		filters={

@@ -4,9 +4,13 @@ import { sanitizeHTML } from "./sanitize";
 export function formatWhatsAppMessage(message?: string | null): string {
   if (!message) return "";
   let html = message;
-  html = html.replace(/_(.*?)_/g, "<i>$1</i>");
-  html = html.replace(/\*(.*?)\*/g, "<b>$1</b>");
-  html = html.replace(/~(.*?)~/g, "<s>$1</s>");
+  // `{1,2}` because WhatsApp accepts a doubled delimiter: against `__text__` a lazy `.*?`
+  // matches empty between the two halves, emitting `<i></i>text<i></i>` — the markers are
+  // deleted and nothing is styled. The word-boundary guards keep `snake_case` and the
+  // underscores in a URL from being marked up.
+  html = html.replace(/(?<!\w)_{1,2}([^\n]+?)_{1,2}(?!\w)/g, "<i>$1</i>");
+  html = html.replace(/(?<!\w)\*{1,2}([^\n]+?)\*{1,2}(?!\w)/g, "<b>$1</b>");
+  html = html.replace(/(?<!\w)~{1,2}([^\n]+?)~{1,2}(?!\w)/g, "<s>$1</s>");
   html = html.replace(/```(.*?)```/g, "<code>$1</code>");
   html = html.replace(/`(.*?)`/g, "<code>$1</code>");
   // Anchored to line starts so digits mid-sentence aren't matched as list items, which means

@@ -1,132 +1,133 @@
 {
- "actions": [],
- "allow_bulk_edit": 1,
- "allow_rename": 1,
- "autoname": "field:account_name",
- "creation": "2026-05-13 15:20:31.705272",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-   "account_name",
-   "status",
-   "app_id",
-   "column_break_pwlz",
-   "business_id",
+  "actions": [],
+  "allow_bulk_edit": 1,
+  "allow_rename": 1,
+  "autoname": "field:account_name",
+  "creation": "2026-05-13 15:20:31.705272",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "account_name",
+    "status",
+    "app_id",
+    "column_break_pwlz",
+    "business_id",
     "phone_id",
     "access_token",
     "read_receipts_sb",
     "auto_read_receipts",
     "append_actions_section",
     "append_actions"
-   ],
- "fields": [
-  {
-   "fieldname": "account_name",
-   "fieldtype": "Data",
-   "label": "Account name",
-   "unique": 1
-  },
-  {
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "label": "Status",
-   "options": "Active\nInactive"
-  },
-  {
-   "fieldname": "app_id",
-   "fieldtype": "Data",
-   "label": "App ID"
-  },
-  {
-   "fieldname": "column_break_pwlz",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "business_id",
-   "fieldtype": "Data",
-   "label": "Business ID"
-  },
-  {
-   "fieldname": "phone_id",
-   "fieldtype": "Data",
-   "label": "Phone ID"
-  },
-  {
-   "fieldname": "access_token",
-   "fieldtype": "Password",
-   "label": "Access token"
-   },
-    {
-     "fieldname": "read_receipts_sb",
-     "fieldtype": "Section Break",
-     "label": "Read Receipts"
-    },
-    {
-     "default": "0",
-     "fieldname": "auto_read_receipts",
-     "fieldtype": "Check",
-     "label": "Auto Send Read Receipts"
-    },
-    {
-     "fieldname": "append_actions_section",
-     "fieldtype": "Section Break",
-     "label": "Append Actions"
-    },
-   {
-    "description": "Auto-create documents in linked DocTypes when messages are received or sent",
-    "fieldname": "append_actions",
-    "fieldtype": "Table",
-    "label": "Append Actions",
-    "options": "WhatsApp Account Append"
-   }
   ],
- "grid_page_length": 50,
- "index_web_pages_for_search": 1,
- "links": [
-  {
-   "group": "Messages",
-   "link_doctype": "WhatsApp Message",
-   "link_fieldname": "whatsapp_account"
-  },
-  {
-   "group": "Contacts",
-   "link_doctype": "WhatsApp Profile",
-   "link_fieldname": "whatsapp_account"
-  },
-  {
-   "group": "Templates",
-   "link_doctype": "WhatsApp Template",
-   "link_fieldname": "whatsapp_account"
-  },
-  {
-   "group": "Logs",
-   "link_doctype": "WhatsApp Log",
-   "link_fieldname": "account"
-  }
- ],
- "modified": "2026-05-21 17:05:42.516163",
- "modified_by": "Administrator",
- "module": "WhatsApp",
- "name": "WhatsApp Account",
- "naming_rule": "By fieldname",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  }
- ],
- "row_format": "Dynamic",
- "rows_threshold_for_grid_search": 20,
- "sort_field": "creation",
- "sort_order": "DESC",
- "states": []
+  "fields": [
+    {
+      "fieldname": "account_name",
+      "fieldtype": "Data",
+      "label": "Account name",
+      "unique": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Active\nInactive"
+    },
+    {
+      "fieldname": "app_id",
+      "fieldtype": "Data",
+      "label": "App ID"
+    },
+    {
+      "fieldname": "column_break_pwlz",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "business_id",
+      "fieldtype": "Data",
+      "label": "Business ID"
+    },
+    {
+      "fieldname": "phone_id",
+      "fieldtype": "Data",
+      "label": "Phone ID"
+    },
+    {
+      "fieldname": "access_token",
+      "fieldtype": "Password",
+      "label": "Access token",
+      "length": 500
+    },
+    {
+      "fieldname": "read_receipts_sb",
+      "fieldtype": "Section Break",
+      "label": "Read Receipts"
+    },
+    {
+      "default": "0",
+      "fieldname": "auto_read_receipts",
+      "fieldtype": "Check",
+      "label": "Auto Send Read Receipts"
+    },
+    {
+      "fieldname": "append_actions_section",
+      "fieldtype": "Section Break",
+      "label": "Append Actions"
+    },
+    {
+      "description": "Auto-create documents in linked DocTypes when messages are received or sent",
+      "fieldname": "append_actions",
+      "fieldtype": "Table",
+      "label": "Append Actions",
+      "options": "WhatsApp Account Append"
+    }
+  ],
+  "grid_page_length": 50,
+  "index_web_pages_for_search": 1,
+  "links": [
+    {
+      "group": "Messages",
+      "link_doctype": "WhatsApp Message",
+      "link_fieldname": "whatsapp_account"
+    },
+    {
+      "group": "Contacts",
+      "link_doctype": "WhatsApp Profile",
+      "link_fieldname": "whatsapp_account"
+    },
+    {
+      "group": "Templates",
+      "link_doctype": "WhatsApp Template",
+      "link_fieldname": "whatsapp_account"
+    },
+    {
+      "group": "Logs",
+      "link_doctype": "WhatsApp Log",
+      "link_fieldname": "account"
+    }
+  ],
+  "modified": "2026-05-21 17:05:42.516163",
+  "modified_by": "Administrator",
+  "module": "WhatsApp",
+  "name": "WhatsApp Account",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "row_format": "Dynamic",
+  "rows_threshold_for_grid_search": 20,
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "states": []
 }

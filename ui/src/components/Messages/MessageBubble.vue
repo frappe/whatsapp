@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
 import { computed } from "vue";
-import { Badge, Dropdown, Tooltip, dayjsLocal } from "frappe-ui";
+import { Button, LoadingIndicator, Tooltip, dayjsLocal } from "frappe-ui";
 import TemplateContent from "./TemplateContent.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
 import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "../../utils/media";
@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<MessageBubbleProps>(), {
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
 	replyLabel: "Reply",
+	replyingToLabel: "Replying to",
 	failedMessageLabel: "Failed to send message",
 });
 
@@ -25,175 +26,212 @@ const isReply = computed(() => Boolean(props.message.context_message_id));
 
 const contentType = computed(() => contentTypeFromMime(props.message.mime_type));
 
+const creation = computed(() => dayjsLocal(props.message.creation));
+
 /** Two participants, so direction alone names every sender this bubble shows. */
 function nameFor(direction?: WhatsAppDirection) {
 	return direction === "Incoming" ? props.senderName : props.youLabel;
 }
-
-const messageOptions = computed(() => [
-	{
-		label: props.replyLabel,
-		onClick: () => emit("reply", props.message),
-	},
-]);
-
-function openFileInAnotherTab(url?: string) {
-	if (!url) return;
-	window.open(url, "_blank");
-}
 </script>
 
 <template>
+	<!--
+		Width is capped here rather than on the coloured body, and this column is sized by its
+		content, so the row never stretches it and the cap stays relative to the row.
+
+		`data-direction` sits here too, so the footer below the body can read it; a group
+		variant only reaches descendants.
+	-->
 	<div
-		:id="message.name"
-		class="group/message relative min-w-[90px] max-w-[75%] rounded-md bg-surface-gray-1 text-ink-gray-9 p-1.5 pl-2 pb-5 text-base shadow-sm"
+		class="group/bubble flex min-w-0 max-w-[80%] flex-col gap-1 data-[direction=Outgoing]:items-end"
+		:data-direction="message.direction"
 	>
-		<Tooltip v-if="message.status == 'Failed'">
-			<template #content>
-				<!-- the reason can be a paragraph; let it wrap instead of one long line -->
-				<div class="max-w-xs whitespace-normal break-words text-left">
-					{{ message.error_message || failedMessageLabel }}
-				</div>
-			</template>
-			<Badge theme="red" :label="message.status" class="absolute -top-2 right-0" />
-		</Tooltip>
-
-		<!-- reply_message/reply_to_* only: `header`/`footer` describe *this* message's template -->
 		<div
-			v-if="isReply"
-			class="mb-1 cursor-pointer rounded border-0 border-l-4 bg-surface-gray-3 p-2 text-ink-gray-5"
-			:class="
-				message.reply_to_direction == 'Incoming' ? 'border-green-500' : 'border-blue-400'
-			"
-			@click="() => message.reply_to && emit('jump-to', message.reply_to)"
+			class="flex w-full items-center gap-1 group-data-[direction=Outgoing]/bubble:flex-row-reverse"
 		>
+			<!-- no `overflow-hidden`: it would clip the reaction chip that hangs below the edge,
+			     and `break-words` already contains a long unbroken URL -->
 			<div
-				class="mb-1 text-sm-bold"
-				:class="
-					message.reply_to_direction == 'Incoming'
-						? 'text-ink-green-5'
-						: 'text-ink-blue-link'
-				"
+				:id="message.name"
+				class="relative w-fit min-w-0 max-w-full break-words rounded-lg bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
 			>
-				{{ nameFor(message.reply_to_direction) }}
-			</div>
-			<div class="flex flex-col gap-2 max-h-12 overflow-hidden">
-				<div v-html="formatWhatsAppMessage(message.reply_message)" />
-			</div>
-		</div>
+				<!--
+					reply_message/reply_to_* only: `header`/`footer` describe *this* message's template.
 
-		<div
-			v-if="message.status != 'Failed'"
-			class="absolute -right-0.5 -top-0.5 flex cursor-pointer gap-1 rounded-full bg-surface-white pb-2 pl-2 pr-1.5 pt-1.5 opacity-0 group-hover/message:opacity-100"
-			:style="{
-				background:
-					'radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 35%, rgba(238, 130, 238, 0) 100%)',
-			}"
-		>
-			<Dropdown :options="messageOptions">
-				<span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
-			</Dropdown>
-		</div>
-
-		<div
-			v-if="message.reactions?.length"
-			class="absolute -bottom-5 flex gap-0.5 rounded-full border bg-surface-white p-1 pb-[3px] shadow-sm"
-		>
-			<Tooltip
-				v-for="(reaction, i) in message.reactions"
-				:key="i"
-				:text="`${reactedByLabel} ${nameFor(reaction.direction)}`"
-			>
-				<div class="flex size-4 items-center justify-center">
-					{{ reaction.emoji }}
-				</div>
-			</Tooltip>
-		</div>
-
-		<TemplateContent
-			v-if="message.is_template"
-			:header="message.header"
-			:body="message.template"
-			:footer="message.footer"
-			:buttons="message.buttons"
-		/>
-		<div v-else-if="contentType == 'text'" v-html="formatWhatsAppMessage(message.message)" />
-		<div v-else-if="contentType == 'image'">
-			<img
-				:src="message.media_url"
-				class="max-h-72 max-w-full cursor-pointer rounded-md object-cover"
-				@click="() => openFileInAnotherTab(message.media_url)"
-			/>
-			<div
-				v-if="hasCaption(message.message)"
-				class="mt-1.5"
-				v-html="formatWhatsAppMessage(message.message)"
-			/>
-		</div>
-		<div v-else-if="contentType == 'document'" class="flex flex-col gap-1.5">
-			<div
-				class="flex min-w-0 cursor-pointer items-center gap-2 rounded-md"
-				:class="hasCaption(message.message) ? 'bg-surface-gray-3 p-2' : ''"
-				@click="() => openFileInAnotherTab(message.media_url)"
-			>
-				<span
-					class="lucide-file-text size-10 flex-shrink-0 rounded-md text-ink-gray-4"
-					aria-hidden="true"
-				/>
-				<div class="flex min-w-0 flex-1 flex-col">
+					The fill is hover-only, so the quote reads as a rule beside two lines rather
+					than a card nested in the bubble. One shade for both directions, per the rule
+					that direction styles the bubble and nothing inside it — which is why this is
+					`gray-3` and not a shade picked per surface.
+				-->
+				<button
+					v-if="isReply"
+					type="button"
+					class="mb-1.5 block w-full rounded-r border-l-2 border-outline-gray-3 px-2 py-0.5 text-left text-ink-gray-7 transition-colors hover:bg-surface-gray-3"
+					@click="() => message.reply_to && emit('jump-to', message.reply_to)"
+				>
+					<div class="text-sm text-ink-gray-6">
+						{{ replyingToLabel }} {{ nameFor(message.reply_to_direction) }}
+					</div>
+					<!-- clamped, not cropped: a fixed max-height slices the last line in half -->
 					<div
-						:title="documentName(message)"
-						class="max-w-[28ch] truncate text-ink-gray-8"
+						class="line-clamp-2"
+						v-html="formatWhatsAppMessage(message.reply_message)"
+					/>
+				</button>
+
+				<TemplateContent
+					v-if="message.is_template"
+					:header="message.header"
+					:body="message.template"
+					:footer="message.footer"
+					:buttons="message.buttons"
+				/>
+				<div
+					v-else-if="contentType == 'text'"
+					v-html="formatWhatsAppMessage(message.message)"
+				/>
+				<div v-else-if="contentType == 'image'">
+					<a :href="message.media_url" target="_blank" rel="noopener noreferrer">
+						<img
+							:src="message.media_url"
+							:alt="documentName(message, 'Image')"
+							class="max-h-72 max-w-full rounded object-contain"
+						/>
+					</a>
+					<div
+						v-if="hasCaption(message.message)"
+						class="mt-1.5"
+						v-html="formatWhatsAppMessage(message.message)"
+					/>
+				</div>
+				<div v-else-if="contentType == 'document'" class="flex flex-col gap-1.5">
+					<a
+						:href="message.media_url"
+						target="_blank"
+						rel="noopener noreferrer"
+						class="flex min-w-0 items-center gap-2 rounded-md"
+						:class="hasCaption(message.message) ? 'bg-surface-gray-4 p-2' : ''"
 					>
-						{{ documentName(message) }}
-					</div>
-					<div v-if="documentMeta(message)" class="text-sm text-ink-gray-5">
-						{{ documentMeta(message) }}
-					</div>
+						<span
+							class="lucide-file-text size-10 flex-shrink-0 rounded-md text-ink-gray-4"
+							aria-hidden="true"
+						/>
+						<div class="flex min-w-0 flex-1 flex-col">
+							<div :title="documentName(message)" class="truncate text-ink-gray-8">
+								{{ documentName(message) }}
+							</div>
+							<div v-if="documentMeta(message)" class="text-sm text-ink-gray-6">
+								{{ documentMeta(message) }}
+							</div>
+						</div>
+					</a>
+					<div
+						v-if="hasCaption(message.message)"
+						v-html="formatWhatsAppMessage(message.message)"
+					/>
+				</div>
+				<div v-else-if="contentType == 'audio'">
+					<!-- the native player has a ~300px min width, so it must be allowed to shrink -->
+					<audio :src="message.media_url" controls class="w-full" />
+				</div>
+				<div v-else-if="contentType == 'video'">
+					<video
+						:src="message.media_url"
+						controls
+						class="max-h-72 w-full rounded bg-black object-contain"
+					/>
+					<div
+						v-if="hasCaption(message.message)"
+						class="mt-1.5"
+						v-html="formatWhatsAppMessage(message.message)"
+					/>
+				</div>
+
+				<!--
+					A border rather than a ring: frappe-ui registers `ringColor` for `outline`
+					only, so `ring-surface-*` silently falls back to Tailwind's default blue ring.
+					The chip straddles the bubble and the page, so it carries its own surface.
+				-->
+				<div
+					v-if="message.reactions?.length"
+					data-slot="reactions"
+					class="absolute -bottom-0.5 right-2 flex translate-y-1/2 gap-0.5 rounded-full border border-outline-gray-2 bg-surface-base px-1.5 py-0.5 text-sm shadow-sm"
+				>
+					<Tooltip
+						v-for="(reaction, i) in message.reactions"
+						:key="i"
+						:text="`${reactedByLabel} ${nameFor(reaction.direction)}`"
+					>
+						<div class="flex size-4 items-center justify-center">
+							{{ reaction.emoji }}
+						</div>
+					</Tooltip>
 				</div>
 			</div>
+
+			<!--
+				Beside the coloured body and centred on it, so the pair tracks the bubble rather
+				than the taller body-plus-footer column. Revealed by focus as well as hover, and
+				inert to the pointer until then: an invisible button must not be clickable, but
+				must still be reachable by keyboard.
+			-->
 			<div
-				v-if="hasCaption(message.message)"
-				v-html="formatWhatsAppMessage(message.message)"
-			/>
-		</div>
-		<div v-else-if="contentType == 'audio'" class="flex items-center gap-2">
-			<audio :src="message.media_url" controls class="cursor-pointer" />
-		</div>
-		<div v-else-if="contentType == 'video'" class="flex-col items-center gap-2">
-			<video :src="message.media_url" controls class="h-40 cursor-pointer rounded-md" />
-			<div
-				v-if="hasCaption(message.message)"
-				class="mt-1.5"
-				v-html="formatWhatsAppMessage(message.message)"
-			/>
+				v-if="message.status != 'Failed'"
+				class="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-hover/bubble:pointer-events-auto group-hover/bubble:opacity-100 group-focus-within/bubble:pointer-events-auto group-focus-within/bubble:opacity-100"
+			>
+				<Button
+					variant="ghost"
+					size="xs"
+					:tooltip="replyLabel"
+					:aria-label="replyLabel"
+					@click="emit('reply', message)"
+				>
+					<template #icon>
+						<span class="lucide-corner-up-left size-4" aria-hidden="true" />
+					</template>
+				</Button>
+
+				<slot name="actions" />
+			</div>
 		</div>
 
+		<!--
+			Outside the coloured body, so the blue Read tick sits on the page background rather
+			than on the bubble. Room for an overhanging reaction chip comes from the body's own
+			`has-[]` margin, not from a margin computed per row.
+		-->
 		<div
-			class="absolute bottom-1 right-2 flex items-end gap-1 whitespace-nowrap text-ink-gray-5"
+			class="flex max-w-full items-center gap-1.5 px-1 text-xs text-ink-gray-6 group-data-[direction=Outgoing]/bubble:flex-row-reverse"
 		>
-			<!--
-				dayjsLocal, not dayjs: `creation` is naive and in the site's timezone,
-				so plain dayjs would read it as browser-local and shift every stamp.
-			-->
-			<Tooltip :text="dayjsLocal(message.creation).format('ddd, MMM D, YYYY')">
-				<div class="text-2xs">
-					{{ dayjsLocal(message.creation).format("hh:mm a") }}
-				</div>
+			<Tooltip :text="creation.format('ddd, MMM D, YYYY')">
+				<!--
+					dayjsLocal, not dayjs: `creation` is naive and in the site's timezone,
+					so plain dayjs would read it as browser-local and shift every stamp.
+				-->
+				<time :datetime="creation.format('YYYY-MM-DDTHH:mm:ssZ')">
+					{{ creation.format("hh:mm a") }}
+				</time>
 			</Tooltip>
-			<div v-if="message.direction == 'Outgoing'">
+
+			<template v-if="message.direction == 'Outgoing'">
+				<LoadingIndicator v-if="message.status == 'Pending'" class="size-3" />
 				<span
-					v-if="message.status == 'Sent'"
+					v-else-if="message.status == 'Sent'"
 					class="lucide-check size-4"
 					aria-hidden="true"
 				/>
 				<span
 					v-else-if="['Read', 'Delivered'].includes(message.status || '')"
 					class="lucide-check-check size-4"
-					:class="{ 'text-ink-blue-2': message.status == 'Read' }"
+					:class="{ 'text-ink-blue-6': message.status == 'Read' }"
 					aria-hidden="true"
 				/>
-			</div>
+			</template>
+
+			<!-- readable rather than hover-only: a send failure is the one thing worth reading -->
+			<span v-if="message.status == 'Failed'" class="min-w-0 break-words text-ink-red-7">
+				{{ message.error_message || failedMessageLabel }}
+			</span>
 		</div>
 	</div>
 </template>

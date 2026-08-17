@@ -38,18 +38,18 @@ function choose(emoji: string, togglePopover: () => void) {
 		</template>
 		<template #body="{ togglePopover }">
 			<div
-				class="flex items-center justify-center gap-1 rounded-full bg-surface-elevation-2 px-2 py-1 shadow-2xl ring-1 ring-black ring-opacity-5"
+				class="flex items-center justify-center gap-1 rounded-full border border-outline-gray-1 bg-surface-elevation-2 px-2 py-1 shadow-md"
 			>
 				<!-- a bare emoji has no accessible name, so each button gets one -->
 				<Button
 					v-for="emoji in emojis"
 					:key="emoji"
 					variant="ghost"
-					class="rounded-full !text-xl leading-none"
+					class="rounded-full"
 					:aria-label="`React with ${emoji}`"
 					@click="choose(emoji, togglePopover)"
 				>
-					{{ emoji }}
+					<span class="text-xl leading-none">{{ emoji }}</span>
 				</Button>
 			</div>
 		</template>

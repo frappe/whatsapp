@@ -1,9 +1,10 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { Button, Dropdown, FileUploader, Textarea } from "frappe-ui";
+import { Button, Dropdown, FileUploader, Textarea, Tooltip } from "frappe-ui";
 import MediaPreviewDialog from "../common/MediaPreviewDialog.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
+import { contentTypeFromMime } from "../../utils/media";
 import type {
 	MediaFile,
 	MessageInputProps,
@@ -11,10 +12,6 @@ import type {
 	SendMessagePayload,
 	WhatsAppContentType,
 } from "./types";
-
-// Multi-root template: Vue cannot auto-inherit attrs onto a fragment, so $attrs is bound
-// explicitly onto the input row below.
-defineOptions({ inheritAttrs: false });
 
 /** The controller half arrives whole from `v-bind="messages"`; the rest is chrome. */
 const props = withDefaults(defineProps<MessagesController & MessageInputProps>(), {
@@ -25,6 +22,9 @@ const props = withDefaults(defineProps<MessagesController & MessageInputProps>()
 	uploadImageLabel: "Upload Image",
 	uploadVideoLabel: "Upload Video",
 	captionPlaceholder: "Add a caption...",
+	sendLabel: "Send",
+	replyingToLabel: "Replying to",
+	dismissReplyLabel: "Dismiss reply",
 });
 
 const emit = defineEmits<{
@@ -32,10 +32,11 @@ const emit = defineEmits<{
 }>();
 
 // View state only; nothing here is part of the message being composed.
-const rows = ref(1);
 const textareaRef = ref<{ el?: HTMLTextAreaElement } | null>(null);
+const uploaderRef = ref<{ inputRef?: HTMLInputElement } | null>(null);
 const acceptedFileTypes = ref<string>();
 const showMediaPreview = ref(false);
+const draggingOver = ref(false);
 // Which menu item was clicked, remembered until the upload succeeds.
 const pickedType = ref<WhatsAppContentType>("document");
 
@@ -46,6 +47,16 @@ const draft = computed({
 
 const replyToName = computed(() =>
 	props.replyTo?.direction === "Incoming" ? props.senderName : props.youLabel
+);
+
+const sendable = computed(() => props.canSend && !props.disabled);
+
+// Only the platform knows which modifier to name, so it is detected rather than passed in.
+const modifierKey = computed(() =>
+	typeof navigator !== "undefined" &&
+	/Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent)
+		? "⌘"
+		: "Ctrl"
 );
 
 function focus() {
@@ -63,10 +74,8 @@ async function submit(overrides?: Pick<SendMessagePayload, "message">) {
 	if (name && payload) emit("send", payload);
 }
 
-function sendText(event: KeyboardEvent) {
-	if (event.shiftKey) return;
+function sendText() {
 	submit();
-	textareaRef.value?.el?.blur();
 }
 
 // Preview first rather than sending immediately, so the user can add a caption.
@@ -115,6 +124,37 @@ function uploadOptions(openFileSelector: () => void) {
 	];
 }
 
+/**
+ * FileUploader has no method for uploading a `File` we already hold, so a dropped or
+ * pasted one is handed to the input it exposes — the same path a file-picker choice takes.
+ */
+function upload(file: File) {
+	const input = uploaderRef.value?.inputRef;
+	if (!input) return;
+	const kind = contentTypeFromMime(file.type);
+	pickedType.value = kind === "text" ? "document" : kind;
+	acceptedFileTypes.value = undefined;
+
+	const transfer = new DataTransfer();
+	transfer.items.add(file);
+	input.files = transfer.files;
+	input.dispatchEvent(new Event("change"));
+}
+
+function onDrop(event: DragEvent) {
+	draggingOver.value = false;
+	const file = event.dataTransfer?.files?.[0];
+	if (file && !props.disabled) upload(file);
+}
+
+// Only when the clipboard actually carries a file — pasting text must stay a paste.
+function onPaste(event: ClipboardEvent) {
+	const file = event.clipboardData?.files?.[0];
+	if (!file || props.disabled) return;
+	event.preventDefault();
+	upload(file);
+}
+
 watch(
 	() => props.replyTo,
 	(value) => value && focus()
@@ -130,63 +170,120 @@ defineExpose({ focus });
 </script>
 
 <template>
-	<div v-if="replyTo" class="flex items-center justify-around gap-2 px-3 pt-2 sm:px-10">
+	<!-- The dialog is a sibling of the composer, so a host's `class` needs a root above both. -->
+	<div class="flex flex-col">
+		<!--
+			One control rather than a field beside a button row: the reply preview, the field and
+			the actions all sit inside the box, so they share its focus ring, its disabled state
+			and its drop target. `overflow-hidden` keeps the preview's fill inside the rounded
+			corners — the attach menu and the send tooltip both portal out, so neither is clipped.
+		-->
 		<div
-			class="mb-1 flex-1 rounded border-0 border-l-4 bg-surface-gray-2 p-2 text-base text-ink-gray-5"
-			:class="replyTo.direction == 'Incoming' ? 'border-green-500' : 'border-blue-400'"
+			class="overflow-hidden rounded-lg border bg-surface-base transition-colors focus-within:border-outline-gray-3"
+			:class="
+				draggingOver ? 'border-outline-blue-3 bg-surface-blue-1' : 'border-outline-gray-2'
+			"
+			@dragover.prevent="draggingOver = true"
+			@dragleave="draggingOver = false"
+			@drop.prevent="onDrop"
+			@paste="onPaste"
 		>
+			<!-- a rule and two lines rather than a nested card: the preview belongs to the box -->
 			<div
-				class="mb-1 text-sm-bold"
-				:class="
-					replyTo.direction == 'Incoming' ? 'text-ink-green-5' : 'text-ink-blue-link'
-				"
+				v-if="replyTo"
+				class="flex items-center gap-2 border-b border-outline-gray-2 bg-surface-gray-1 py-2 pl-2.5 pr-1.5"
 			>
-				{{ replyToName }}
-			</div>
-			<div
-				class="max-h-12 overflow-hidden"
-				v-html="formatWhatsAppMessage(replyTo.message)"
-			/>
-		</div>
-
-		<Button variant="ghost" icon="lucide-x" aria-label="Dismiss reply" @click="clearReply()" />
-	</div>
-
-	<div class="flex items-end gap-2 px-3 py-2.5 sm:px-10" v-bind="$attrs">
-		<div class="flex h-8 items-center gap-2">
-			<FileUploader :file-types="acceptedFileTypes" @success="onUpload">
-				<template #default="{ openFileSelector }">
-					<div class="flex items-center space-x-2">
-						<Dropdown :options="uploadOptions(openFileSelector)">
-							<span
-								class="lucide-plus size-4.5 cursor-pointer text-ink-gray-5"
-								:class="disabled ? 'pointer-events-none opacity-50' : ''"
-								aria-label="Attach a file"
-							/>
-						</Dropdown>
+				<div class="min-w-0 flex-1 border-l-2 border-outline-gray-3 pl-2">
+					<div class="text-sm text-ink-gray-6">
+						{{ replyingToLabel }} {{ replyToName }}
 					</div>
-				</template>
-			</FileUploader>
+					<!-- clamped, not cropped: a fixed max-height slices the last line in half -->
+					<div
+						class="line-clamp-2 text-p-base text-ink-gray-7"
+						v-html="formatWhatsAppMessage(replyTo.message)"
+					/>
+				</div>
+
+				<Button variant="ghost" :aria-label="dismissReplyLabel" @click="clearReply()">
+					<template #icon>
+						<span class="lucide-circle-x size-4 text-ink-gray-6" aria-hidden="true" />
+					</template>
+				</Button>
+			</div>
+
+			<!-- placeholder overridden: ghost's own is ink-gray-3, 1.5:1 on white -->
+			<Textarea
+				ref="textareaRef"
+				v-model="draft"
+				variant="ghost"
+				class="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent placeholder-ink-gray-5 [field-sizing:content]"
+				:rows="1"
+				:placeholder="placeholder"
+				:disabled="disabled"
+				@keydown.ctrl.enter.stop="sendText"
+				@keydown.meta.enter.stop="sendText"
+			/>
+
+			<div class="flex items-center gap-1 px-1.5 pb-1.5">
+				<slot name="leading-actions" />
+
+				<FileUploader
+					ref="uploaderRef"
+					:file-types="acceptedFileTypes"
+					@success="onUpload"
+				>
+					<template #default="{ openFileSelector }">
+						<Dropdown :options="uploadOptions(openFileSelector)">
+							<Button
+								variant="ghost"
+								:disabled="disabled"
+								aria-label="Attach a file"
+							>
+								<template #icon>
+									<span class="lucide-plus size-4.5" aria-hidden="true" />
+								</template>
+							</Button>
+						</Dropdown>
+					</template>
+				</FileUploader>
+
+				<div class="flex-1" />
+
+				<Tooltip>
+					<template #content>
+						<span class="flex items-center gap-1">
+							{{ sendLabel }}
+							<kbd
+								class="rounded-sm bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
+								>{{ modifierKey }}</kbd
+							>
+							<kbd class="rounded-sm bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
+								>↵</kbd
+							>
+						</span>
+					</template>
+					<Button
+						variant="solid"
+						:disabled="!sendable"
+						:loading="sending"
+						:aria-label="sendLabel"
+						@click="submit()"
+					>
+						<template #icon>
+							<span class="lucide-arrow-up size-4" aria-hidden="true" />
+						</template>
+					</Button>
+				</Tooltip>
+			</div>
 		</div>
 
-		<Textarea
-			ref="textareaRef"
-			v-model="draft"
-			class="min-h-8 w-full"
-			:rows="rows"
-			:placeholder="placeholder"
-			:disabled="disabled"
-			@focus="rows = 6"
-			@blur="rows = 1"
-			@keydown.enter.stop="sendText"
+		<MediaPreviewDialog
+			v-model:open="showMediaPreview"
+			:file="pendingMedia"
+			:type="pendingType"
+			:loading="sending"
+			:caption-placeholder="captionPlaceholder"
+			@send="onMediaSend"
 		/>
 	</div>
-
-	<MediaPreviewDialog
-		v-model:open="showMediaPreview"
-		:file="pendingMedia"
-		:type="pendingType"
-		:caption-placeholder="captionPlaceholder"
-		@send="onMediaSend"
-	/>
 </template>

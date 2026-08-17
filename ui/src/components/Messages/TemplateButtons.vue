@@ -22,11 +22,13 @@ const BUTTON_TYPE_ICONS: Record<WhatsAppTemplateButton["button_type"], Component
 </script>
 
 <template>
-	<div v-if="buttons?.length" class="-mx-2 -mb-1.5 mt-1 flex flex-col">
+	<!-- display only: this is what WhatsApp will draw on the recipient's phone, so nothing
+	     here is clickable and none of it is announced as an interactive control -->
+	<div v-if="buttons?.length" role="presentation" class="-mx-2.5 -mb-1.5 mt-1 flex flex-col">
 		<div
 			v-for="(btn, i) in buttons"
 			:key="i"
-			class="flex items-center justify-center gap-1.5 border-t border-outline-gray-2 py-2 text-sm text-ink-blue-link"
+			class="flex items-center justify-center gap-1.5 border-t border-outline-gray-2 py-2 text-sm text-ink-gray-7"
 		>
 			<component
 				:is="BUTTON_TYPE_ICONS[btn.button_type]"
