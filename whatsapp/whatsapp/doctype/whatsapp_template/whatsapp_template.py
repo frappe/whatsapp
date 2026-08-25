@@ -37,7 +37,7 @@ class WhatsAppTemplate(Document):
 		header_media: DF.Attach | None
 		header_media_handle: DF.Data | None
 		header_text: DF.Data | None
-		header_type: DF.Literal["TEXT", "IMAGE", "DOCUMENT", "GIF", "VIDEO"]
+		header_type: DF.Literal["Text", "Image", "Document", "GIF", "Video"]
 		language: DF.Literal["en_UK", "en_US", "en"]
 		message: DF.Code
 		mime_type: DF.Data | None
@@ -45,15 +45,15 @@ class WhatsAppTemplate(Document):
 		status: DF.Literal["Pending", "Approved", "Rejected", "Deleted"]
 		template_label: DF.Data
 		template_name: DF.Data | None
-		template_type: DF.Literal["UTILITY", "MARKETING", "AUTHENTICATION"]
+		template_type: DF.Literal["Utility", "Marketing", "Authentication"]
 		template_variables: DF.Table[TemplateVariable]
-		variable_format: DF.Literal["named", "positional"]
+		variable_format: DF.Literal["Named", "Positional"]
 		whatsapp_account: DF.Link | None
 		whatsapp_template_id: DF.Data | None
 	# end: auto-generated types
 
 	def _sync_template_variables(self) -> None:
-		if self.header_text and self.header_type == "TEXT":
+		if self.header_text and self.header_type == "Text":
 			header_variables = get_template_variables(self.header_text)
 		else:
 			header_variables = []
@@ -80,7 +80,7 @@ class WhatsAppTemplate(Document):
 
 	def validate_template_variables(self) -> None:
 		variables = get_template_variables(self.message)
-		if self.header_text and self.header_type == "TEXT":
+		if self.header_text and self.header_type == "Text":
 			variables.extend(get_template_variables(self.header_text))
 
 		if len(variables) != len(self.template_variables):
@@ -202,7 +202,7 @@ class WhatsAppTemplate(Document):
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
-			self.variable_format = "named"
+			self.variable_format = "Named"
 
 		payload = build_create_template_payload(self)
 		logger.info("_push_to_meta | payload=%s", payload)
@@ -281,7 +281,7 @@ class WhatsAppTemplate(Document):
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
-			self.variable_format = "named"
+			self.variable_format = "Named"
 
 		payload = build_create_template_payload(self)
 		payload.pop("name", None)
@@ -417,12 +417,12 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		doc.whatsapp_account = account_name
 		doc.status = parsed.get("status", "Pending")
 		doc.template_type = parsed["template_type"]
-		doc.header_type = parsed.get("header_type", "TEXT")
+		doc.header_type = parsed.get("header_type", "Text")
 		doc.header_text = parsed.get("header_text", "")
 		doc.header_media_handle = parsed.get("header_media_handle", "")
 		doc.message = parsed.get("message", "")
 		doc.footer = parsed.get("footer", "")
-		doc.variable_format = parsed.get("variable_format", "named")
+		doc.variable_format = parsed.get("variable_format", "Named")
 
 		existing_variable_fields = {
 			v.variable_name: v.variable_field for v in doc.template_variables
@@ -455,12 +455,12 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			"status": parsed.get("status", "Pending"),
 			"template_type": parsed["template_type"],
 			"language": parsed["language"],
-			"header_type": parsed.get("header_type", "TEXT"),
+			"header_type": parsed.get("header_type", "Text"),
 			"header_text": parsed.get("header_text", ""),
 			"header_media_handle": parsed.get("header_media_handle", ""),
 			"message": parsed.get("message", ""),
 			"footer": parsed.get("footer", ""),
-			"variable_format": parsed.get("variable_format", "named"),
+			"variable_format": parsed.get("variable_format", "Named"),
 			"template_variables": parsed.get("template_variables", []),
 			"buttons": parsed.get("buttons", []),
 		}

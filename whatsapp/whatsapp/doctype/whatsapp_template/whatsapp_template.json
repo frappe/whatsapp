@@ -73,12 +73,12 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "MARKETING",
+   "default": "Marketing",
    "fieldname": "template_type",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Template type",
-   "options": "UTILITY\nMARKETING\nAUTHENTICATION",
+   "options": "Utility\nMarketing\nAuthentication",
    "reqd": 1
   },
   {
@@ -106,14 +106,14 @@
    "show_description_on_click": 1
   },
   {
-   "depends_on": "eval:doc.header_type === \"TEXT\"",
+   "depends_on": "eval:doc.header_type === \"Text\"",
    "description": "Header Text should only have one variable.",
    "fieldname": "header_text",
    "fieldtype": "Data",
    "label": "Header Text"
   },
   {
-   "depends_on": "eval:[\"IMAGE\", \"DOCUMENT\", \"VIDEO\", \"GIF\"].includes(doc.header_type)",
+   "depends_on": "eval:[\"Image\", \"Document\", \"Video\", \"GIF\"].includes(doc.header_type)",
    "fieldname": "header_media",
    "fieldtype": "Attach",
    "label": "Header Media"
@@ -123,11 +123,11 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "TEXT",
+   "default": "Text",
    "fieldname": "header_type",
    "fieldtype": "Select",
    "label": "Header Type",
-   "options": "TEXT\nIMAGE\nDOCUMENT\nGIF\nVIDEO"
+   "options": "Text\nImage\nDocument\nGIF\nVideo"
   },
   {
    "fieldname": "section_break_snmo",
@@ -187,13 +187,13 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "named",
+   "default": "Named",
    "fieldname": "variable_format",
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Variable Format",
    "no_copy": 1,
-   "options": "named\npositional",
+   "options": "Named\nPositional",
    "read_only": 1
   },
    {

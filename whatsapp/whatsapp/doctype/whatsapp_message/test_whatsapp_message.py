@@ -53,7 +53,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 			doctype="WhatsApp Template",
 			template_label=f"_Test Template {uid}",
 			template_name=f"_test_template_{uid}",
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Plain body text",
 			whatsapp_account=acc,
@@ -266,7 +266,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test PopHead",
 			template_name="_test_pophead",
-			header_type="TEXT",
+			header_type="Text",
 			header_text="{{description}}",
 			message="Body {{sender}}",
 			reference_doctype="ToDo",
@@ -692,7 +692,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm",
 			template_name="_test_thm",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 		)
 		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
@@ -715,7 +715,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm2",
 			template_name="_test_thm2",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 			header_media_handle="existing_handle",
 		)
@@ -738,7 +738,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm3",
 			template_name="_test_thm3",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 		)
 		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
