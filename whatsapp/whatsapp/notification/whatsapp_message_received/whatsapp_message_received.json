@@ -13,10 +13,12 @@
  "message_type": "HTML",
  "method": "on_receive",
  "minutes_offset": 0,
- "modified": "2026-05-22 15:53:51.484136",
+ "modified": "2026-08-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Received",
+ "notification_message": "{{ message_preview }}",
+ "notification_title": "New WhatsApp message from {{ doc.from or doc.to }}",
  "owner": "Administrator",
  "recipients": [
   {
