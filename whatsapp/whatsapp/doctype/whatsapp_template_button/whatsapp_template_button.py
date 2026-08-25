@@ -15,7 +15,7 @@ class WhatsAppTemplateButton(Document):
 		from frappe.types import DF
 
 		button_text: DF.Data
-		button_type: DF.Literal["QUICK_REPLY", "COPY_CODE", "URL", "VOICE_CALL", "PHONE_NUMBER"]
+		button_type: DF.Literal["Quick Reply", "Copy Code", "URL", "Voice Call", "Phone Number"]
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data

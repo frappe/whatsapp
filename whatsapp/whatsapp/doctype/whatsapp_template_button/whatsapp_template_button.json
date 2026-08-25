@@ -17,7 +17,7 @@
    "fieldname": "button_type",
    "fieldtype": "Select",
    "label": "Button Type",
-   "options": "QUICK_REPLY\nCOPY_CODE\nURL\nVOICE_CALL\nPHONE_NUMBER",
+   "options": "Quick Reply\nCopy Code\nURL\nVoice Call\nPhone Number",
    "reqd": 1
   },
   {
@@ -35,11 +35,11 @@
    "mandatory_depends_on": "eval:doc.button_type === \"URL\""
   },
   {
-   "depends_on": "eval:doc.button_type === \"PHONE_NUMBER\"",
+   "depends_on": "eval:doc.button_type === \"Phone Number\"",
    "fieldname": "phone_number",
    "fieldtype": "Data",
    "label": "Phone Number",
-   "mandatory_depends_on": "eval:doc.button_type === \"PHONE_NUMBER\"",
+   "mandatory_depends_on": "eval:doc.button_type === \"Phone Number\"",
    "options": "Phone"
   }
  ],

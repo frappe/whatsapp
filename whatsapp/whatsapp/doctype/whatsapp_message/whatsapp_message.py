@@ -10,6 +10,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 
 from whatsapp.whatsapp.api.utils import (
+	MEDIA_HEADER_TYPES,
 	build_interactive_buttons_payload,
 	build_interactive_list_payload,
 	build_media_message_payload,
@@ -168,7 +169,7 @@ class WhatsAppMessage(Document):
 			value = ref_doc.get(var.variable_field)
 			check_str = f"{{{{{var.variable_name}}}}}"
 			is_header = (
-				template.header_type == "TEXT"
+				template.header_type == "Text"
 				and template.header_text
 				and check_str in template.header_text
 			)
@@ -225,7 +226,7 @@ class WhatsAppMessage(Document):
 
 		if self.is_template and self.whatsapp_template:
 			template_doc = frappe.get_doc("WhatsApp Template", self.whatsapp_template)
-			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media:
+			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media:
 				if not template_doc.header_media_handle:
 					file_doc = frappe.get_doc("File", template_doc.header_media)
 					file_content = file_doc.get_content()
@@ -337,7 +338,7 @@ class WhatsAppMessage(Document):
 			body_params = json.loads(self.template_body_parameters or "{}")
 
 			header_params = self.template_header_parameters
-			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media_handle:
+			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media_handle:
 				if not header_params:
 					header_params = json.dumps({"id": template_doc.header_media_handle})
 

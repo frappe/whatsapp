@@ -86,12 +86,17 @@ app_license = "mit"
 # ------------
 
 # before_install = "whatsapp.install.before_install"
-# after_install = "whatsapp.install.after_install"
+after_install = "whatsapp.install.setup_notification_channel"
+
+# Migration
+# ------------
+
+after_migrate = "whatsapp.install.setup_notification_channel"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "whatsapp.uninstall.before_uninstall"
+before_uninstall = "whatsapp.install.teardown_notification_channel"
 # after_uninstall = "whatsapp.uninstall.after_uninstall"
 
 # Integration Setup
@@ -164,11 +169,8 @@ scheduler_events = {
 
 # Extend DocType Class
 # ------------------------------
-#
-# Specify custom mixins to extend the standard doctype controller.
-# extend_doctype_class = {
-# 	"Task": "whatsapp.custom.task.CustomTaskMixin"
-# }
+
+extend_doctype_class = {"Notification": "whatsapp.whatsapp.notification_channel.WhatsAppNotificationMixin"}
 
 # Overriding Methods
 # ------------------------------
