@@ -13,10 +13,12 @@
  "message_type": "HTML",
  "method": "on_template_rejected",
  "minutes_offset": 0,
- "modified": "2026-05-22 15:53:51.467738",
+ "modified": "2026-08-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Template Rejected",
+ "notification_message": "{{ doc.template_type }} · {{ doc.language }} · {{ doc.whatsapp_account }}",
+ "notification_title": "Template {{ doc.template_label or doc.template_name }} rejected",
  "owner": "Administrator",
  "recipients": [
   {

@@ -13,10 +13,12 @@
  "message_type": "HTML",
  "method": "on_send_failed",
  "minutes_offset": 0,
- "modified": "2026-05-22 15:53:51.500046",
+ "modified": "2026-08-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Send Failed",
+ "notification_message": "{{ doc.error_message }}",
+ "notification_title": "WhatsApp message to {{ doc.to }} failed",
  "owner": "Administrator",
  "recipients": [
   {

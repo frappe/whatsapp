@@ -37,11 +37,11 @@ export interface WhatsAppReaction {
 /** Serves both a sent message's rendered buttons and an unsent template's preview. */
 export interface WhatsAppTemplateButton {
   button_type:
-    | "QUICK_REPLY"
+    | "Quick Reply"
     | "URL"
-    | "COPY_CODE"
-    | "PHONE_NUMBER"
-    | "VOICE_CALL";
+    | "Copy Code"
+    | "Phone Number"
+    | "Voice Call";
   button_text: string;
   url?: string;
   phone_number?: string;
@@ -110,7 +110,7 @@ export interface WhatsAppTemplate {
   message?: string;
   footer?: string;
   header_text?: string;
-  header_type?: "TEXT" | "IMAGE" | "DOCUMENT" | "GIF" | "VIDEO";
+  header_type?: "Text" | "Image" | "Document" | "GIF" | "Video";
   /** DocType the template is bound to; empty for unbound templates */
   reference_doctype?: string;
   /** child table, so it needs its own query — optional for a host supplying its own list */

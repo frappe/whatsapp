@@ -179,7 +179,7 @@ class TestUtils:
         "doctype": "WhatsAppTemplate",
         "template_name": "_Test Template",
         "language": "en_US",
-        "template_type": "UTILITY",
+        "template_type": "Utility",
         "message": "Hello {{1}}"
     }
 ]

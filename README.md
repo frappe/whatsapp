@@ -47,8 +47,8 @@ Pre-commit is configured to use the following tools for checking and formatting 
 
 - WhatsApp Template management (create, sync, push to Meta)
 - Template variables (named and positional)
-- Button support (QUICK_REPLY, URL, COPY_CODE, PHONE_NUMBER, VOICE_CALL)
-- Template status tracking (PENDING, APPROVED, REJECTED, DELETED)
+- Button support (Quick Reply, URL, Copy Code, Phone Number, Voice Call)
+- Template status tracking (Pending, Approved, Rejected, Deleted)
 
 #### Client API
 

@@ -43,13 +43,13 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			doctype="WhatsApp Template",
 			template_label=template_name,
 			template_name=template_name,
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Hello {{name}}, order {{order_id}}",
 			whatsapp_account=account,
 			whatsapp_template_id=uid,
 			status="Pending",
-			variable_format="named",
+			variable_format="Named",
 			reference_doctype="User",
 			template_variables=[
 				{"variable_name": "name", "variable_example": "John", "variable_field": "full_name"},
@@ -101,7 +101,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			doctype="WhatsApp Template",
 			template_label=template_label,
 			template_name=f"_test_push_{uid}",
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Hello world",
 			whatsapp_account=account,
@@ -131,13 +131,13 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			doctype="WhatsApp Template",
 			template_label=template_name,
 			template_name=template_name,
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Hello {{name}}",
 			whatsapp_account=account,
 			whatsapp_template_id=uid,
 			status="Pending",
-			variable_format="named",
+			variable_format="Named",
 			template_variables=[
 				{"variable_name": "name", "variable_example": "John", "variable_field": "full_name"},
 			],
@@ -211,14 +211,14 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 				doctype="WhatsApp Template",
 				template_label=name,
 				template_name=name,
-				template_type="UTILITY",
+				template_type="Utility",
 				language="en_US",
 				message=message,
 				whatsapp_account=self.account,
 				# A template id short-circuits the push to Meta on insert.
 				whatsapp_template_id=f"{suffix}_{self.uid}",
 				status=status,
-				variable_format="named",
+				variable_format="Named",
 				reference_doctype=reference_doctype,
 				template_variables=template_variables or [],
 				buttons=buttons or [],
@@ -279,14 +279,14 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 			reference_doctype="ToDo",
 			buttons=[
 				{"button_type": "URL", "button_text": "Track", "url": "https://example.com"},
-				{"button_type": "PHONE_NUMBER", "button_text": "Call", "phone_number": "+15551230000"},
+				{"button_type": "Phone Number", "button_text": "Call", "phone_number": "+15551230000"},
 			],
 		)
 		template = next(t for t in get_sendable_templates("ToDo") if t.name == with_buttons)
 
 		self.assertEqual(
 			[(b["button_type"], b["button_text"]) for b in template["buttons"]],
-			[("URL", "Track"), ("PHONE_NUMBER", "Call")],
+			[("URL", "Track"), ("Phone Number", "Call")],
 		)
 		self.assertEqual(template["buttons"][0]["url"], "https://example.com")
 		self.assertEqual(template["buttons"][1]["phone_number"], "+15551230000")
@@ -381,9 +381,9 @@ class TestUtils:
 		doc = _make_mock_doc(
 			template_name="test_template",
 			language="en_US",
-			template_type="UTILITY",
+			template_type="Utility",
 			message="Hello {{name}}",
-			variable_format="named",
+			variable_format="Named",
 			template_variables_data=[("name", "John")],
 		)
 		payload = build_create_template_payload(doc)
@@ -398,9 +398,9 @@ class TestUtils:
 		doc = _make_mock_doc(
 			template_name="test_template",
 			language="en_US",
-			template_type="UTILITY",
+			template_type="Utility",
 			message="Hello {{1}}, order {{2}}",
-			variable_format="positional",
+			variable_format="Positional",
 			template_variables_data=[("1", "John"), ("2", "123")],
 		)
 		payload = build_create_template_payload(doc)
@@ -415,9 +415,9 @@ class TestUtils:
 		doc = _make_mock_doc(
 			template_name="media_test",
 			language="en_US",
-			template_type="MARKETING",
+			template_type="Marketing",
 			message="Check this out",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media_handle="4::aW...",
 		)
 		payload = build_create_template_payload(doc)
@@ -431,11 +431,11 @@ class TestUtils:
 		doc = _make_mock_doc(
 			template_name="header_test",
 			language="en_US",
-			template_type="UTILITY",
+			template_type="Utility",
 			message="Body text",
-			header_type="TEXT",
+			header_type="Text",
 			header_text="Our {{title}}",
-			variable_format="named",
+			variable_format="Named",
 			template_variables_data=[("title", "Summer Sale")],
 		)
 		payload = build_create_template_payload(doc)
@@ -462,7 +462,7 @@ class TestUtils:
 		}
 		result = parse_whatsapp_template_to_doc(data)
 		assert result["header_media_handle"] == "4::aW..."
-		assert result["header_type"] == "IMAGE"
+		assert result["header_type"] == "Image"
 
 	def test_parse_positional_vars_detection(self):
 		from whatsapp.whatsapp.api.utils import parse_whatsapp_template_to_doc
@@ -481,7 +481,7 @@ class TestUtils:
 			],
 		}
 		result = parse_whatsapp_template_to_doc(data)
-		assert result["variable_format"] == "positional"
+		assert result["variable_format"] == "Positional"
 		assert result["template_variables"][0]["variable_name"] == "1"
 
 	def test_parse_named_vars_detection(self):
@@ -501,7 +501,7 @@ class TestUtils:
 			],
 		}
 		result = parse_whatsapp_template_to_doc(data)
-		assert result["variable_format"] == "named"
+		assert result["variable_format"] == "Named"
 
 	def test_build_message_payload_header_params_json_string(self):
 		from whatsapp.whatsapp.api.utils import build_template_message_payload
@@ -509,9 +509,9 @@ class TestUtils:
 		doc = _make_mock_doc(
 			template_name="doc_test",
 			language="en_US",
-			template_type="UTILITY",
+			template_type="Utility",
 			message="Here is your document",
-			header_type="DOCUMENT",
+			header_type="Document",
 		)
 		payload = build_template_message_payload(
 			to="+1234567890",
@@ -520,6 +520,41 @@ class TestUtils:
 		)
 		header_comp = next(c for c in payload["template"]["components"] if c["type"] == "header")
 		assert header_comp["parameters"][0]["document"]["id"] == "media-id-123"
+
+
+class TestEnumMaps:
+	"""Meta spells these all-caps; storage follows the framework's Title Case convention."""
+
+	def test_every_local_value_round_trips_back_to_meta(self):
+		from whatsapp.whatsapp.api.utils import (
+			BUTTON_TYPES,
+			HEADER_TYPES,
+			TEMPLATE_TYPES,
+			_to_local,
+			_to_meta,
+		)
+
+		for mapping in (TEMPLATE_TYPES, HEADER_TYPES, BUTTON_TYPES):
+			for api_value, local in mapping.items():
+				assert _to_local(mapping, api_value) == local
+				assert _to_meta(mapping, local) == api_value
+
+	def test_acronyms_keep_their_casing(self):
+		from whatsapp.whatsapp.api.utils import BUTTON_TYPES, HEADER_TYPES
+
+		assert HEADER_TYPES["GIF"] == "GIF"
+		assert BUTTON_TYPES["URL"] == "URL"
+
+	def test_unknown_api_value_falls_back_to_the_default(self):
+		from whatsapp.whatsapp.api.utils import TEMPLATE_TYPES, _to_local
+
+		assert _to_local(TEMPLATE_TYPES, "SOMETHING_NEW", "Utility") == "Utility"
+		assert _to_local(TEMPLATE_TYPES, "") == ""
+
+	def test_media_header_types_are_the_non_text_locals(self):
+		from whatsapp.whatsapp.api.utils import HEADER_TYPES, MEDIA_HEADER_TYPES
+
+		assert set(MEDIA_HEADER_TYPES) == set(HEADER_TYPES.values()) - {"Text"}
 
 
 def _make_mock_doc(**kwargs):
