@@ -533,7 +533,7 @@ def get_doctype_columns(doctype: str) -> list[str]:
 	return [
 		df.fieldname
 		for df in meta.fields
-		if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text")
+		if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text", "Read Only", "Date")
 	]
 
 
