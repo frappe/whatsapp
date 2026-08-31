@@ -86,12 +86,18 @@ app_license = "mit"
 # ------------
 
 # before_install = "whatsapp.install.before_install"
-after_install = "whatsapp.install.setup_notification_channel"
+after_install = [
+	"whatsapp.install.setup_notification_channel",
+	"whatsapp.install.seed_languages",
+]
 
 # Migration
 # ------------
 
-after_migrate = "whatsapp.install.setup_notification_channel"
+after_migrate = [
+	"whatsapp.install.setup_notification_channel",
+	"whatsapp.install.seed_languages",
+]
 
 # Uninstallation
 # ------------

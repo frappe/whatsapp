@@ -7,16 +7,22 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.api.test_messages import WithoutHostAccessGuards
-from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import get_sendable_templates
+from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import (
+	_ensure_language,
+	_mark_deleted_templates,
+	_upsert_template,
+	get_sendable_templates,
+)
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account"]
+IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account", "WhatsApp Language"]
 
 
 class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
 		frappe.set_user("Administrator")
+		_ensure_language("en_US")
 
 	def _make_account(self) -> str:
 		uid = frappe.generate_hash(length=6)
@@ -164,10 +170,106 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		}
 		_upsert_template(meta_payload, account)
 
-		doc = frappe.get_doc("WhatsApp Template", template_name)
+		doc = frappe.get_doc("WhatsApp Template", f"{template_name}-en_US")
 		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name.get("otp", ""), "")
+
+
+class IntegrationTestTemplateLanguages(IntegrationTestCase):
+	"""Meta scopes a template as (name, language), so variants are separate records here."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		_ensure_language("en_US")
+		self.account = self._make_account()
+		self.uid = frappe.generate_hash(length=6)
+		self.template_name = f"_test_lang_{self.uid}"
+
+	def _make_account(self) -> str:
+		uid = frappe.generate_hash(length=6)
+		return (
+			frappe.get_doc(
+				doctype="WhatsApp Account",
+				account_name=f"_Test Lang Acc {uid}",
+				status="Active",
+				phone_id="1234567890",
+				business_id="test_business",
+				app_id="test_app",
+				access_token="test_token",
+			)
+			.insert()
+			.name
+		)
+
+	def _meta_payload(self, language: str, body: str) -> dict:
+		return {
+			"id": f"{self.uid}_{language}",
+			"name": self.template_name,
+			"category": "UTILITY",
+			"language": language,
+			"status": "APPROVED",
+			"components": [{"type": "BODY", "text": body}],
+		}
+
+	def test_variants_of_one_name_become_separate_records(self):
+		_upsert_template(self._meta_payload("en_US", "Hello"), self.account)
+		_upsert_template(self._meta_payload("pt_BR", "Ola"), self.account)
+
+		variants = frappe.get_all(
+			"WhatsApp Template",
+			filters={"template_name": self.template_name, "whatsapp_account": self.account},
+			fields=["language", "message", "whatsapp_template_id"],
+		)
+		by_language = {v.language: v for v in variants}
+		self.assertEqual(set(by_language), {"en_US", "pt_BR"})
+		self.assertEqual(by_language["en_US"].message, "Hello")
+		self.assertEqual(by_language["pt_BR"].message, "Ola")
+		self.assertNotEqual(
+			by_language["en_US"].whatsapp_template_id, by_language["pt_BR"].whatsapp_template_id
+		)
+
+	def test_unknown_language_code_is_created_rather_than_rejected(self):
+		unknown_code = f"xx_{frappe.generate_hash(length=4).upper()}"
+		self.addCleanup(frappe.delete_doc, "WhatsApp Language", unknown_code, force=True)
+
+		_upsert_template(self._meta_payload(unknown_code, "Hello"), self.account)
+
+		self.assertTrue(frappe.db.exists("WhatsApp Language", unknown_code))
+		self.assertEqual(
+			frappe.db.get_value("WhatsApp Language", unknown_code, "language_name"), unknown_code
+		)
+
+	def test_removing_one_variant_leaves_its_siblings_alone(self):
+		_upsert_template(self._meta_payload("en_US", "Hello"), self.account)
+		_upsert_template(self._meta_payload("pt_BR", "Ola"), self.account)
+
+		_mark_deleted_templates({(self.template_name, "en_US")}, self.account)
+
+		statuses = dict(
+			frappe.get_all(
+				"WhatsApp Template",
+				filters={"template_name": self.template_name, "whatsapp_account": self.account},
+				fields=["language", "status"],
+				as_list=True,
+			)
+		)
+		self.assertEqual(statuses["en_US"], "Approved")
+		self.assertEqual(statuses["pt_BR"], "Deleted")
+
+	def test_sync_does_not_delete_another_accounts_templates(self):
+		other_account = self._make_account()
+		_upsert_template(self._meta_payload("en_US", "Hello"), other_account)
+
+		_mark_deleted_templates(set(), self.account)
+
+		status = frappe.db.get_value(
+			"WhatsApp Template",
+			{"template_name": self.template_name, "whatsapp_account": other_account},
+			"status",
+		)
+		self.assertEqual(status, "Approved")
 
 
 class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTestCase):
@@ -176,6 +278,7 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 	def setUp(self):
 		super().setUp()
 		frappe.set_user("Administrator")
+		_ensure_language("en_US")
 		self.account = self._make_account()
 		self.uid = frappe.generate_hash(length=6)
 
@@ -240,6 +343,14 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 	def test_templates_bound_to_another_doctype_are_excluded(self):
 		other = self._make_template("otherdoctype", reference_doctype="Contact")
 		self.assertNotIn(other, [t.name for t in get_sendable_templates("ToDo")])
+
+	def test_language_and_template_name_are_returned(self):
+		"""The picker shows a language badge, and one name per language looks identical without it."""
+		approved = self._make_template("with_language", reference_doctype="ToDo")
+
+		row = next(t for t in get_sendable_templates("ToDo") if t.name == approved)
+		self.assertEqual(row["language"], "en_US")
+		self.assertEqual(row["template_name"], f"_test_sendable_with_language_{self.uid}")
 
 	def test_unbound_template_without_variables_is_included(self):
 		unbound = self._make_template("unbound_clean", reference_doctype="", message="No vars here")

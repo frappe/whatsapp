@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
 from whatsapp.whatsapp.api.utils import (
 	build_create_template_payload,
 	log,
@@ -38,7 +39,7 @@ class WhatsAppTemplate(Document):
 		header_media_handle: DF.Data | None
 		header_text: DF.Data | None
 		header_type: DF.Literal["Text", "Image", "Document", "GIF", "Video"]
-		language: DF.Literal["en_UK", "en_US", "en"]
+		language: DF.Link
 		message: DF.Code
 		mime_type: DF.Data | None
 		reference_doctype: DF.Link | None
@@ -139,6 +140,26 @@ class WhatsAppTemplate(Document):
 		self.validate_template_variables()
 		self.validate_template_name()
 
+	def before_naming(self) -> None:
+		"""The docname is `{template_name}-{language}`, and Frappe names a doc before
+		before_save runs, so the derivation has to happen here too."""
+		self._derive_template_name()
+
+	def _derive_template_name(self) -> None:
+		"""Locked once pushed to Meta, which doesn't allow a rename, and never overridden
+		during Meta-driven sync."""
+		if self.flags.get("from_sync") or self.whatsapp_template_id:
+			return
+
+		derived = normalize_string(self.template_label)
+		if derived == self.template_name:
+			return
+
+		frappe.logger("whatsapp", allow_site=True, max_size=10_485_760).info(
+			"_derive_template_name | old=%s new=%s", self.template_name, derived
+		)
+		self.template_name = derived
+
 	def before_save(self) -> None:
 		logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
 		logger.info(
@@ -149,19 +170,7 @@ class WhatsAppTemplate(Document):
 			self.get("__islocal"),
 		)
 
-		# template_name is readonly and auto-derived from template_label.
-		# Once a template is pushed to Meta we lock it (Meta doesn't allow rename),
-		# and we never override during Meta-driven sync.
-		if not self.flags.get("from_sync") and not self.whatsapp_template_id:
-			derived = normalize_string(self.template_label)
-			if derived != self.template_name:
-				logger.info(
-					"before_save | auto-derived template_name | old=%s new=%s",
-					self.template_name,
-					derived,
-				)
-				self.template_name = derived
-
+		self._derive_template_name()
 		self._sync_template_variables()
 		self._set_mime_type()
 
@@ -320,6 +329,14 @@ class WhatsAppTemplate(Document):
 		)
 
 
+def on_doctype_update():
+	frappe.db.add_unique(
+		"WhatsApp Template",
+		["whatsapp_account", "template_name", "language"],
+		constraint_name="unique_account_template_language",
+	)
+
+
 def normalize_string(s: str) -> str:
 	normalized_label = re.sub(r"[^\w\s]", "_", s.strip())
 	normalized_label = re.sub(r"\s+", "_", normalized_label)
@@ -389,6 +406,18 @@ def _iter_templates(whatsapp: WhatsApp) -> Iterator[dict]:
 			break
 
 
+def _ensure_language(code: str) -> None:
+	"""Meta adds languages between our releases, so an unknown code must not abort a sync."""
+	if not code or frappe.db.exists("WhatsApp Language", code):
+		return
+
+	frappe.get_doc(
+		doctype="WhatsApp Language",
+		language_code=code,
+		language_name=SUPPORTED_LANGUAGES.get(code, code),
+	).insert(ignore_permissions=True)
+
+
 def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]:
 	logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
 
@@ -403,10 +432,15 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 
 	whatsapp_template_id = template_data.get("id", "")
 	parsed = parse_whatsapp_template_to_doc(template_data)
+	_ensure_language(parsed["language"])
 
 	existing = frappe.get_all(
 		"WhatsApp Template",
-		filters={"template_name": parsed["template_name"]},
+		filters={
+			"template_name": parsed["template_name"],
+			"language": parsed["language"],
+			"whatsapp_account": account_name,
+		},
 		pluck="name",
 		limit=1,
 	)
@@ -476,17 +510,20 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 	return parsed["template_name"], True
 
 
-def _mark_deleted_templates(meta_template_names: set[str], account_name: str | None = None) -> None:
+def _mark_deleted_templates(
+	meta_variants: set[tuple[str, str]], account_name: str | None = None
+) -> None:
 	local_templates = frappe.get_all(
 		"WhatsApp Template",
-		fields=["name", "template_name"],
+		filters={"whatsapp_account": account_name},
+		fields=["name", "template_name", "language"],
 	)
 	for local in local_templates:
-		if local.template_name not in meta_template_names:
+		if (local.template_name, local.language) not in meta_variants:
 			frappe.db.set_value("WhatsApp Template", local.name, "status", "Deleted")
 			log(
 				"Info", "Template",
-				f"Template {local.template_name} marked as Deleted (not found in Meta)",
+				f"Template {local.template_name} ({local.language}) marked as Deleted (not found in Meta)",
 				reference_doctype="WhatsApp Template",
 				reference_docname=local.name,
 				account=account_name,
@@ -499,17 +536,17 @@ def sync_from_account(account_name: str) -> dict:
 
 	synced = []
 	skipped = []
-	meta_template_names: set[str] = set()
+	meta_variants: set[tuple[str, str]] = set()
 
 	for template_data in _iter_templates(whatsapp):
-		meta_template_names.add(template_data.get("name", ""))
+		meta_variants.add((template_data.get("name", ""), template_data.get("language", "")))
 		name, is_new = _upsert_template(template_data, account_name)
 		if is_new:
 			synced.append(name)
 		else:
 			skipped.append(name)
 
-	_mark_deleted_templates(meta_template_names, account_name)
+	_mark_deleted_templates(meta_variants, account_name)
 	frappe.db.commit()
 
 	log(
@@ -623,7 +660,10 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 			"status": "Approved",
 			"reference_doctype": ["in", [reference_doctype, ""]],
 		},
-		fields=["name", "message", "footer", "header_text", "header_type", "reference_doctype"],
+		fields=[
+			"name", "template_name", "message", "footer", "header_text", "header_type",
+			"reference_doctype", "language",
+		],
 		order_by="modified desc",
 	)
 	if not templates:

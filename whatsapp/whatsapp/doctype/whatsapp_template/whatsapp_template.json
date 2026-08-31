@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:template_label",
+ "autoname": "format:{template_name}-{language}",
  "creation": "2026-05-13 17:18:40.436320",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -41,15 +41,14 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Template label",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
+   "description": "Shared by every language variant of this template",
    "fieldname": "template_name",
    "fieldtype": "Data",
    "label": "Template name",
-   "read_only": 1,
-   "unique": 1
+   "read_only": 1
   },
   {
    "fieldname": "whatsapp_template_id",
@@ -83,11 +82,12 @@
   },
   {
    "default": "en_US",
+   "description": "Meta forbids changing a template's language after it is created",
    "fieldname": "language",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Language",
-   "options": "en_UK\nen_US\nen",
+   "options": "WhatsApp Language",
    "reqd": 1,
    "set_only_once": 1
   },

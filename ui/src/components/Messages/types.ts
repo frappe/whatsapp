@@ -105,7 +105,10 @@ export interface WhatsAppMessage {
 
 /** Exactly what `get_sendable_templates` returns, buttons included. */
 export interface WhatsAppTemplate {
+  /** the docname, and what `sendTemplate` takes */
   name: string;
+  /** Meta's template name, shared by every language variant */
+  template_name?: string;
   /** template body, may contain unresolved `{{ variables }}` */
   message?: string;
   footer?: string;
@@ -113,6 +116,8 @@ export interface WhatsAppTemplate {
   header_type?: "Text" | "Image" | "Document" | "GIF" | "Video";
   /** DocType the template is bound to; empty for unbound templates */
   reference_doctype?: string;
+  /** Meta language code, e.g. `en_US`. One template name has one record per language. */
+  language?: string;
   /** child table, so it needs its own query — optional for a host supplying its own list */
   buttons?: WhatsAppTemplateButton[];
 }
