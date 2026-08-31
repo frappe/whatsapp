@@ -13,14 +13,14 @@ class WhatsAppAccountAppend(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		append_to: DF.Link | None
-		message_field: DF.Data | None
+		append_to: DF.Link
+		message_field: DF.Autocomplete | None
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data
-		sender_field: DF.Data | None
-		sender_name_field: DF.Data | None
-		timestamp_field: DF.Data | None
+		sender_field: DF.Autocomplete
+		sender_name_field: DF.Autocomplete
+		timestamp_field: DF.Autocomplete | None
 		trigger_on: DF.Literal["Incoming", "Outgoing", "Both"]
 	# end: auto-generated types
 
