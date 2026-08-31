@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
 from whatsapp.whatsapp.api.utils import (
 	build_create_template_payload,
 	log,
@@ -29,8 +30,11 @@ class WhatsAppTemplate(Document):
 
 	if TYPE_CHECKING:
 		from frappe.types import DF
+
 		from whatsapp.whatsapp.doctype.template_variable.template_variable import TemplateVariable
-		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import WhatsAppTemplateButton
+		from whatsapp.whatsapp.doctype.whatsapp_template_button.whatsapp_template_button import (
+			WhatsAppTemplateButton,
+		)
 
 		buttons: DF.Table[WhatsAppTemplateButton]
 		footer: DF.Data | None
@@ -38,7 +42,7 @@ class WhatsAppTemplate(Document):
 		header_media_handle: DF.Data | None
 		header_text: DF.Data | None
 		header_type: DF.Literal["Text", "Image", "Document", "GIF", "Video"]
-		language: DF.Literal["en_UK", "en_US", "en"]
+		language: DF.Link
 		message: DF.Code
 		mime_type: DF.Data | None
 		reference_doctype: DF.Link | None
@@ -72,9 +76,7 @@ class WhatsAppTemplate(Document):
 			if var_name in existing:
 				new_rows.append(existing[var_name])
 			else:
-				new_rows.append(
-					{"variable_name": var_name, "variable_example": "", "variable_field": ""}
-				)
+				new_rows.append({"variable_name": var_name, "variable_example": "", "variable_field": ""})
 
 		self.set("template_variables", new_rows)
 
@@ -131,13 +133,26 @@ class WhatsAppTemplate(Document):
 			frappe.throw("Template name should not exceed 512 characters")
 
 		if not re.match(r"^[a-zA-Z0-9_]+$", self.template_name):
-			frappe.throw(
-				"Template name should only contain alphanumeric characters and underscores"
-			)
+			frappe.throw("Template name should only contain alphanumeric characters and underscores")
 
 	def on_validate(self) -> None:
 		self.validate_template_variables()
 		self.validate_template_name()
+
+	def _derive_template_name(self) -> None:
+		"""Locked once pushed to Meta, which doesn't allow a rename, and never overridden
+		during Meta-driven sync."""
+		if self.flags.get("from_sync") or self.whatsapp_template_id:
+			return
+
+		derived = normalize_string(self.template_label)
+		if derived == self.template_name:
+			return
+
+		frappe.logger("whatsapp", allow_site=True, max_size=10_485_760).info(
+			"_derive_template_name | old=%s new=%s", self.template_name, derived
+		)
+		self.template_name = derived
 
 	def before_save(self) -> None:
 		logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
@@ -149,26 +164,12 @@ class WhatsAppTemplate(Document):
 			self.get("__islocal"),
 		)
 
-		# template_name is readonly and auto-derived from template_label.
-		# Once a template is pushed to Meta we lock it (Meta doesn't allow rename),
-		# and we never override during Meta-driven sync.
-		if not self.flags.get("from_sync") and not self.whatsapp_template_id:
-			derived = normalize_string(self.template_label)
-			if derived != self.template_name:
-				logger.info(
-					"before_save | auto-derived template_name | old=%s new=%s",
-					self.template_name,
-					derived,
-				)
-				self.template_name = derived
-
+		self._derive_template_name()
 		self._sync_template_variables()
 		self._set_mime_type()
 
 		if self.flags.get("from_sync"):
-			logger.info(
-				"before_save | from_sync flag set, skipping Meta API calls"
-			)
+			logger.info("before_save | from_sync flag set, skipping Meta API calls")
 			return
 
 		if not self.whatsapp_template_id:
@@ -196,7 +197,12 @@ class WhatsAppTemplate(Document):
 
 		if not self.whatsapp_account:
 			logger.error("_push_to_meta | whatsapp_account is not set")
-			log("Error", "Template", "Cannot push template: WhatsApp Account not set", account=self.whatsapp_account)
+			log(
+				"Error",
+				"Template",
+				"Cannot push template: WhatsApp Account not set",
+				account=self.whatsapp_account,
+			)
 			frappe.throw(_("WhatsApp Account is required to push template to Meta"))
 
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
@@ -216,7 +222,8 @@ class WhatsAppTemplate(Document):
 		except Exception as e:
 			logger.error("_push_to_meta | Meta API call failed | error=%s", e, exc_info=True)
 			log(
-				"Error", "Template",
+				"Error",
+				"Template",
 				f"Failed to push template {self.template_label} to Meta: {e}",
 				account=self.whatsapp_account,
 				reference_doctype=ref_doctype,
@@ -230,7 +237,8 @@ class WhatsAppTemplate(Document):
 		if not template_id:
 			logger.error("_push_to_meta | Meta API returned no id | full_response=%s", result)
 			log(
-				"Error", "Template",
+				"Error",
+				"Template",
 				f"Meta API returned no template ID for {self.template_label}",
 				account=self.whatsapp_account,
 				reference_doctype=ref_doctype,
@@ -242,11 +250,10 @@ class WhatsAppTemplate(Document):
 
 		self.whatsapp_template_id = template_id
 		self.status = normalize_template_status(result.get("status", ""))
-		logger.info(
-			"_push_to_meta | success | whatsapp_template_id=%s status=%s", template_id, self.status
-		)
+		logger.info("_push_to_meta | success | whatsapp_template_id=%s status=%s", template_id, self.status)
 		log(
-			"Info", "Template",
+			"Info",
+			"Template",
 			f"Template {self.template_label} pushed to Meta, id={template_id}, status={self.status}",
 			account=self.whatsapp_account,
 			reference_doctype=ref_doctype,
@@ -275,7 +282,12 @@ class WhatsAppTemplate(Document):
 
 		if not self.whatsapp_account:
 			logger.error("_update_in_meta | whatsapp_account is not set")
-			log("Error", "Template", "Cannot update template: WhatsApp Account not set", account=self.whatsapp_account)
+			log(
+				"Error",
+				"Template",
+				"Cannot update template: WhatsApp Account not set",
+				account=self.whatsapp_account,
+			)
 			frappe.throw(_("WhatsApp Account is required to update template in Meta"))
 
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
@@ -297,7 +309,8 @@ class WhatsAppTemplate(Document):
 		except Exception as e:
 			logger.error("_update_in_meta | Meta API call failed | error=%s", e, exc_info=True)
 			log(
-				"Error", "Template",
+				"Error",
+				"Template",
 				f"Failed to update template {self.template_label} in Meta: {e}",
 				account=self.whatsapp_account,
 				reference_doctype=ref_doctype,
@@ -310,7 +323,8 @@ class WhatsAppTemplate(Document):
 		self.status = normalize_template_status(result.get("status", ""))
 		logger.info("_update_in_meta | success | status=%s", self.status)
 		log(
-			"Info", "Template",
+			"Info",
+			"Template",
 			f"Template {self.template_label} updated in Meta, status={self.status}",
 			account=self.whatsapp_account,
 			reference_doctype=ref_doctype,
@@ -318,6 +332,14 @@ class WhatsAppTemplate(Document):
 			request_data=payload,
 			response_data=result,
 		)
+
+
+def on_doctype_update():
+	frappe.db.add_unique(
+		"WhatsApp Template",
+		["whatsapp_account", "template_name", "language"],
+		constraint_name="unique_account_template_language",
+	)
 
 
 def normalize_string(s: str) -> str:
@@ -389,6 +411,18 @@ def _iter_templates(whatsapp: WhatsApp) -> Iterator[dict]:
 			break
 
 
+def _ensure_language(code: str) -> None:
+	"""Meta adds languages between our releases, so an unknown code must not abort a sync."""
+	if not code or frappe.db.exists("WhatsApp Language", code):
+		return
+
+	frappe.get_doc(
+		doctype="WhatsApp Language",
+		language_code=code,
+		language_name=SUPPORTED_LANGUAGES.get(code, code),
+	).insert(ignore_permissions=True)
+
+
 def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]:
 	logger = frappe.logger("whatsapp", allow_site=True, max_size=10_485_760)
 
@@ -403,10 +437,15 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 
 	whatsapp_template_id = template_data.get("id", "")
 	parsed = parse_whatsapp_template_to_doc(template_data)
+	_ensure_language(parsed["language"])
 
 	existing = frappe.get_all(
 		"WhatsApp Template",
-		filters={"template_name": parsed["template_name"]},
+		filters={
+			"template_name": parsed["template_name"],
+			"language": parsed["language"],
+			"whatsapp_account": account_name,
+		},
 		pluck="name",
 		limit=1,
 	)
@@ -424,9 +463,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		doc.footer = parsed.get("footer", "")
 		doc.variable_format = parsed.get("variable_format", "Named")
 
-		existing_variable_fields = {
-			v.variable_name: v.variable_field for v in doc.template_variables
-		}
+		existing_variable_fields = {v.variable_name: v.variable_field for v in doc.template_variables}
 		parsed_variables = parsed.get("template_variables", [])
 		for pv in parsed_variables:
 			pv["variable_field"] = existing_variable_fields.get(pv["variable_name"], "")
@@ -437,7 +474,8 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			doc.whatsapp_template_id = whatsapp_template_id
 		doc.save()
 		log(
-			"Info", "Template",
+			"Info",
+			"Template",
 			f"Synced existing template {parsed['template_name']} (status={parsed.get('status')})",
 			account=account_name,
 			reference_doctype="WhatsApp Template",
@@ -467,7 +505,8 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 	)
 	doc.insert()
 	log(
-		"Info", "Template",
+		"Info",
+		"Template",
 		f"Created new template {parsed['template_name']} from sync (status={parsed.get('status')})",
 		account=account_name,
 		reference_doctype="WhatsApp Template",
@@ -476,17 +515,19 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 	return parsed["template_name"], True
 
 
-def _mark_deleted_templates(meta_template_names: set[str], account_name: str | None = None) -> None:
+def _mark_deleted_templates(meta_variants: set[tuple[str, str]], account_name: str | None = None) -> None:
 	local_templates = frappe.get_all(
 		"WhatsApp Template",
-		fields=["name", "template_name"],
+		filters={"whatsapp_account": account_name},
+		fields=["name", "template_name", "language"],
 	)
 	for local in local_templates:
-		if local.template_name not in meta_template_names:
+		if (local.template_name, local.language) not in meta_variants:
 			frappe.db.set_value("WhatsApp Template", local.name, "status", "Deleted")
 			log(
-				"Info", "Template",
-				f"Template {local.template_name} marked as Deleted (not found in Meta)",
+				"Info",
+				"Template",
+				f"Template {local.template_name} ({local.language}) marked as Deleted (not found in Meta)",
 				reference_doctype="WhatsApp Template",
 				reference_docname=local.name,
 				account=account_name,
@@ -499,21 +540,22 @@ def sync_from_account(account_name: str) -> dict:
 
 	synced = []
 	skipped = []
-	meta_template_names: set[str] = set()
+	meta_variants: set[tuple[str, str]] = set()
 
 	for template_data in _iter_templates(whatsapp):
-		meta_template_names.add(template_data.get("name", ""))
+		meta_variants.add((template_data.get("name", ""), template_data.get("language", "")))
 		name, is_new = _upsert_template(template_data, account_name)
 		if is_new:
 			synced.append(name)
 		else:
 			skipped.append(name)
 
-	_mark_deleted_templates(meta_template_names, account_name)
+	_mark_deleted_templates(meta_variants, account_name)
 	frappe.db.commit()
 
 	log(
-		"Info", "Template",
+		"Info",
+		"Template",
 		f"Sync completed for account {account_name}: {len(synced)} new, {len(skipped)} updated",
 		account=account_name,
 	)
@@ -531,9 +573,7 @@ def get_doctype_columns(doctype: str) -> list[str]:
 	frappe.has_permission(doctype, "read", throw=True)
 	meta = frappe.get_meta(doctype)
 	return [
-		df.fieldname
-		for df in meta.fields
-		if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text")
+		df.fieldname for df in meta.fields if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text")
 	]
 
 
@@ -568,7 +608,8 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 		result = whatsapp.create_template(payload)
 	except Exception as e:
 		log(
-			"Error", "Template",
+			"Error",
+			"Template",
 			f"Failed to create and push template: {e}",
 			account=account_name,
 			request_data=payload,
@@ -579,7 +620,8 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 	template_id = result.get("id", None)
 	if not template_id:
 		log(
-			"Error", "Template",
+			"Error",
+			"Template",
 			"Meta API returned no template ID during create_and_push",
 			account=account_name,
 			request_data=payload,
@@ -596,7 +638,8 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 		doc.save()
 
 	log(
-		"Info", "Template",
+		"Info",
+		"Template",
 		f"Created and pushed template {doc.template_label}, id={template_id}, status={doc.status}",
 		account=account_name,
 		reference_doctype="WhatsApp Template",
@@ -623,7 +666,17 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 			"status": "Approved",
 			"reference_doctype": ["in", [reference_doctype, ""]],
 		},
-		fields=["name", "message", "footer", "header_text", "header_type", "reference_doctype"],
+		fields=[
+			"name",
+			"template_label",
+			"template_name",
+			"message",
+			"footer",
+			"header_text",
+			"header_type",
+			"reference_doctype",
+			"language",
+		],
 		order_by="modified desc",
 	)
 	if not templates:

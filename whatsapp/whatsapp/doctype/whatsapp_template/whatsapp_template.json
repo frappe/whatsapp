@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:template_label",
+ "autoname": "hash",
  "creation": "2026-05-13 17:18:40.436320",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -29,9 +29,9 @@
   "buttons",
   "api_related_items_tab",
   "whatsapp_template_id",
-   "header_media_handle",
-   "mime_type",
-   "column_break_jcgd",
+  "header_media_handle",
+  "mime_type",
+  "column_break_jcgd",
   "status",
   "variable_format"
  ],
@@ -41,15 +41,14 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Template label",
-   "reqd": 1,
-   "unique": 1
+   "reqd": 1
   },
   {
+   "description": "Shared by every language variant of this template",
    "fieldname": "template_name",
    "fieldtype": "Data",
    "label": "Template name",
-   "read_only": 1,
-   "unique": 1
+   "read_only": 1
   },
   {
    "fieldname": "whatsapp_template_id",
@@ -83,11 +82,12 @@
   },
   {
    "default": "en_US",
+   "description": "Meta forbids changing a template's language after it is created",
    "fieldname": "language",
-   "fieldtype": "Select",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Language",
-   "options": "en_UK\nen_US\nen",
+   "options": "WhatsApp Language",
    "reqd": 1,
    "set_only_once": 1
   },
@@ -196,25 +196,25 @@
    "options": "Named\nPositional",
    "read_only": 1
   },
-   {
-    "fieldname": "header_media_handle",
-    "fieldtype": "Data",
-    "hidden": 1,
-    "label": "Header Media Handle",
-    "no_copy": 1,
-    "read_only": 1
-   },
-   {
-    "fieldname": "mime_type",
-    "fieldtype": "Data",
-    "hidden": 1,
-    "label": "MIME Type",
-    "no_copy": 1,
-    "read_only": 1
-   },
-   {
-    "collapsible": 1,
-    "fieldname": "footer_section",
+  {
+   "fieldname": "header_media_handle",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Header Media Handle",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "mime_type",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "MIME Type",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "footer_section",
    "fieldtype": "Section Break",
    "label": "Footer"
   }
@@ -232,7 +232,6 @@
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Template",
- "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -250,6 +249,8 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "template_name,language",
+ "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [
@@ -270,5 +271,6 @@
    "title": "Deleted"
   }
  ],
+ "title_field": "template_label",
  "track_changes": 1
 }

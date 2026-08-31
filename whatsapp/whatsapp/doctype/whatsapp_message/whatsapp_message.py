@@ -375,17 +375,15 @@ def process_append_actions(
 		try:
 			new_doc = frappe.new_doc(action.append_to)
 
-			if action.message_field and doc.message:
+			# a mapped field is written even when the message carries no value, so an
+			# empty field on the created document means exactly that
+			new_doc.set(action.sender_field, sender_phone or doc.get("from"))
+			new_doc.set(action.sender_name_field, sender_name)
+
+			if action.message_field:
 				new_doc.set(action.message_field, doc.message)
 
-			sender = sender_phone or doc.get("from")
-			if action.sender_field and sender:
-				new_doc.set(action.sender_field, sender)
-
-			if action.sender_name_field and sender_name:
-				new_doc.set(action.sender_name_field, sender_name)
-
-			if action.timestamp_field and doc.timestamp:
+			if action.timestamp_field:
 				new_doc.set(action.timestamp_field, doc.timestamp)
 
 			new_doc.insert(ignore_permissions=True)
