@@ -9,3 +9,4 @@ whatsapp.patches.v1_0.encrypt_account_access_token
 whatsapp.patches.v1_0.capitalize_template_status
 whatsapp.patches.v1_0.titlecase_template_enums
 whatsapp.patches.v1_0.set_default_account_when_only_one
+whatsapp.patches.v1_0.fix_invalid_language_codes

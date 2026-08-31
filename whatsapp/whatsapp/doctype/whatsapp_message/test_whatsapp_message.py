@@ -10,9 +10,15 @@ from frappe import _
 from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
+from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import _ensure_language
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account", "WhatsApp Template", "WhatsApp Profile"]
+IGNORE_TEST_RECORD_DEPENDENCIES = [
+	"WhatsApp Account",
+	"WhatsApp Template",
+	"WhatsApp Profile",
+	"WhatsApp Language",
+]
 
 
 class IntegrationTestWhatsAppMessage(IntegrationTestCase):
@@ -49,6 +55,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 	def _make_template(self, **overrides) -> str:
 		uid = frappe.generate_hash(length=6)
 		acc = self._make_account()
+		_ensure_language("en_US")
 		data = dict(
 			doctype="WhatsApp Template",
 			template_label=f"_Test Template {uid}",
