@@ -105,8 +105,10 @@ export interface WhatsAppMessage {
 
 /** Exactly what `get_sendable_templates` returns, buttons included. */
 export interface WhatsAppTemplate {
-  /** the docname, and what `sendTemplate` takes */
+  /** opaque docname, and what `sendTemplate` takes */
   name: string;
+  /** what to display: the human-facing label */
+  template_label?: string;
   /** Meta's template name, shared by every language variant */
   template_name?: string;
   /** template body, may contain unresolved `{{ variables }}` */

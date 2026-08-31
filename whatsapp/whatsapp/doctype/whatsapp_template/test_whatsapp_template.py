@@ -170,7 +170,7 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 		}
 		_upsert_template(meta_payload, account)
 
-		doc = frappe.get_doc("WhatsApp Template", f"{template_name}-en_US")
+		doc = frappe.get_doc("WhatsApp Template", {"template_name": template_name})
 		fields_by_name = {v.variable_name: v.variable_field for v in doc.template_variables}
 		self.assertEqual(fields_by_name["name"], "full_name")
 		self.assertEqual(fields_by_name.get("otp", ""), "")
@@ -203,9 +203,9 @@ class IntegrationTestTemplateLanguages(IntegrationTestCase):
 			.name
 		)
 
-	def _meta_payload(self, language: str, body: str) -> dict:
+	def _meta_payload(self, language: str, body: str, meta_id: str = "") -> dict:
 		return {
-			"id": f"{self.uid}_{language}",
+			"id": meta_id or f"{self.uid}_{language}",
 			"name": self.template_name,
 			"category": "UTILITY",
 			"language": language,
@@ -257,6 +257,19 @@ class IntegrationTestTemplateLanguages(IntegrationTestCase):
 		)
 		self.assertEqual(statuses["en_US"], "Approved")
 		self.assertEqual(statuses["pt_BR"], "Deleted")
+
+	def test_same_name_and_language_can_exist_in_two_accounts(self):
+		other_account = self._make_account()
+
+		_upsert_template(self._meta_payload("en_US", "Hello", "meta_a"), self.account)
+		_upsert_template(self._meta_payload("en_US", "Hello", "meta_b"), other_account)
+
+		accounts = frappe.get_all(
+			"WhatsApp Template",
+			filters={"template_name": self.template_name, "language": "en_US"},
+			pluck="whatsapp_account",
+		)
+		self.assertCountEqual(accounts, [self.account, other_account])
 
 	def test_sync_does_not_delete_another_accounts_templates(self):
 		other_account = self._make_account()
@@ -351,6 +364,7 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 		row = next(t for t in get_sendable_templates("ToDo") if t.name == approved)
 		self.assertEqual(row["language"], "en_US")
 		self.assertEqual(row["template_name"], f"_test_sendable_with_language_{self.uid}")
+		self.assertEqual(row["template_label"], f"_test_sendable_with_language_{self.uid}")
 
 	def test_unbound_template_without_variables_is_included(self):
 		unbound = self._make_template("unbound_clean", reference_doctype="", message="No vars here")
