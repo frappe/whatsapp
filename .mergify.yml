@@ -1,0 +1,55 @@
+pull_request_rules:
+    - name: Auto-close PRs on stable branch
+      conditions:
+          - and:
+                - and:
+                      - author!=ps173
+                      - author!=frappe-pr-bot
+                      - author!=mergify[bot]
+                - or:
+                      - base=main
+      actions:
+          close:
+          comment:
+              message: |
+                  @{{author}}, thanks for the contribution, but we do not accept pull requests on a stable branch. Please raise PR on develop branch.
+
+    - name: backport to develop
+      conditions:
+          - label="backport develop"
+      actions:
+          backport:
+              branches:
+                  - develop
+              assignees:
+                  - "{{ author }}"
+
+    - name: backport to main
+      conditions:
+          - label="backport main"
+      actions:
+          backport:
+              branches:
+                  - main
+              assignees:
+                  - "{{ author }}"
+
+    - name: add conflicts label when PR has conflicts
+      conditions:
+          - conflict
+      actions:
+          label:
+              add:
+                  - conflicts
+          comment:
+              message: |
+                  @{{author}} this pull request has merge conflicts. Please resolve them so it can be reviewed and merged.
+
+    - name: remove conflicts label once resolved
+      conditions:
+          - -conflict
+          - label=conflicts
+      actions:
+          label:
+              remove:
+                  - conflicts
