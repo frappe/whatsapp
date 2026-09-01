@@ -242,6 +242,24 @@ class IntegrationTestTemplateLanguages(IntegrationTestCase):
 			frappe.db.get_value("WhatsApp Language", unknown_code, "language_name"), unknown_code
 		)
 
+	def test_language_insert_survives_a_racing_sync(self):
+		"""Two accounts syncing at once can both clear the check, so the loser must not raise."""
+		code = f"xx_{frappe.generate_hash(length=4).upper()}"
+		self.addCleanup(frappe.delete_doc, "WhatsApp Language", code, force=True)
+		_ensure_language(code)
+
+		real_exists = frappe.db.exists
+
+		def language_looks_missing(*args, **kwargs):
+			if args[:2] == ("WhatsApp Language", code):
+				return None
+			return real_exists(*args, **kwargs)
+
+		with patch.object(frappe.db, "exists", side_effect=language_looks_missing):
+			_ensure_language(code)
+
+		self.assertTrue(real_exists("WhatsApp Language", code))
+
 	def test_removing_one_variant_leaves_its_siblings_alone(self):
 		_upsert_template(self._meta_payload("en_US", "Hello"), self.account)
 		_upsert_template(self._meta_payload("pt_BR", "Ola"), self.account)
