@@ -6,6 +6,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.patches.v1_0.fix_invalid_language_codes import execute as fix_invalid_language_codes
 from whatsapp.whatsapp.api.test_messages import WithoutHostAccessGuards
 from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import (
 	_ensure_language,
@@ -240,6 +241,24 @@ class IntegrationTestTemplateLanguages(IntegrationTestCase):
 		self.assertEqual(
 			frappe.db.get_value("WhatsApp Language", unknown_code, "language_name"), unknown_code
 		)
+
+	def test_language_insert_survives_a_racing_sync(self):
+		"""Two accounts syncing at once can both clear the check, so the loser must not raise."""
+		code = f"xx_{frappe.generate_hash(length=4).upper()}"
+		self.addCleanup(frappe.delete_doc, "WhatsApp Language", code, force=True)
+		_ensure_language(code)
+
+		real_exists = frappe.db.exists
+
+		def language_looks_missing(*args, **kwargs):
+			if args[:2] == ("WhatsApp Language", code):
+				return None
+			return real_exists(*args, **kwargs)
+
+		with patch.object(frappe.db, "exists", side_effect=language_looks_missing):
+			_ensure_language(code)
+
+		self.assertTrue(real_exists("WhatsApp Language", code))
 
 	def test_removing_one_variant_leaves_its_siblings_alone(self):
 		_upsert_template(self._meta_payload("en_US", "Hello"), self.account)
@@ -700,3 +719,89 @@ def _make_mock_doc(**kwargs):
 				self.buttons = []
 
 	return MockDoc(kwargs)
+
+
+class IntegrationTestRetiredLanguageCodePatch(IntegrationTestCase):
+	"""`en_UK` has to fold into `en_GB` without tripping the unique index on templates."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		_ensure_language("en_UK")
+		_ensure_language("en_GB")
+		self.addCleanup(frappe.delete_doc, "WhatsApp Language", "en_UK", force=True)
+		self.uid = frappe.generate_hash(length=6)
+		self.template_name = f"_test_retired_{self.uid}"
+		self.account = (
+			frappe.get_doc(
+				doctype="WhatsApp Account",
+				account_name=f"_Test Retired Acc {self.uid}",
+				status="Active",
+				phone_id="1234567890",
+				business_id="test_business",
+				app_id="test_app",
+				access_token="test_token",
+			)
+			.insert()
+			.name
+		)
+
+	def _make_template(self, language: str) -> str:
+		return (
+			frappe.get_doc(
+				doctype="WhatsApp Template",
+				template_label=self.template_name,
+				template_name=self.template_name,
+				template_type="Utility",
+				language=language,
+				message="Hello",
+				whatsapp_account=self.account,
+				# A template id short-circuits the push to Meta on insert.
+				whatsapp_template_id=f"{language}_{self.uid}",
+				status="Approved",
+				variable_format="Named",
+			)
+			.insert()
+			.name
+		)
+
+	def _make_message(self, template: str) -> str:
+		profile = (
+			frappe.get_doc(
+				doctype="WhatsApp Profile",
+				profile_name=f"_Test Retired Profile {self.uid}",
+				phone_number=f"+1555{int(self.uid, 16) % 1000000:06d}",
+				whatsapp_account=self.account,
+			)
+			.insert()
+			.name
+		)
+		return (
+			frappe.get_doc(
+				doctype="WhatsApp Message",
+				to=profile,
+				direction="Incoming",
+				whatsapp_account=self.account,
+				whatsapp_template=template,
+			)
+			.insert()
+			.name
+		)
+
+	def test_retired_row_is_renamed_when_the_replacement_is_free(self):
+		template = self._make_template("en_UK")
+
+		fix_invalid_language_codes()
+
+		self.assertEqual(frappe.db.get_value("WhatsApp Template", template, "language"), "en_GB")
+
+	def test_retired_row_is_dropped_when_the_replacement_already_exists(self):
+		retired = self._make_template("en_UK")
+		kept = self._make_template("en_GB")
+		message = self._make_message(retired)
+
+		fix_invalid_language_codes()
+
+		self.assertFalse(frappe.db.exists("WhatsApp Template", retired))
+		self.assertEqual(frappe.db.get_value("WhatsApp Template", kept, "language"), "en_GB")
+		self.assertEqual(frappe.db.get_value("WhatsApp Message", message, "whatsapp_template"), kept)
