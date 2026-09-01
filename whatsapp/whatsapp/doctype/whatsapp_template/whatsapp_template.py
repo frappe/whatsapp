@@ -412,7 +412,11 @@ def _iter_templates(whatsapp: WhatsApp) -> Iterator[dict]:
 
 
 def _ensure_language(code: str) -> None:
-	"""Meta adds languages between our releases, so an unknown code must not abort a sync."""
+	"""Meta adds languages between our releases, so an unknown code must not abort a sync.
+
+	Two accounts syncing at once can both get past the check and try the same insert,
+	so let the second one fall through instead of raising.
+	"""
 	if not code or frappe.db.exists("WhatsApp Language", code):
 		return
 
@@ -420,7 +424,7 @@ def _ensure_language(code: str) -> None:
 		doctype="WhatsApp Language",
 		language_code=code,
 		language_name=SUPPORTED_LANGUAGES.get(code, code),
-	).insert(ignore_permissions=True)
+	).insert(ignore_permissions=True, ignore_if_duplicate=True)
 
 
 def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]:
