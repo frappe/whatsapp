@@ -4,6 +4,8 @@
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
+
 WHATSAPP_CHANNEL = "WhatsApp"
 
 SHOW_FOR_WHATSAPP = f"eval:doc.channel=='{WHATSAPP_CHANNEL}'"
@@ -52,6 +54,21 @@ def setup_notification_channel() -> None:
 	_show_subject_for_whatsapp()
 	_hide_message_for_whatsapp()
 	frappe.clear_cache(doctype="Notification")
+
+
+def seed_languages() -> None:
+	"""Rows this doesn't know about are left alone: sync creates codes Meta added after us."""
+	stored = dict(frappe.get_all("WhatsApp Language", fields=["name", "language_name"], as_list=True))
+
+	for code, language_name in SUPPORTED_LANGUAGES.items():
+		if code not in stored:
+			frappe.get_doc(
+				doctype="WhatsApp Language", language_code=code, language_name=language_name
+			).insert(ignore_permissions=True)
+		elif stored[code] != language_name:
+			frappe.db.set_value(
+				"WhatsApp Language", code, "language_name", language_name, update_modified=False
+			)
 
 
 def teardown_notification_channel() -> None:

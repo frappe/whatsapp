@@ -37,42 +37,48 @@
    "fieldtype": "Section Break",
    "label": "Field Mapping"
   },
-   {
-    "description": "Field on target DocType to store the message text",
-    "fieldname": "message_field",
-    "fieldtype": "Data",
-    "in_list_view": 1,
-    "label": "Message Field"
-   },
-   {
-    "description": "Field on target DocType to store the sender's phone number",
-    "fieldname": "sender_field",
-    "fieldtype": "Select",
-    "in_list_view": 1,
-    "label": "Sender Field"
-   },
-   {
-    "fieldname": "column_break_field",
-    "fieldtype": "Column Break"
-   },
-   {
-    "description": "Field on target DocType to store the sender's profile name",
-    "fieldname": "sender_name_field",
-    "fieldtype": "Select",
-    "label": "Sender Name Field"
-   },
   {
-   "description": "Field on target DocType to store the message timestamp",
+   "description": "Text field on the Append To doctype that receives the message text",
+   "fieldname": "message_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Message Field",
+   "show_description_on_click": 1
+  },
+  {
+   "description": "Field on the Append To doctype that receives the sender's phone number",
+   "fieldname": "sender_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Sender Field",
+   "reqd": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "fieldname": "column_break_field",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Field on the Append To doctype that receives the sender's WhatsApp profile name",
+   "fieldname": "sender_name_field",
+   "fieldtype": "Autocomplete",
+   "label": "Sender Name Field",
+   "reqd": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "description": "Date or Datetime field on the Append To doctype that receives the message timestamp",
    "fieldname": "timestamp_field",
-   "fieldtype": "Data",
-   "label": "Timestamp Field"
+   "fieldtype": "Autocomplete",
+   "label": "Timestamp Field",
+   "show_description_on_click": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-05-26 12:00:00.000000",
+ "modified": "2026-08-28 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Account Append",
