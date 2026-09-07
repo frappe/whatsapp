@@ -1,4 +1,5 @@
 frappe.listview_settings["WhatsApp Template"] = {
+	hide_name_column: true,
 	onload: function (listview) {
 		listview.page.add_button(__("Sync from Meta"), () => {
 			frappe.call({
@@ -26,8 +27,8 @@ frappe.listview_settings["WhatsApp Template"] = {
 										d.hide();
 										frappe.msgprint(
 											__(
-												`Synced ${res.message.total_synced} templates, skipped ${res.message.total_skipped}`,
-											),
+												`Synced ${res.message.total_synced} templates, skipped ${res.message.total_skipped}`
+											)
 										);
 										listview.refresh();
 									},
@@ -38,8 +39,8 @@ frappe.listview_settings["WhatsApp Template"] = {
 					} else if (r.message?.total_synced !== undefined) {
 						frappe.msgprint(
 							__(
-								`Synced ${r.message.total_synced} templates, skipped ${r.message.total_skipped}`,
-							),
+								`Synced ${r.message.total_synced} templates, skipped ${r.message.total_skipped}`
+							)
 						);
 						listview.refresh();
 					}

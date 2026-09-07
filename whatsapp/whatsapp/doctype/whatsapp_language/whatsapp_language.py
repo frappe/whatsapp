@@ -4,7 +4,7 @@
 from frappe.model.document import Document
 
 
-class WhatsAppAccountAppend(Document):
+class WhatsAppLanguage(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
 
@@ -13,15 +13,8 @@ class WhatsAppAccountAppend(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		append_to: DF.Link
-		message_field: DF.Autocomplete | None
-		parent: DF.Data
-		parentfield: DF.Data
-		parenttype: DF.Data
-		sender_field: DF.Autocomplete
-		sender_name_field: DF.Autocomplete
-		timestamp_field: DF.Autocomplete | None
-		trigger_on: DF.Literal["Incoming", "Outgoing", "Both"]
+		language_code: DF.Data
+		language_name: DF.Data
 	# end: auto-generated types
 
 	pass

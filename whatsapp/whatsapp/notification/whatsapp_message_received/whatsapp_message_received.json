@@ -18,6 +18,8 @@
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Received",
+ "notification_message": "{{ message_preview }}",
+ "notification_title": "New WhatsApp message from {{ doc.from or doc.to }}",
  "owner": "Administrator",
  "recipients": [
   {

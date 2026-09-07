@@ -14,10 +14,10 @@ withDefaults(defineProps<TemplateButtonsProps>(), {
 // only emits CSS for class names it can read as complete strings in the source.
 const BUTTON_TYPE_ICONS: Record<WhatsAppTemplateButton["button_type"], Component> = {
 	URL: LucideExternalLink,
-	PHONE_NUMBER: LucidePhone,
-	VOICE_CALL: LucidePhone,
-	COPY_CODE: LucideCopy,
-	QUICK_REPLY: LucideCornerUpLeft,
+	"Phone Number": LucidePhone,
+	"Voice Call": LucidePhone,
+	"Copy Code": LucideCopy,
+	"Quick Reply": LucideCornerUpLeft,
 };
 </script>
 

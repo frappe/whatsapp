@@ -10,9 +10,15 @@ from frappe import _
 from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
+from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import _ensure_language
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
-IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account", "WhatsApp Template", "WhatsApp Profile"]
+IGNORE_TEST_RECORD_DEPENDENCIES = [
+	"WhatsApp Account",
+	"WhatsApp Template",
+	"WhatsApp Profile",
+	"WhatsApp Language",
+]
 
 
 class IntegrationTestWhatsAppMessage(IntegrationTestCase):
@@ -49,11 +55,12 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 	def _make_template(self, **overrides) -> str:
 		uid = frappe.generate_hash(length=6)
 		acc = self._make_account()
+		_ensure_language("en_US")
 		data = dict(
 			doctype="WhatsApp Template",
 			template_label=f"_Test Template {uid}",
 			template_name=f"_test_template_{uid}",
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Plain body text",
 			whatsapp_account=acc,
@@ -266,7 +273,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test PopHead",
 			template_name="_test_pophead",
-			header_type="TEXT",
+			header_type="Text",
 			header_text="{{description}}",
 			message="Body {{sender}}",
 			reference_doctype="ToDo",
@@ -692,7 +699,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm",
 			template_name="_test_thm",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 		)
 		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)
@@ -715,7 +722,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm2",
 			template_name="_test_thm2",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 			header_media_handle="existing_handle",
 		)
@@ -738,7 +745,7 @@ class IntegrationTestWhatsAppMessage(IntegrationTestCase):
 		tmpl = self._make_template(
 			template_label="_Test Thm3",
 			template_name="_test_thm3",
-			header_type="IMAGE",
+			header_type="Image",
 			header_media=file_name,
 		)
 		data = self._make_outgoing(is_template=1, whatsapp_template=tmpl)

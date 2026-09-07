@@ -168,7 +168,7 @@ def _find_example(variables, var_name: str) -> str:
 
 
 def _build_example(variable_format: str, variables, var_names: list[str]) -> dict:
-	is_positional = variable_format == "positional"
+	is_positional = variable_format == "Positional"
 	if is_positional:
 		return {"body_text": [[_find_example(variables, v) for v in var_names]]}
 	return {
@@ -179,7 +179,7 @@ def _build_example(variable_format: str, variables, var_names: list[str]) -> dic
 
 
 def _build_header_example(variable_format: str, variables, var_names: list[str]) -> dict:
-	is_positional = variable_format == "positional"
+	is_positional = variable_format == "Positional"
 	if is_positional:
 		return {"header_text": [_find_example(variables, v) for v in var_names]}
 	return {
@@ -190,19 +190,19 @@ def _build_header_example(variable_format: str, variables, var_names: list[str])
 
 
 def build_create_template_payload(doc) -> CreateTemplatePayload:
-	variable_format = getattr(doc, "variable_format", None) or "named"
+	variable_format = getattr(doc, "variable_format", None) or "Named"
 	components = []
 
 	if doc.header_type:
-		header = {"type": "HEADER", "format": doc.header_type}
-		if doc.header_type == "TEXT" and doc.header_text:
+		header = {"type": "HEADER", "format": _to_meta(HEADER_TYPES, doc.header_type)}
+		if doc.header_type == "Text" and doc.header_text:
 			header["text"] = doc.header_text
 			header_vars = get_template_variables(doc.header_text)
 			if header_vars:
 				header["example"] = _build_header_example(
 					variable_format, doc.template_variables, header_vars
 				)
-		elif doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and doc.header_media_handle:
+		elif doc.header_type in MEDIA_HEADER_TYPES and doc.header_media_handle:
 			header["example"] = {"header_handle": [doc.header_media_handle]}
 		components.append(header)
 
@@ -218,12 +218,12 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 	if doc.buttons:
 		buttons_payload = []
 		for btn in doc.buttons:
-			if btn.button_type == "COPY_CODE":
+			if btn.button_type == "Copy Code":
 				continue
-			b = {"type": btn.button_type, "text": btn.button_text}
+			b = {"type": _to_meta(BUTTON_TYPES, btn.button_type), "text": btn.button_text}
 			if btn.button_type == "URL":
 				b["url"] = btn.url
-			elif btn.button_type == "PHONE_NUMBER":
+			elif btn.button_type == "Phone Number":
 				b["phone_number"] = btn.phone_number
 			buttons_payload.append(b)
 		if buttons_payload:
@@ -232,11 +232,11 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 	payload = {
 		"name": doc.template_name,
 		"language": doc.language,
-		"category": doc.template_type,
+		"category": _to_meta(TEMPLATE_TYPES, doc.template_type),
 		"components": components,
 	}
 
-	if variable_format == "named":
+	if variable_format == "Named":
 		payload["parameter_format"] = "named"
 
 	return payload
@@ -277,10 +277,46 @@ def normalize_template_status(api_status: str) -> str:
 	}.get((api_status or "").upper(), "Pending")
 
 
+# Meta spells its enums in all-caps; stored values follow the framework's Title Case
+# convention. Spelled out rather than derived because .title() mangles URL and GIF.
+TEMPLATE_TYPES = {
+	"UTILITY": "Utility",
+	"MARKETING": "Marketing",
+	"AUTHENTICATION": "Authentication",
+}
+HEADER_TYPES = {
+	"TEXT": "Text",
+	"IMAGE": "Image",
+	"DOCUMENT": "Document",
+	"GIF": "GIF",
+	"VIDEO": "Video",
+}
+BUTTON_TYPES = {
+	"QUICK_REPLY": "Quick Reply",
+	"COPY_CODE": "Copy Code",
+	"URL": "URL",
+	"VOICE_CALL": "Voice Call",
+	"PHONE_NUMBER": "Phone Number",
+}
+
+MEDIA_HEADER_TYPES = ("Image", "Document", "Video", "GIF")
+
+
+def _to_local(mapping: dict[str, str], api_value: str, default: str = "") -> str:
+	return mapping.get((api_value or "").upper(), default)
+
+
+def _to_meta(mapping: dict[str, str], local_value: str) -> str:
+	for api_value, local in mapping.items():
+		if local == local_value:
+			return api_value
+	return local_value
+
+
 def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 	doc = {
 		"template_name": data.get("name"),
-		"template_type": data.get("category"),
+		"template_type": _to_local(TEMPLATE_TYPES, data.get("category", ""), "Utility"),
 		"language": data.get("language"),
 		"status": normalize_template_status(data.get("status", "")),
 	}
@@ -297,11 +333,11 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 		comp_type = comp.get("type", "").upper()
 
 		if comp_type == "HEADER":
-			header_type = comp.get("format", "")
-			if header_type.upper() == "TEXT":
+			header_type = _to_local(HEADER_TYPES, comp.get("format", ""))
+			if header_type == "Text":
 				header_text = comp.get("text", "")
 				variable_rows.extend(_resolve_examples(header_text, comp))
-			elif header_type.upper() in ("IMAGE", "DOCUMENT", "VIDEO", "GIF"):
+			elif header_type in MEDIA_HEADER_TYPES:
 				example = comp.get("example", {}) or {}
 				handles = example.get("header_handle", [])
 				if handles:
@@ -319,7 +355,7 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 				btn_url = btn.get("url", "")
 				buttons.append(
 					{
-						"button_type": btn.get("type"),
+						"button_type": _to_local(BUTTON_TYPES, btn.get("type", "")),
 						"button_text": btn.get("text"),
 						"url": btn_url,
 						"phone_number": btn.get("phone_number", ""),
@@ -337,11 +373,11 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 	doc["footer"] = footer
 	doc["buttons"] = buttons
 
-	variable_format = "named"
+	variable_format = "Named"
 	if variable_rows:
 		all_digit = all(v[0].isdigit() for v in variable_rows)
 		if all_digit:
-			variable_format = "positional"
+			variable_format = "Positional"
 	doc["variable_format"] = variable_format
 
 	seen = set()
@@ -382,7 +418,7 @@ def build_template_message_payload(
 		if isinstance(header_parameters, str):
 			header_parameters = json.loads(header_parameters)
 
-		if template_doc.header_type == "TEXT":
+		if template_doc.header_type == "Text":
 			header_vars = get_template_variables(template_doc.header_text)
 			param_name = header_vars[0] if header_vars else "1"
 			components.append(
@@ -398,7 +434,7 @@ def build_template_message_payload(
 				}
 			)
 		else:
-			media_type = template_doc.header_type.lower()
+			media_type = _to_meta(HEADER_TYPES, template_doc.header_type).lower()
 			params = {"id": header_parameters["id"]} if isinstance(header_parameters, dict) else {}
 			if (
 				media_type == "document"

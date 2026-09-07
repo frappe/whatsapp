@@ -10,6 +10,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 
 from whatsapp.whatsapp.api.utils import (
+	MEDIA_HEADER_TYPES,
 	build_interactive_buttons_payload,
 	build_interactive_list_payload,
 	build_media_message_payload,
@@ -168,7 +169,7 @@ class WhatsAppMessage(Document):
 			value = ref_doc.get(var.variable_field)
 			check_str = f"{{{{{var.variable_name}}}}}"
 			is_header = (
-				template.header_type == "TEXT"
+				template.header_type == "Text"
 				and template.header_text
 				and check_str in template.header_text
 			)
@@ -225,7 +226,7 @@ class WhatsAppMessage(Document):
 
 		if self.is_template and self.whatsapp_template:
 			template_doc = frappe.get_doc("WhatsApp Template", self.whatsapp_template)
-			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media:
+			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media:
 				if not template_doc.header_media_handle:
 					file_doc = frappe.get_doc("File", template_doc.header_media)
 					file_content = file_doc.get_content()
@@ -337,7 +338,7 @@ class WhatsAppMessage(Document):
 			body_params = json.loads(self.template_body_parameters or "{}")
 
 			header_params = self.template_header_parameters
-			if template_doc.header_type in ("IMAGE", "DOCUMENT", "VIDEO", "GIF") and template_doc.header_media_handle:
+			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media_handle:
 				if not header_params:
 					header_params = json.dumps({"id": template_doc.header_media_handle})
 
@@ -374,17 +375,15 @@ def process_append_actions(
 		try:
 			new_doc = frappe.new_doc(action.append_to)
 
-			if action.message_field and doc.message:
+			# a mapped field is written even when the message carries no value, so an
+			# empty field on the created document means exactly that
+			new_doc.set(action.sender_field, sender_phone or doc.get("from"))
+			new_doc.set(action.sender_name_field, sender_name)
+
+			if action.message_field:
 				new_doc.set(action.message_field, doc.message)
 
-			sender = sender_phone or doc.get("from")
-			if action.sender_field and sender:
-				new_doc.set(action.sender_field, sender)
-
-			if action.sender_name_field and sender_name:
-				new_doc.set(action.sender_name_field, sender_name)
-
-			if action.timestamp_field and doc.timestamp:
+			if action.timestamp_field:
 				new_doc.set(action.timestamp_field, doc.timestamp)
 
 			new_doc.insert(ignore_permissions=True)

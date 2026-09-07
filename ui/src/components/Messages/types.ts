@@ -37,11 +37,11 @@ export interface WhatsAppReaction {
 /** Serves both a sent message's rendered buttons and an unsent template's preview. */
 export interface WhatsAppTemplateButton {
   button_type:
-    | "QUICK_REPLY"
+    | "Quick Reply"
     | "URL"
-    | "COPY_CODE"
-    | "PHONE_NUMBER"
-    | "VOICE_CALL";
+    | "Copy Code"
+    | "Phone Number"
+    | "Voice Call";
   button_text: string;
   url?: string;
   phone_number?: string;
@@ -105,14 +105,21 @@ export interface WhatsAppMessage {
 
 /** Exactly what `get_sendable_templates` returns, buttons included. */
 export interface WhatsAppTemplate {
+  /** opaque docname, and what `sendTemplate` takes */
   name: string;
+  /** what to display: the human-facing label */
+  template_label?: string;
+  /** Meta's template name, shared by every language variant */
+  template_name?: string;
   /** template body, may contain unresolved `{{ variables }}` */
   message?: string;
   footer?: string;
   header_text?: string;
-  header_type?: "TEXT" | "IMAGE" | "DOCUMENT" | "GIF" | "VIDEO";
+  header_type?: "Text" | "Image" | "Document" | "GIF" | "Video";
   /** DocType the template is bound to; empty for unbound templates */
   reference_doctype?: string;
+  /** Meta language code, e.g. `en_US`. One template name has one record per language. */
+  language?: string;
   /** child table, so it needs its own query — optional for a host supplying its own list */
   buttons?: WhatsAppTemplateButton[];
 }

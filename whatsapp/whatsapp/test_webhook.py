@@ -196,7 +196,7 @@ class TestWebhookNotifications(IntegrationTestCase):
 			doctype="WhatsApp Template",
 			template_label=f"_Test Tmpl {uid}",
 			template_name=f"_test_tmpl_{uid}",
-			template_type="UTILITY",
+			template_type="Utility",
 			language="en_US",
 			message="Hello",
 			whatsapp_account=account,

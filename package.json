@@ -1,0 +1,15 @@
+{
+	"private": true,
+	"type": "module",
+	"name": "whatsapp",
+	"description": "Official WhatsApp Integration for Frappe Apps",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/frappe/whatsapp.git"
+	},
+	"author": "Frappe Technologies Pvt. Ltd.",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/frappe/whatsapp/issues"
+	}
+}

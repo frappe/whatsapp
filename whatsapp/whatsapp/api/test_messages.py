@@ -849,7 +849,7 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 						phone_number="",
 					),
 					frappe._dict(
-						button_type="PHONE_NUMBER",
+						button_type="Phone Number",
 						button_text="Call us",
 						url="",
 						phone_number="+15551230000",
@@ -882,7 +882,7 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 					"phone_number": "",
 				},
 				{
-					"button_type": "PHONE_NUMBER",
+					"button_type": "Phone Number",
 					"button_text": "Call us",
 					"url": "",
 					"phone_number": "+15551230000",

@@ -18,6 +18,8 @@
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Status Updated",
+ "notification_message": "{{ doc.whatsapp_account }}",
+ "notification_title": "WhatsApp message {{ doc.status }} — {{ doc.to }}",
  "owner": "Administrator",
  "recipients": [
   {

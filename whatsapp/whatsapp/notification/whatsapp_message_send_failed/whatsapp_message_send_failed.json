@@ -18,6 +18,8 @@
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Send Failed",
+ "notification_message": "{{ doc.error_message }}",
+ "notification_title": "WhatsApp message to {{ doc.to }} failed",
  "owner": "Administrator",
  "recipients": [
   {
