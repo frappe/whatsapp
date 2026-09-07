@@ -10,10 +10,11 @@
  "event": "Method",
  "idx": 0,
  "is_standard": 1,
+ "message": "{{ doc.error_message }}",
  "message_type": "HTML",
  "method": "on_send_failed",
  "minutes_offset": 0,
- "modified": "2026-05-22 15:53:51.500046",
+ "modified": "2026-09-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Send Failed",
@@ -25,5 +26,5 @@
  ],
  "send_system_notification": 0,
  "send_to_all_assignees": 0,
- "subject": "WhatsApp Message Send Failed - {{ doc.to }}"
+ "subject": "WhatsApp message to {{ doc.to }} failed"
 }
