@@ -9,6 +9,8 @@ from whatsapp.whatsapp.notification.whatsapp_message_received.whatsapp_message_r
 	_message_preview,
 )
 
+MESSAGE_PLACEHOLDER = "Add your message here"
+
 STANDARD_NOTIFICATIONS = (
 	"WhatsApp Message Received",
 	"WhatsApp Message Sent",
@@ -57,11 +59,11 @@ class IntegrationTestMessagePreview(IntegrationTestCase):
 
 
 class IntegrationTestStandardNotifications(IntegrationTestCase):
-	def test_every_rule_sets_an_in_app_title_and_message(self):
-		"""create_system_notification takes description ONLY from notification_message —
-		a blank one leaves NotificationLog to backfill it with the email HTML."""
+	def test_every_rule_sets_a_subject_and_message(self):
+		"""Frappe shows a System Notification's Subject as the bell headline and its Message as the body."""
 		for name in STANDARD_NOTIFICATIONS:
 			with self.subTest(notification=name):
 				rule = frappe.get_doc("Notification", name)
-				self.assertTrue(rule.notification_title, f"{name} has no notification_title")
-				self.assertTrue(rule.notification_message, f"{name} has no notification_message")
+				self.assertTrue(rule.subject, f"{name} has no subject")
+				self.assertTrue(rule.message, f"{name} has no message")
+				self.assertNotEqual(rule.message, MESSAGE_PLACEHOLDER)

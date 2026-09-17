@@ -10,10 +10,11 @@
  "event": "Method",
  "idx": 0,
  "is_standard": 1,
+ "message": "{{ doc.whatsapp_account }}",
  "message_type": "HTML",
  "method": "on_status_update",
  "minutes_offset": 0,
- "modified": "2026-08-25 12:00:00.000000",
+ "modified": "2026-09-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Message Status Updated",
@@ -27,5 +28,5 @@
  ],
  "send_system_notification": 0,
  "send_to_all_assignees": 0,
- "subject": "WhatsApp Message {{ doc.status }} - {{ doc.to }}"
+ "subject": "WhatsApp message {{ doc.status }} — {{ doc.to }}"
 }
