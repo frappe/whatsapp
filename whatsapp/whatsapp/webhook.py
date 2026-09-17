@@ -46,10 +46,17 @@ def _verify() -> Response:
 	challenge = frappe.form_dict.get("hub.challenge")
 
 	if mode != "subscribe" or not token or not challenge:
+		log(
+			"Warning",
+			"Webhook",
+			"Webhook verification rejected: malformed request",
+			request_data={"hub.mode": mode, "has_token": bool(token), "has_challenge": bool(challenge)},
+		)
 		return Response("invalid request", status=403, mimetype="text/plain")
 
 	settings = frappe.get_single("WhatsApp Settings")
 	if token != (settings.get("webhook_verify_token") or ""):
+		log("Warning", "Webhook", "Webhook verification rejected: verify token mismatch")
 		return Response("token mismatch", status=403, mimetype="text/plain")
 
 	log("Info", "Webhook", "Webhook verified successfully")
