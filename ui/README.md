@@ -1,7 +1,8 @@
 # @whatsapp/ui
 
-Shared WhatsApp message components for Frappe apps: the messages attached to one or more
-reference documents, drawn as a flat list in send order, plus the input that sends into it.
+Shared WhatsApp components for Frappe apps: the messages attached to one or more reference
+documents, drawn as a flat list in send order, the input that sends into it, and the account
+form an admin configures a number with.
 
 The package ships **raw `.vue`/`.ts` source** — there is no build step and no published
 bundle. The host app's bundler compiles it in place, so the host owns the toolchain,
@@ -33,6 +34,10 @@ and binds a controller — it does not write an API or a mapping layer. See [Usa
      dedupe: ['vue', 'frappe-ui', 'reka-ui', 'dompurify'],
    }
    ```
+
+   The account and template forms are built on `@framework/ui`'s `FormLayout`, `Grid` and
+   `Link`, so the host links that package too (`"@framework/ui": "link:../../frappe/ui"`) and adds its `frameworkUI()` vite
+   plugin, which dedupes the same singletons and resolves the package's own dependencies.
 
    Instead of hand-writing the `dedupe` array you can add the plugin, which sets the
    same list via `config()`:
@@ -170,6 +175,122 @@ notification (scroll to the bottom, close a drawer), not a request to perform th
 controller clears what the send consumed: a text send is a full `reset()`, a media send
 clears only the attachment and the reply, because its body was the caption and whatever is
 still typed in the box is a separate unsent message.
+
+### The account form
+
+`useAccount()` and `AccountForm` render one `WhatsApp Account`: the plain fields and the Append
+Actions table, with the Append To rule the desk form has (changing a row's doctype blanks its
+four mappings and reloads their options) inside the component, so a host does not write it.
+
+```vue
+<script setup lang="ts">
+import { AccountForm, useAccount } from "@whatsapp/ui";
+
+const props = defineProps<{ name?: string }>();
+const account = useAccount({ name: () => props.name });
+</script>
+
+<template>
+  <Button
+    v-if="account.isDirty || account.isNew"
+    :label="account.isNew ? 'Create' : 'Save'"
+    :loading="account.saving"
+    @click="account.save()"
+  />
+  <AccountForm :controller="account" />
+</template>
+```
+
+No `name` renders a blank account that the first `save()` inserts; `save()` resolves to the
+docname, so the host can navigate or re-key. The form draws no save button: the host decides
+where it sits. The save error shows under the form, not as a toast, so it survives the host's
+own toasts.
+
+Save sends the whole document through `frappe.client.insert` or `frappe.client.save`, and the
+doctype's own validation is what reports a missing mapping. The access token arrives masked
+and goes back untouched unless the admin types over it; never blank it, Frappe reads an empty
+value as "delete the stored token".
+
+`AppendActionsTable` is exported on its own for a host that lays the fields out differently.
+It is `@framework/ui`'s `Grid` with a `Link` for Append To, a `Select` for Trigger On, and a
+`Combobox` per mapping slot fed by `controller.optionsFor(doctype, slot)`.
+
+The plain fields are a `FormLayout` schema (`accountLayout.ts`) rather than hand-drawn markup,
+so the account and template forms render their sections, labels and controls the same way.
+
+### The template form
+
+`useTemplate()` renders one `WhatsApp Template` through two views the host swaps between:
+`TemplateForm`, a `FormLayout` schema (`templateLayout.ts`) with a body editor and the variables
+grid, and `TemplatePreview`, the message as the contact will read it. The page header, the
+toggle between them and the Save button are the host's, so they sit in its own header the way
+CRM's record pages do.
+
+```vue
+<script setup lang="ts">
+import { TemplateForm, TemplatePreview, useTemplate } from "@whatsapp/ui";
+
+const props = defineProps<{ name?: string }>();
+const template = useTemplate({ name: () => props.name });
+const preview = ref(false);
+</script>
+
+<template>
+  <LayoutHeader>
+    <template #left-header>
+      <Breadcrumbs :items="crumbs" />
+      <Badge v-if="template.indicator" v-bind="template.indicator" variant="subtle" />
+    </template>
+    <template #right-header>
+      <Button :label="preview ? 'Edit' : 'Preview'" @click="preview = !preview" />
+      <Button
+        v-if="template.editable"
+        variant="solid"
+        :label="template.isNew ? 'Create' : 'Save'"
+        :loading="template.saving"
+        :disabled="!template.isDirty && !template.isNew"
+        @click="template.save()"
+      />
+    </template>
+  </LayoutHeader>
+  <TemplateForm v-if="!preview" :controller="template" />
+  <TemplatePreview v-else :controller="template" />
+</template>
+```
+
+**One indicator.** `template.indicator` is the single badge beside the title, as desk shows it:
+`Not Saved` while the document is new or dirty, otherwise the Meta status with its colour. Do not
+show the status and the unsaved state side by side.
+
+**Locked while Meta holds it.** Meta edits only approved or rejected templates, so a pending or
+deleted one is read-only: every field locks, the form says why above the fields, and
+`template.editable` is false so the host hides Save. `template.lockReason` is that sentence for a
+host that wants it elsewhere. The status is as fresh as the last webhook or sync, so a form that
+looks locked after Meta has moved on wants a `reload()`.
+
+Save goes through `frappe.client.insert` or `frappe.client.save`; the doctype's own
+`before_save` pushes the template to Meta, so a rejection from Meta comes back through `save()`
+and shows under the fields like any other error.
+
+**The body is a tiptap editor, not a textarea.** WhatsApp bodies are plain text with `*bold*`,
+`_italic_` and `~strike~`, so the editor holds a paragraph-only document and `whatsappText.ts`
+translates both ways on every edit; `doc.message` is always the plain text Meta receives. Typing
+`{{` offers the fields of `doc.reference_doctype` (from `get_doctype_columns`) and inserts
+`{{fieldname}}`; there is no free-form variable, because a variable is filled from that document
+at send time (see `DESIGN_DECISIONS.md`).
+
+**Variables follow the text.** The controller keeps one `template_variables` row per distinct
+`{{name}}` in the header and body, preserving the example typed for a name that is still there.
+The grid asks only for the example Meta reviews the template with; `variable_field` is set on
+save to the variable's own name when it is a field of the reference DocType.
+
+**Preview.** `TemplatePreview` renders through `TemplateContent`, the component a sent template
+renders with, fed the text with the examples substituted. It is the message, not a phone around
+it, and it is a view of its own rather than a split, so the form keeps its width.
+
+`header_media` uploads through `@framework/ui`'s default transport (`upload_file`). A media
+header still needs a Meta upload handle to push, which only the sync path sets today, so a
+template created here with a media header will be refused by Meta until that lands.
 
 ### Sending a template
 
@@ -615,6 +736,11 @@ From `@whatsapp/ui` (or the `./Messages` subpath): `WhatsAppMessage`, `WhatsAppT
 `UseMessagesOptions`, `MessagesController`, `UseTemplatesOptions`, `TemplatesController`,
 `SendTemplateOverrides`, `MessageListProps`, `MessageBubbleProps`, `MessageInputProps`,
 `TemplateContentProps`, `TemplateButtonsProps`.
+
+From `./Account`: `WhatsAppAccount`, `AppendAction`, `AccountController`, `UseAccountOptions`,
+`AccountFormProps`. From `./Template`: `WhatsAppTemplateDoc`, `TemplateVariableRow`,
+`TemplateButtonRow`, `TemplateController`, `TemplateIndicator`, `UseTemplateOptions`,
+`TemplateFormProps`, `TemplatePreviewProps`, `TemplateBodyEditorProps`.
 
 The generic helper components live beside them, under `./common`: `MediaPreviewDialogProps`,
 `ReactionPickerProps`. `MediaKind` and `MediaAttachment` come from the package root.

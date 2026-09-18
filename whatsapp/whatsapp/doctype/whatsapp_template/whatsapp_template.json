@@ -13,6 +13,7 @@
   "template_type",
   "language",
   "whatsapp_account",
+  "reference_doctype",
   "template_data_section",
   "header_text",
   "header_media",
@@ -23,7 +24,6 @@
   "footer_section",
   "footer",
   "section_break_ohbb",
-  "reference_doctype",
   "template_variables",
   "section_break_ghcu",
   "buttons",
@@ -228,7 +228,7 @@
    "link_fieldname": "whatsapp_template"
   }
  ],
- "modified": "2026-05-21 17:24:54.550585",
+ "modified": "2026-09-18 16:04:02.265305",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Template",

@@ -21,6 +21,8 @@ from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.whatsapp_account.whatsapp_account import WhatsAppAccount
 from whatsapp.whatsapp.doctype.whatsapp_settings.whatsapp_settings import WhatsAppSettings
 
+EDITABLE_STATUSES = ("Approved", "Rejected")
+
 
 class WhatsAppTemplate(Document):
 	# begin: auto-generated types
@@ -80,20 +82,6 @@ class WhatsAppTemplate(Document):
 
 		self.set("template_variables", new_rows)
 
-	def validate_template_variables(self) -> None:
-		variables = get_template_variables(self.message)
-		if self.header_text and self.header_type == "Text":
-			variables.extend(get_template_variables(self.header_text))
-
-		if len(variables) != len(self.template_variables):
-			frappe.throw(
-				"Number of template variables in table does not match the number of variables in the message"
-			)
-
-		for variable in self.template_variables:
-			if variable.variable_name not in variables:
-				frappe.throw(f"Variable {variable.variable_name} not found in message")
-
 	def _set_mime_type(self) -> None:
 		if not self.header_media:
 			self.mime_type = None
@@ -135,8 +123,9 @@ class WhatsAppTemplate(Document):
 		if not re.match(r"^[a-zA-Z0-9_]+$", self.template_name):
 			frappe.throw("Template name should only contain alphanumeric characters and underscores")
 
-	def on_validate(self) -> None:
-		self.validate_template_variables()
+	def validate(self) -> None:
+		self._derive_template_name()
+		self._sync_template_variables()
 		self.validate_template_name()
 
 	def _derive_template_name(self) -> None:
@@ -164,8 +153,6 @@ class WhatsAppTemplate(Document):
 			self.get("__islocal"),
 		)
 
-		self._derive_template_name()
-		self._sync_template_variables()
 		self._set_mime_type()
 
 		if self.flags.get("from_sync"):
@@ -175,9 +162,9 @@ class WhatsAppTemplate(Document):
 		if not self.whatsapp_template_id:
 			logger.info("before_save | no whatsapp_template_id, proceeding to push to Meta")
 			self._push_to_meta()
-		elif self.get("__islocal"):
+		elif self.has_value_changed("whatsapp_template_id"):
 			logger.info(
-				"before_save | __islocal with whatsapp_template_id=%s, already created by API, skipping",
+				"before_save | whatsapp_template_id=%s was just assigned, already created by API, skipping",
 				self.whatsapp_template_id,
 			)
 		else:
@@ -290,6 +277,13 @@ class WhatsAppTemplate(Document):
 			)
 			frappe.throw(_("WhatsApp Account is required to update template in Meta"))
 
+		if self.status not in EDITABLE_STATUSES:
+			frappe.throw(
+				_("Meta only allows editing approved or rejected templates; this one is {0}.").format(
+					_(self.status)
+				)
+			)
+
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
@@ -349,10 +343,9 @@ def normalize_string(s: str) -> str:
 
 
 def get_template_variables(s: str) -> list[str]:
-	variables_list = re.findall(r"\{\{\s*([^}]+)\s*\}\}", s) if s else []
 	if not s:
 		return []
-	return variables_list
+	return [name.strip() for name in re.findall(r"\{\{\s*([^}]+)\s*\}\}", s)]
 
 
 def get_settings() -> WhatsAppSettings:

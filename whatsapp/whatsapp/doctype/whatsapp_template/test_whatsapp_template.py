@@ -12,6 +12,7 @@ from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import (
 	_ensure_language,
 	_mark_deleted_templates,
 	_upsert_template,
+	create_template_and_push,
 	get_sendable_templates,
 )
 
@@ -19,7 +20,7 @@ EXTRA_TEST_RECORD_DEPENDENCIES = []
 IGNORE_TEST_RECORD_DEPENDENCIES = ["WhatsApp Account", "WhatsApp Language"]
 
 
-class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
+class IntegrationTestWhatsAppTemplate(WithoutHostAccessGuards, IntegrationTestCase):
 	def setUp(self):
 		super().setUp()
 		frappe.set_user("Administrator")
@@ -125,6 +126,32 @@ class IntegrationTestWhatsAppTemplate(IntegrationTestCase):
 			},
 		)
 		self.assertTrue(log_exists, "expected a success WhatsApp Log row for the template push")
+
+	@patch("whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.WhatsApp")
+	def test_repush_of_a_local_template_does_not_update_in_meta(self, MockWhatsApp):
+		"""The save right after a re-push carries a freshly assigned id; Meta refuses an edit of
+		a pending template, so that save must not try one."""
+		MockWhatsApp.return_value.create_template.return_value = {"id": "tmpl_456", "status": "PENDING"}
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		local = frappe.get_doc(
+			doctype="WhatsApp Template",
+			template_label=f"_Test Repush {uid}",
+			template_name=f"_test_repush_{uid}",
+			template_type="Utility",
+			language="en_US",
+			message="Hello again",
+			whatsapp_account=account,
+		)
+		local.flags.from_sync = True
+		local.insert()
+
+		create_template_and_push({"name": local.name, "__islocal": False}, account)
+
+		doc = frappe.get_doc("WhatsApp Template", local.name)
+		self.assertEqual(doc.whatsapp_template_id, "tmpl_456")
+		self.assertEqual(doc.status, "Pending")
+		MockWhatsApp.return_value.update_template.assert_not_called()
 
 	def test_sync_leaves_variable_field_empty_for_new_variables(self):
 		"""New variables introduced by Meta should start with empty variable_field."""
