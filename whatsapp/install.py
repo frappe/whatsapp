@@ -129,10 +129,14 @@ def _set_property(fieldname: str, property_name: str, value: str, property_type:
 
 
 def _or_whatsapp(expression: str) -> str:
+	if not expression:
+		return f"eval:doc.channel == '{WHATSAPP_CHANNEL}'"
 	return f"eval: ({_strip_eval(expression)}) || doc.channel == '{WHATSAPP_CHANNEL}'"
 
 
 def _and_not_whatsapp(expression: str) -> str:
+	if not expression:
+		return f"eval:doc.channel != '{WHATSAPP_CHANNEL}'"
 	return f"eval: ({_strip_eval(expression)}) && doc.channel != '{WHATSAPP_CHANNEL}'"
 
 
