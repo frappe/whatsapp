@@ -95,8 +95,7 @@ def _add_channel_option() -> None:
 
 
 def _show_subject_for_whatsapp() -> None:
-	"""Notification.autoname is `subject or notification_title`, and Subject is hidden for every
-	channel but Email and Slack — without this a WhatsApp rule falls back to a hash name."""
+	"""Frappe names a Notification after its Subject and falls back to a hash when it is empty."""
 	for property_name in ("depends_on", "mandatory_depends_on"):
 		expression = _shipped_property("subject", property_name)
 		_set_property("subject", property_name, _or_whatsapp(expression), "Code")
@@ -133,7 +132,9 @@ def _or_whatsapp(expression: str) -> str:
 
 
 def _and_not_whatsapp(expression: str) -> str:
-	return f"eval: ({_strip_eval(expression)}) && doc.channel != '{WHATSAPP_CHANNEL}'"
+	not_whatsapp = f"doc.channel != '{WHATSAPP_CHANNEL}'"
+	shipped = _strip_eval(expression)
+	return f"eval: ({shipped}) && {not_whatsapp}" if shipped else f"eval: {not_whatsapp}"
 
 
 def _strip_eval(expression: str) -> str:
