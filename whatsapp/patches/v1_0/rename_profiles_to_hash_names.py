@@ -1,4 +1,8 @@
+import re
+
 import frappe
+
+HASH_NAME = re.compile(r"^[0-9a-f]{10}$")
 
 
 def execute():
@@ -6,6 +10,8 @@ def execute():
 	two accounts, or two people sharing a name, both collide on. Every existing profile
 	takes the hash name new ones get; rename_doc carries its messages, logs and links."""
 	for name in frappe.get_all("WhatsApp Profile", pluck="name"):
+		if HASH_NAME.match(name):
+			continue
 		frappe.rename_doc(
 			"WhatsApp Profile",
 			name,
