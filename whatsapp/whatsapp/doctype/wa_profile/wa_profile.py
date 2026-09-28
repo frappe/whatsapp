@@ -142,7 +142,7 @@ def get_or_create_profile(
 	frappe.db.savepoint("whatsapp_profile_insert")
 	try:
 		doc.insert()
-	except frappe.ValidationError:
+	except frappe.ValidationError, frappe.DuplicateEntryError:
 		frappe.db.rollback(save_point="whatsapp_profile_insert")
 		existing = resolve_profile_by_phone(phone_number, account_name, for_update=True)
 		if not existing:

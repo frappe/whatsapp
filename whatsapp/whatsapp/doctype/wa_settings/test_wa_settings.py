@@ -26,7 +26,7 @@ class IntegrationTestWhatsAppSetting(IntegrationTestCase):
 		frappe.db.set_single_value("WA Settings", "default_account", account.name)
 
 		phone = f"+1{secrets.randbelow(10**10):010d}"
-		get_or_create_profile(phone, account.name, phone)
+		profile = get_or_create_profile(phone, account.name, phone)
 		msg = frappe.get_doc(
 			doctype="WA Message",
 			to=phone,

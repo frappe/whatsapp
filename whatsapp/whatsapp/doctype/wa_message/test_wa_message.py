@@ -1047,8 +1047,13 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		doc.submit()
 		return doc
 
+	def _display_name(self, profile: str) -> str:
+		return frappe.db.get_value("WhatsApp Profile", profile, "profile_name")
+
 	def _created_for(self, profile: str) -> list:
-		return frappe.get_all("Print Heading", filters={"print_heading": profile}, pluck="name")
+		return frappe.get_all(
+			"Print Heading", filters={"print_heading": self._display_name(profile)}, pluck="name"
+		)
 
 	def test_first_message_creates_the_record_and_links_the_profile(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
@@ -1135,7 +1140,11 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		process_append_actions(doc, trigger_on="Incoming")
 
 		self.assertEqual(doc.reference_doctype, "Print Heading")
-		self.assertTrue(frappe.db.exists("Activity Log", {"subject": profile, "ip_address": "+14155552671"}))
+		self.assertTrue(
+			frappe.db.exists(
+				"Activity Log", {"subject": self._display_name(profile), "ip_address": "+14155552671"}
+			)
+		)
 
 	def test_outgoing_uses_the_recipient_not_the_business_number(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
