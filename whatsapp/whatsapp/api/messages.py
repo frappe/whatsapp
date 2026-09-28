@@ -19,7 +19,7 @@ from whatsapp.whatsapp.api.utils import (
 	parse_template_parameters,
 	run_access_guards,
 )
-from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 	get_or_create_profile,
 	resolve_profile_by_phone,
 )
@@ -63,7 +63,7 @@ def get_messages(references: str) -> list[dict]:
 	messages = []
 	for reference_doctype, reference_docname in pairs:
 		messages += frappe.get_all(
-			"WhatsApp Message",
+			"WA Message",
 			filters={
 				"reference_doctype": reference_doctype,
 				"reference_docname": reference_docname,
@@ -114,7 +114,7 @@ def send_message(
 			).format(to)
 		)
 
-	doc = frappe.new_doc("WhatsApp Message")
+	doc = frappe.new_doc("WA Message")
 	doc.update(
 		{
 			"reference_doctype": reference_doctype,
@@ -137,9 +137,9 @@ def send_message(
 	if attach:
 		# media_url is read-only, and this mime_type is only a pre-send display value —
 		# _send overwrites it with the File's real content type.
-		frappe.db.set_value("WhatsApp Message", doc.name, "media_url", attach, update_modified=False)
+		frappe.db.set_value("WA Message", doc.name, "media_url", attach, update_modified=False)
 		frappe.db.set_value(
-			"WhatsApp Message",
+			"WA Message",
 			doc.name,
 			"mime_type",
 			mime_type_for_content_type(content_type),
@@ -162,7 +162,7 @@ def react_to_message(message: str, emoji: str) -> str:
 	target = _get_permitted_message(message)
 	context_message_id = _acknowledged_message_id(target, _("react to"))
 
-	doc = frappe.new_doc("WhatsApp Message")
+	doc = frappe.new_doc("WA Message")
 	doc.update(
 		{
 			"reference_doctype": target.reference_doctype,
@@ -202,7 +202,7 @@ def send_template(
 			).format(to)
 		)
 
-	doc = frappe.new_doc("WhatsApp Message")
+	doc = frappe.new_doc("WA Message")
 	doc.update(
 		{
 			"reference_doctype": reference_doctype,
@@ -271,7 +271,7 @@ def _validate_send_scope(reference_doctype: str | None, reference_docname: str |
 	if reference_doctype and reference_docname:
 		_validate_reference(reference_doctype, reference_docname)
 	else:
-		frappe.has_permission("WhatsApp Message", "create", throw=True)
+		frappe.has_permission("WA Message", "create", throw=True)
 
 
 def _conversation_order(message: dict) -> tuple:
@@ -321,10 +321,10 @@ def _render_templates(messages: list[dict]) -> None:
 		template_name = message.get("whatsapp_template")
 		if not message.get("is_template") or not template_name:
 			continue
-		if not frappe.db.exists("WhatsApp Template", template_name):
+		if not frappe.db.exists("WA Template", template_name):
 			continue
 
-		template = frappe.get_cached_doc("WhatsApp Template", template_name)
+		template = frappe.get_cached_doc("WA Template", template_name)
 		message["template_name"] = template.template_name
 		message["template"] = parse_template_parameters(
 			template.message, _parsed_parameters(message.get("template_body_parameters"))
@@ -395,10 +395,10 @@ def _attach_file_details(messages: list[dict]) -> None:
 
 def _get_permitted_message(name: str) -> Document:
 	"""Load a WhatsApp Message the session user may read, along with its reference doc."""
-	if not frappe.db.exists("WhatsApp Message", name):
+	if not frappe.db.exists("WA Message", name):
 		frappe.throw(_("Referenced WhatsApp message does not exist."), frappe.DoesNotExistError)
 
-	doc = frappe.get_doc("WhatsApp Message", name)
+	doc = frappe.get_doc("WA Message", name)
 	if not doc.has_permission("read"):
 		frappe.throw(_("Not permitted to access the referenced WhatsApp message."), frappe.PermissionError)
 
@@ -432,7 +432,7 @@ def _resolve_reply_context(reply_to: str) -> str:
 def _resolve_attachment(file_url: str) -> str:
 	"""Resolve a client-supplied file URL to the File docname the send path expects.
 
-	`WhatsAppMessage._send` resolves `attach` as a File docname, so a URL must be mapped.
+	`WAMessage._send` resolves `attach` as a File docname, so a URL must be mapped.
 	Copies share a `file_url`, so the oldest — the original upload — wins.
 	"""
 	file_docname = frappe.db.get_value(
@@ -448,7 +448,7 @@ def _resolve_attachment(file_url: str) -> str:
 
 
 def _get_default_whatsapp_account() -> str | None:
-	return frappe.db.get_single_value("WhatsApp Settings", "default_account")
+	return frappe.db.get_single_value("WA Settings", "default_account")
 
 
 def _resolve_to_profile(to_value: str, create_if_missing: bool = False) -> str | None:
@@ -460,7 +460,7 @@ def _resolve_to_profile(to_value: str, create_if_missing: bool = False) -> str |
 	if not to_value:
 		return None
 
-	if frappe.db.exists("WhatsApp Profile", to_value):
+	if frappe.db.exists("WA Profile", to_value):
 		return to_value
 
 	default_account = _get_default_whatsapp_account()
@@ -498,7 +498,7 @@ def _validate_template_is_approved(template_name: str) -> None:
 	Meta will not render an unapproved template, so reject it here rather than let it
 	become a Failed message — the endpoint takes any name, not just what a picker offered.
 	"""
-	status = frappe.db.get_value("WhatsApp Template", template_name, "status")
+	status = frappe.db.get_value("WA Template", template_name, "status")
 	if status != "Approved":
 		frappe.throw(
 			_("WhatsApp Template '{0}' is {1} and cannot be sent; only Approved templates can.").format(
@@ -513,13 +513,13 @@ def _validate_template_for_reference(template_name: str, reference_doctype: str 
 	Variables resolve from one document of the template's bound reference_doctype, so
 	sending from a different doctype (or none) cannot fill them. See DESIGN_DECISIONS.md.
 	"""
-	if not frappe.db.exists("WhatsApp Template", template_name):
+	if not frappe.db.exists("WA Template", template_name):
 		frappe.throw(
 			_("WhatsApp Template '{0}' does not exist.").format(template_name),
 			frappe.DoesNotExistError,
 		)
 
-	template = frappe.get_cached_doc("WhatsApp Template", template_name)
+	template = frappe.get_cached_doc("WA Template", template_name)
 	if not template.get("template_variables"):
 		return
 
@@ -568,13 +568,13 @@ def _submit(doc: Document, failure_summary: str) -> None:
 			"Message",
 			f"{failure_summary}: {e}",
 			account=doc.whatsapp_account,
-			reference_doctype="WhatsApp Message",
+			reference_doctype="WA Message",
 			reference_docname=doc.name,
 			traceback=frappe.get_traceback(),
 		)
-		if frappe.db.get_value("WhatsApp Message", doc.name, "status") != "Failed":
+		if frappe.db.get_value("WA Message", doc.name, "status") != "Failed":
 			frappe.db.set_value(
-				"WhatsApp Message",
+				"WA Message",
 				doc.name,
 				{"status": "Failed", "error_message": str(e)},
 				update_modified=False,

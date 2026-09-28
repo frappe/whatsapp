@@ -7,7 +7,7 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
 ## Repo structure
 
 - `whatsapp/` — Frappe app package
-  - `whatsapp/doctype/` — DocTypes: `WhatsAppSettings`, `WhatsAppAccount`, `WhatsAppMessage`, `WhatsAppTemplate`, `WhatsAppLog`, `TemplateVariable`, `WhatsAppTemplateButton`, `WhatsAppAccountAppend`
+  - `whatsapp/doctype/` — DocTypes: `WASettings`, `WAAccount`, `WAMessage`, `WATemplate`, `WALog`, `WATemplateVariable`, `WATemplateButton`, `WAAccountAppend`
   - `whatsapp/api/whatsapp.py` — `WhatsApp` class wrapping Facebook Graph API calls
   - `whatsapp/api/utils.py` — Template payload builders/parsers, `{{var}}` interpolation helpers, `log()` utility, `get_logs()` whitelisted API
   - `hooks.py` — Frappe hooks (most commented out; early stage)
@@ -44,7 +44,7 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
 
 ```bash
 bench run-tests --app whatsapp               # all tests
-bench run-tests --app whatsapp --doctype "WhatsAppTemplate"   # single doctype
+bench run-tests --app whatsapp --doctype "WA Template"   # single doctype
 bench run-tests --app whatsapp --test test_validation_method   # single test method
 bench run-tests --app whatsapp --module "whatsapp.api"        # module outside doctype dir
 bench run-tests --app whatsapp --profile                      # with profiling
@@ -176,7 +176,7 @@ class TestUtils:
 ```json
 [
     {
-        "doctype": "WhatsAppTemplate",
+        "doctype": "WA Template",
         "template_name": "_Test Template",
         "language": "en_US",
         "template_type": "Utility",
@@ -200,7 +200,7 @@ bench install-app whatsapp
 
 ## Logging
 
-All significant events MUST be recorded via the `log()` function from `whatsapp.whatsapp.api.utils`. This creates a browsable `WhatsApp Log` record in the desk UI, unlike `frappe.logger()` which writes to log files only.
+All significant events MUST be recorded via the `log()` function from `whatsapp.whatsapp.api.utils`. This creates a browsable `WA Log` record in the desk UI, unlike `frappe.logger()` which writes to log files only.
 
 ### log() signature
 
@@ -209,8 +209,8 @@ log(
     level: str,          # "Info" | "Warning" | "Error" | "Debug"
     event_type: str,     # "Webhook" | "Template" | "Message" | "API" | "System"
     message: str,        # Human-readable summary
-    account: str,        # Optional — link to WhatsApp Account
-    reference_doctype: str,  # Optional — e.g. "WhatsApp Message"
+    account: str,        # Optional — link to WA Account
+    reference_doctype: str,  # Optional — e.g. "WA Message"
     reference_docname: str,  # Optional — the document name
     request_data: str|dict, # Optional — request/outgoing payload
     response_data: str|dict, # Optional — response/incoming data
@@ -245,14 +245,14 @@ log(
 
 ### Log retention
 
-`WhatsApp Log` uses `track_changes = 1` and `naming_rule = "Random"`. There is no built-in cleanup — add a scheduled automation or `frappe.desk.doctype.tag.tag.remove_tags()` if log rotation is needed.
+`WA Log` uses `track_changes = 1` and `naming_rule = "Random"`. There is no built-in cleanup — add a scheduled automation or `frappe.desk.doctype.tag.tag.remove_tags()` if log rotation is needed.
 
 ## Key notes
 
 - **Frappe dependency** is installed and managed by bench, not listed in pyproject.toml
 - **Patches**: `patches.txt` is empty — no migrations defined yet
 - **Hooks**: Almost all hooks in `hooks.py` are commented out — app is in early development
-- **`fetch()` webhook** in `whatsapp_template.py` is a TODO stub
+- **`fetch()` webhook** in `wa_template.py` is a TODO stub
 
 ## User Notes
 

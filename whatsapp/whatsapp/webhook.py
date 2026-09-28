@@ -14,11 +14,11 @@ from frappe.core.doctype.server_script.server_script_utils import (
 from werkzeug.wrappers import Response
 
 from whatsapp.whatsapp.api.utils import log, normalize_template_status
-from whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message import (
+from whatsapp.whatsapp.doctype.wa_message.wa_message import (
 	_get_whatsapp_client,
 	process_append_actions,
 )
-from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import (
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 	get_or_create_profile,
 	lock_profile,
 )
@@ -49,7 +49,7 @@ def _verify() -> Response:
 	if mode != "subscribe" or not token or not challenge:
 		return Response("invalid request", status=403, mimetype="text/plain")
 
-	settings = frappe.get_single("WhatsApp Settings")
+	settings = frappe.get_single("WA Settings")
 	if token != (settings.get("webhook_verify_token") or ""):
 		return Response("token mismatch", status=403, mimetype="text/plain")
 
@@ -61,7 +61,7 @@ def _receive() -> str:
 	"""Receive incoming webhook events from Meta. Always 200 + Content-Type: text/plain."""
 	payload = frappe.local.form_dict
 
-	settings = frappe.get_single("WhatsApp Settings")
+	settings = frappe.get_single("WA Settings")
 	secret = settings.get("webhook_secret")
 	if secret:
 		try:
@@ -102,9 +102,9 @@ def _handle_messages(value: dict) -> None:
 	metadata = value.get("metadata", {})
 	phone_number_id = metadata.get("phone_number_id")
 
-	account_name = frappe.db.get_value("WhatsApp Account", {"phone_id": phone_number_id}, "name")
+	account_name = frappe.db.get_value("WA Account", {"phone_id": phone_number_id}, "name")
 	if not account_name:
-		default_account = frappe.db.get_single_value("WhatsApp Settings", "default_account")
+		default_account = frappe.db.get_single_value("WA Settings", "default_account")
 		if default_account:
 			account_name = default_account
 		else:
@@ -125,7 +125,7 @@ def _handle_messages(value: dict) -> None:
 
 def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict | None = None) -> None:
 	message_id = msg.get("id")
-	if message_id and frappe.db.exists("WhatsApp Message", {"message_id": message_id}):
+	if message_id and frappe.db.exists("WA Message", {"message_id": message_id}):
 		log(
 			"Info",
 			"Webhook",
@@ -189,7 +189,7 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 
 	doc = frappe.get_doc(
 		{
-			"doctype": "WhatsApp Message",
+			"doctype": "WA Message",
 			"to": profile,
 			"from": msg.get("to"),
 			"message": content,
@@ -211,9 +211,9 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 	process_append_actions(doc, trigger_on="Incoming")
 	doc.run_notifications("on_receive")
 
-	account_doc = frappe.get_cached_doc("WhatsApp Account", account_name)
+	account_doc = frappe.get_cached_doc("WA Account", account_name)
 	if account_doc.get("auto_read_receipts") and doc.get("message_id"):
-		settings = frappe.get_single("WhatsApp Settings")
+		settings = frappe.get_single("WA Settings")
 		try:
 			client = _get_whatsapp_client(account_doc, settings)
 			client.mark_as_read(doc.message_id)
@@ -223,7 +223,7 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 				"Webhook",
 				f"Failed to send read receipt for {doc.message_id}",
 				account=account_name,
-				reference_doctype="WhatsApp Message",
+				reference_doctype="WA Message",
 				reference_docname=doc.name,
 				traceback=frappe.get_traceback(),
 			)
@@ -233,7 +233,7 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 		"Webhook",
 		f"Incoming {msg_type} message from {wa_id} ({profile_name})",
 		account=account_name,
-		reference_doctype="WhatsApp Message",
+		reference_doctype="WA Message",
 		reference_docname=doc.name,
 		request_data=msg,
 	)
@@ -262,7 +262,7 @@ def _update_message_status(status: dict, account_name: str | None = None) -> Non
 	if errors:
 		updates["error_message"] = json.dumps(errors)
 
-	name = frappe.db.get_value("WhatsApp Message", {"message_id": message_id}, "name")
+	name = frappe.db.get_value("WA Message", {"message_id": message_id}, "name")
 	if not name:
 		log(
 			"Warning",
@@ -273,12 +273,12 @@ def _update_message_status(status: dict, account_name: str | None = None) -> Non
 		)
 		return
 
-	old_status = frappe.db.get_value("WhatsApp Message", name, "status")
+	old_status = frappe.db.get_value("WA Message", name, "status")
 	if old_status == new_status:
 		return
 
-	frappe.db.set_value("WhatsApp Message", name, updates)
-	doc = frappe.get_doc("WhatsApp Message", name)
+	frappe.db.set_value("WA Message", name, updates)
+	doc = frappe.get_doc("WA Message", name)
 	doc.notify_change()
 	doc.run_notifications("on_status_update")
 	run_server_script_for_doc_event(doc, "on_update")
@@ -289,7 +289,7 @@ def _update_message_status(status: dict, account_name: str | None = None) -> Non
 		"Webhook",
 		f"Message {message_id} status changed: {old_status} -> {new_status}",
 		account=account_name,
-		reference_doctype="WhatsApp Message",
+		reference_doctype="WA Message",
 		reference_docname=name,
 		response_data=status,
 	)
@@ -302,7 +302,7 @@ def _handle_template_status(value: dict) -> None:
 
 	local_status = normalize_template_status(value.get("status", ""))
 
-	name = frappe.db.get_value("WhatsApp Template", {"whatsapp_template_id": template_id}, "name")
+	name = frappe.db.get_value("WA Template", {"whatsapp_template_id": template_id}, "name")
 	if not name:
 		log(
 			"Warning",
@@ -312,12 +312,12 @@ def _handle_template_status(value: dict) -> None:
 		)
 		return
 
-	old_status = frappe.db.get_value("WhatsApp Template", name, "status")
+	old_status = frappe.db.get_value("WA Template", name, "status")
 	if old_status == local_status:
 		return
 
-	frappe.db.set_value("WhatsApp Template", name, "status", local_status)
-	doc = frappe.get_doc("WhatsApp Template", name)
+	frappe.db.set_value("WA Template", name, "status", local_status)
+	doc = frappe.get_doc("WA Template", name)
 	if local_status == "Approved":
 		doc.run_notifications("on_template_approved")
 	elif local_status == "Rejected":
@@ -328,7 +328,7 @@ def _handle_template_status(value: dict) -> None:
 		"Info",
 		"Webhook",
 		f"Template {doc.template_name} status changed: {old_status} -> {local_status}",
-		reference_doctype="WhatsApp Template",
+		reference_doctype="WA Template",
 		reference_docname=name,
 		response_data=value,
 	)

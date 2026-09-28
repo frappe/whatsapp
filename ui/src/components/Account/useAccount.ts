@@ -10,9 +10,9 @@ import {
   type WhatsAppAccount,
 } from "./types";
 
-const DOCTYPE = "WhatsApp Account";
+const DOCTYPE = "WA Account";
 const OPTIONS_API =
-  "whatsapp.whatsapp.doctype.whatsapp_account.whatsapp_account.get_append_field_options";
+  "whatsapp.whatsapp.doctype.wa_account.wa_account.get_append_field_options";
 
 export function emptyAccount(): WhatsAppAccount {
   return {

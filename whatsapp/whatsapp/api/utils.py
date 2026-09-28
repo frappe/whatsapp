@@ -512,10 +512,7 @@ def build_interactive_buttons_payload(
 			"type": "button",
 			"body": {"text": body_text},
 			"action": {
-				"buttons": [
-					{"type": "reply", "reply": {"id": b["id"], "title": b["title"]}}
-					for b in buttons
-				]
+				"buttons": [{"type": "reply", "reply": {"id": b["id"], "title": b["title"]}} for b in buttons]
 			},
 		},
 	}
@@ -605,7 +602,7 @@ def get_logs(
 	account: str | None = None,
 	limit: int = 100,
 ) -> list[dict]:
-	frappe.has_permission("WhatsApp Log", "read", throw=True)
+	frappe.has_permission("WA Log", "read", throw=True)
 
 	filters = {}
 	if event_type:
@@ -615,9 +612,18 @@ def get_logs(
 	if account:
 		filters["account"] = account
 	return frappe.get_all(
-		"WhatsApp Log",
+		"WA Log",
 		filters=filters or None,
-		fields=["name", "level", "event_type", "message", "account", "timestamp", "reference_doctype", "reference_docname"],
+		fields=[
+			"name",
+			"level",
+			"event_type",
+			"message",
+			"account",
+			"timestamp",
+			"reference_doctype",
+			"reference_docname",
+		],
 		order_by="creation desc",
 		limit=limit,
 	)
@@ -642,7 +648,7 @@ def log(
 			response_data = frappe.as_json(response_data)
 		doc = frappe.get_doc(
 			{
-				"doctype": "WhatsApp Log",
+				"doctype": "WA Log",
 				"level": level,
 				"event_type": event_type,
 				"message": message,
