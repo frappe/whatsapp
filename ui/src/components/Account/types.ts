@@ -33,7 +33,7 @@ export interface AppendAction {
 }
 
 export interface WhatsAppAccount {
-  doctype: "WhatsApp Account";
+  doctype: "WA Account";
   /** docname; absent on an account that has not been created yet */
   name?: string;
   account_name?: string;

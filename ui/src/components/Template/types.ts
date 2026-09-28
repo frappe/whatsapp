@@ -29,7 +29,7 @@ export interface TemplateVariableRow {
 }
 
 export interface WhatsAppTemplateDoc {
-  doctype: "WhatsApp Template";
+  doctype: "WA Template";
   /** docname; absent on a template that has not been created yet */
   name?: string;
   template_label?: string;

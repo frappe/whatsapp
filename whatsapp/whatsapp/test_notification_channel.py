@@ -35,7 +35,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		clear_notification_cache()
 
 	def _make_settings(self) -> None:
-		settings = frappe.get_single("WhatsApp Settings")
+		settings = frappe.get_single("WA Settings")
 		settings.whatsapp_api_url = "https://graph.facebook.com"
 		settings.whatsapp_api_version = "v22.0"
 		settings.save()
@@ -44,7 +44,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		uid = frappe.generate_hash(length=6)
 		return (
 			frappe.get_doc(
-				doctype="WhatsApp Account",
+				doctype="WA Account",
 				account_name=f"_Test Notif Account {uid}",
 				status="Active",
 				phone_id=f"phone_{uid}",
@@ -59,7 +59,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 	def _make_template(self, account: str, **overrides) -> str:
 		uid = frappe.generate_hash(length=6)
 		data = dict(
-			doctype="WhatsApp Template",
+			doctype="WA Template",
 			template_label=f"_Test Notif Template {uid}",
 			template_name=f"_test_notif_template_{uid}",
 			template_type="Utility",
@@ -109,7 +109,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 
 	def _messages_for(self, todo: str) -> list[dict]:
 		return frappe.get_all(
-			"WhatsApp Message",
+			"WA Message",
 			filters={"reference_doctype": "ToDo", "reference_docname": todo},
 			fields=["name", "to", "status", "is_template", "whatsapp_template", "template_body_parameters"],
 		)
@@ -179,7 +179,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		self.assertEqual(messages[0].whatsapp_template, template)
 		self.assertEqual(messages[0].status, "Sent")
 
-		profile = frappe.get_doc("WhatsApp Profile", messages[0].to)
+		profile = frappe.get_doc("WA Profile", messages[0].to)
 		self.assertEqual(profile.phone_number, normalize_phone(mobile))
 
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
@@ -200,7 +200,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		mock_send.return_value = {"messages": [{"id": "wamid.default_account"}]}
 		self._set_admin_mobile()
 		account = self._make_account()
-		frappe.db.set_single_value("WhatsApp Settings", "default_account", account)
+		frappe.db.set_single_value("WA Settings", "default_account", account)
 		template = self._make_template(account)
 		self._make_notification(whatsapp_template=template)
 
@@ -236,7 +236,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		self.assertEqual(len(self._messages_for(todo)), 1)
 		self.assertEqual(
 			frappe.db.count(
-				"WhatsApp Profile",
+				"WA Profile",
 				{"phone_number": normalize_phone(mobile), "whatsapp_account": account},
 			),
 			1,
@@ -293,7 +293,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		self.assertTrue(frappe.db.exists("ToDo", todo))
 		self.assertTrue(
 			frappe.db.exists(
-				"WhatsApp Log",
+				"WA Log",
 				{"level": "Error", "message": ("like", f"%{notification}%")},
 			)
 		)

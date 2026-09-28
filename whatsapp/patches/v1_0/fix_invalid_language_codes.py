@@ -14,12 +14,12 @@ def execute():
 	"""
 	for old, new in RETIRED_LANGUAGE_CODES.items():
 		for template in frappe.get_all(
-			"WhatsApp Template",
+			"WA Template",
 			filters={"language": old},
 			fields=["name", "whatsapp_account", "template_name"],
 		):
 			existing = frappe.db.get_value(
-				"WhatsApp Template",
+				"WA Template",
 				{
 					"whatsapp_account": template.whatsapp_account,
 					"template_name": template.template_name,
@@ -27,16 +27,14 @@ def execute():
 				},
 			)
 			if not existing:
-				frappe.db.set_value(
-					"WhatsApp Template", template.name, "language", new, update_modified=False
-				)
+				frappe.db.set_value("WA Template", template.name, "language", new, update_modified=False)
 				continue
 
 			frappe.db.set_value(
-				"WhatsApp Message",
+				"WA Message",
 				{"whatsapp_template": template.name},
 				"whatsapp_template",
 				existing,
 				update_modified=False,
 			)
-			frappe.delete_doc("WhatsApp Template", template.name, force=True, ignore_permissions=True)
+			frappe.delete_doc("WA Template", template.name, force=True, ignore_permissions=True)

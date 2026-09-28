@@ -13,7 +13,7 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 		uid = frappe.generate_hash(length=6)
 		self.account = (
 			frappe.get_doc(
-				doctype="WhatsApp Account",
+				doctype="WA Account",
 				account_name=f"_Test Patch Account {uid}",
 				status="Active",
 				phone_id=f"phone_{uid}",
@@ -25,7 +25,7 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 			.name
 		)
 		region = patch(
-			"whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile.get_default_region",
+			"whatsapp.whatsapp.doctype.wa_profile.wa_profile.get_default_region",
 			return_value="IN",
 		)
 		region.start()
@@ -36,7 +36,7 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 		placeholder = f"+1415555{frappe.generate_hash(length=4)}"
 		name = (
 			frappe.get_doc(
-				doctype="WhatsApp Profile",
+				doctype="WA Profile",
 				phone_number=placeholder,
 				whatsapp_account=self.account,
 				profile_name=phone_number,
@@ -45,7 +45,7 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 			.name
 		)
 		frappe.db.set_value(
-			"WhatsApp Profile",
+			"WA Profile",
 			name,
 			{"phone_number": phone_number, "wa_id": wa_id, "creation": creation},
 			update_modified=False,
@@ -54,12 +54,12 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 
 	def _profiles(self) -> list:
 		return frappe.get_all(
-			"WhatsApp Profile", filters={"whatsapp_account": self.account}, fields=["name", "phone_number"]
+			"WA Profile", filters={"whatsapp_account": self.account}, fields=["name", "phone_number"]
 		)
 
 	def _message_to(self, profile: str) -> str:
 		doc = frappe.get_doc(
-			doctype="WhatsApp Message",
+			doctype="WA Message",
 			direction="Incoming",
 			to=profile,
 			whatsapp_account=self.account,
@@ -75,15 +75,15 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 		host = self._stored_profile("+919876500001", "2020-01-02 00:00:00", wa_id="+919876500001")
 		message = self._message_to(host)
 		todo = frappe.get_doc(doctype="ToDo", description="linked record").insert().name
-		host_doc = frappe.get_doc("WhatsApp Profile", host)
+		host_doc = frappe.get_doc("WA Profile", host)
 		host_doc.append("links", {"link_doctype": "ToDo", "link_name": todo, "link_title": todo})
 		host_doc.db_update_all()
 
 		execute()
 
 		self.assertEqual(self._profiles(), [{"name": meta, "phone_number": "+919876500001"}])
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", message, "to"), meta)
-		links = frappe.get_doc("WhatsApp Profile", meta).links
+		self.assertEqual(frappe.db.get_value("WA Message", message, "to"), meta)
+		links = frappe.get_doc("WA Profile", meta).links
 		self.assertEqual([(link.link_doctype, link.link_name) for link in links], [("ToDo", todo)])
 
 	def test_profile_with_a_wa_id_survives_an_older_one_without(self):
@@ -108,4 +108,4 @@ class IntegrationTestNormalizeProfilePhoneNumbers(IntegrationTestCase):
 
 		execute()
 
-		self.assertEqual(frappe.db.get_value("WhatsApp Profile", singapore, "phone_number"), "+6591234567")
+		self.assertEqual(frappe.db.get_value("WA Profile", singapore, "phone_number"), "+6591234567")

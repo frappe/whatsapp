@@ -89,7 +89,7 @@ app_license = "mit"
 after_install = [
 	"whatsapp.install.setup_notification_channel",
 	"whatsapp.install.seed_languages",
-	"whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile.ensure_unique_phone_per_account",
+	"whatsapp.whatsapp.doctype.wa_profile.wa_profile.ensure_unique_phone_per_account",
 ]
 
 # Migration
@@ -98,7 +98,7 @@ after_install = [
 after_migrate = [
 	"whatsapp.install.setup_notification_channel",
 	"whatsapp.install.seed_languages",
-	"whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile.ensure_unique_phone_per_account",
+	"whatsapp.whatsapp.doctype.wa_profile.wa_profile.ensure_unique_phone_per_account",
 ]
 
 # Uninstallation
@@ -167,7 +167,7 @@ before_uninstall = "whatsapp.install.teardown_notification_channel"
 # ---------------
 
 scheduler_events = {
-	"daily": ["whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.sync_all"],
+	"daily": ["whatsapp.whatsapp.doctype.wa_template.wa_template.sync_all"],
 }
 
 # Testing
@@ -251,7 +251,7 @@ export_python_type_annotations = True
 require_type_annotated_api_methods = True
 
 default_log_clearing_doctypes = {
-	"WhatsApp Log": 60,
+	"WA Log": 60,
 }
 
 # Translation

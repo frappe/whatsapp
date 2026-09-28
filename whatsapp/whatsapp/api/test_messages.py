@@ -32,8 +32,8 @@ from whatsapp.whatsapp.api.utils import (
 	mime_type_for_content_type,
 	parse_template_parameters,
 )
-from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
-from whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template import (
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import get_or_create_profile
+from whatsapp.whatsapp.doctype.wa_template.wa_template import (
 	create_template_and_push,
 	get_active_accounts,
 	get_sendable_templates,
@@ -352,7 +352,7 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 		files = files or []
 
 		def _exists(doctype, name=None, *args, **kwargs):
-			if doctype == "WhatsApp Template":
+			if doctype == "WA Template":
 				return name in templates
 			return True
 
@@ -1061,7 +1061,7 @@ class TestReactToMessagePermissions(WithoutHostAccessGuards, UnitTestCase):
 		reference_doc.has_permission.return_value = False
 
 		def _get_doc(doctype, name=None, *args, **kwargs):
-			return message_doc if doctype == "WhatsApp Message" else reference_doc
+			return message_doc if doctype == "WA Message" else reference_doc
 
 		with (
 			patch("frappe.db.exists", return_value=True),
@@ -1197,7 +1197,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 		super().setUp()
 		frappe.set_user("Administrator")
 		self.account = self._make_account()
-		settings = frappe.get_single("WhatsApp Settings")
+		settings = frappe.get_single("WA Settings")
 		settings.default_account = self.account
 		settings.save(ignore_permissions=True)
 		self.todo = frappe.get_doc(doctype="ToDo", description="_Test WhatsApp reference").insert()
@@ -1207,7 +1207,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 		uid = frappe.generate_hash(length=6)
 		return (
 			frappe.get_doc(
-				doctype="WhatsApp Account",
+				doctype="WA Account",
 				account_name=f"_Test Msg Acc {uid}",
 				status="Active",
 				phone_id=f"phone_{uid}",
@@ -1233,7 +1233,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 		profile = get_or_create_profile(self.phone, self.account, self.phone, self.phone)
 
 		data = dict(
-			doctype="WhatsApp Message",
+			doctype="WA Message",
 			direction="Outgoing",
 			whatsapp_account=self.account,
 			to=profile,
@@ -1269,7 +1269,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 				reference_docname=self.todo.name,
 			)
 
-		message = frappe.get_doc("WhatsApp Message", name)
+		message = frappe.get_doc("WA Message", name)
 		self.assertEqual(message.attach, file_doc.name)
 		# The file URL must never leak into the text body.
 		self.assertNotIn("/files/", message.message or "")
@@ -1293,14 +1293,14 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 				reference_docname=self.todo.name,
 			)
 
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "media_url"), file_doc.file_url)
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "mime_type"), "image/jpeg")
+		self.assertEqual(frappe.db.get_value("WA Message", name, "media_url"), file_doc.file_url)
+		self.assertEqual(frappe.db.get_value("WA Message", name, "mime_type"), "image/jpeg")
 		# The caption stays the caption; it is not replaced by the URL.
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "message"), "look at this")
+		self.assertEqual(frappe.db.get_value("WA Message", name, "message"), "look at this")
 
 	def test_attachment_with_no_matching_file_sends_nothing(self):
 		"""It used to fall through to an empty-bodied text message reaching Meta."""
-		before = frappe.db.count("WhatsApp Message")
+		before = frappe.db.count("WA Message")
 		with patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message") as send:
 			with self.assertRaises(frappe.DoesNotExistError):
 				send_message(
@@ -1313,7 +1313,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 				)
 
 		send.assert_not_called()
-		self.assertEqual(frappe.db.count("WhatsApp Message"), before)
+		self.assertEqual(frappe.db.count("WA Message"), before)
 
 	# --- replies ---------------------------------------------------------------------
 
@@ -1327,7 +1327,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 				reference_doctype="ToDo",
 				reference_docname=self.todo.name,
 			)
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "context_message_id"), "wamid.quoted")
+		self.assertEqual(frappe.db.get_value("WA Message", name, "context_message_id"), "wamid.quoted")
 
 	def test_reply_to_an_unknown_message_is_rejected(self):
 		with self.assertRaises(frappe.DoesNotExistError):
@@ -1361,7 +1361,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 		with patch("whatsapp.whatsapp.api.messages._submit"):
 			name = react_to_message(target.name, "👍")
 
-		reaction = frappe.get_doc("WhatsApp Message", name)
+		reaction = frappe.get_doc("WA Message", name)
 		self.assertEqual(reaction.reaction, "👍")
 		self.assertEqual(reaction.context_message_id, "wamid.reactme")
 		self.assertEqual(reaction.reference_doctype, "ToDo")
@@ -1377,7 +1377,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 
 		self.assertIn(target.name, str(ctx.exception))
 		send.assert_not_called()
-		self.assertFalse(frappe.db.exists("WhatsApp Message", {"reaction": "👍"}))
+		self.assertFalse(frappe.db.exists("WA Message", {"reaction": "👍"}))
 
 	# --- send failure ----------------------------------------------------------------
 
@@ -1397,16 +1397,16 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 			)
 
 		self.assertTrue(name)
-		message = frappe.get_doc("WhatsApp Message", name)
+		message = frappe.get_doc("WA Message", name)
 		self.assertEqual(message.status, "Failed")
 		self.assertIn("Meta rejected", message.error_message or "")
 
 		self.assertTrue(
 			frappe.db.exists(
-				"WhatsApp Log",
+				"WA Log",
 				{
 					"level": "Error",
-					"reference_doctype": "WhatsApp Message",
+					"reference_doctype": "WA Message",
 					"reference_docname": name,
 				},
 			)
@@ -1429,7 +1429,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 			)
 
 		self.assertEqual(frappe.get_message_log(), [])
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "status"), "Failed")
+		self.assertEqual(frappe.db.get_value("WA Message", name, "status"), "Failed")
 
 	def test_clearing_the_failure_dialog_leaves_earlier_messages_alone(self):
 		"""Only what the failed submit added is dropped, not an unrelated earlier msgprint."""
@@ -1456,7 +1456,7 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 	def test_unexpected_submit_failure_is_recorded_by_submit_helper(self):
 		"""Failures the send path does not classify still land as a Failed row + a log."""
 		with patch(
-			"whatsapp.whatsapp.doctype.whatsapp_message.whatsapp_message.WhatsAppMessage._send",
+			"whatsapp.whatsapp.doctype.wa_message.wa_message.WAMessage._send",
 			side_effect=RuntimeError("boom"),
 		):
 			name = send_message(
@@ -1466,14 +1466,14 @@ class IntegrationTestSendMessage(WithoutHostAccessGuards, IntegrationTestCase):
 				reference_docname=self.todo.name,
 			)
 
-		self.assertEqual(frappe.db.get_value("WhatsApp Message", name, "status"), "Failed")
-		self.assertIn("boom", frappe.db.get_value("WhatsApp Message", name, "error_message") or "")
+		self.assertEqual(frappe.db.get_value("WA Message", name, "status"), "Failed")
+		self.assertIn("boom", frappe.db.get_value("WA Message", name, "error_message") or "")
 		self.assertTrue(
 			frappe.db.exists(
-				"WhatsApp Log",
+				"WA Log",
 				{
 					"level": "Error",
-					"reference_doctype": "WhatsApp Message",
+					"reference_doctype": "WA Message",
 					"reference_docname": name,
 				},
 			)

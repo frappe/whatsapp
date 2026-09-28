@@ -2,14 +2,14 @@ from collections import defaultdict
 
 import frappe
 
-from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import normalize_phone
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import normalize_phone
 
 
 def execute():
 	"""Profiles that normalize onto one number keep the one Meta created (it has a
 	`wa_id`), or else the oldest; the other's messages and links move over."""
 	profiles = frappe.get_all(
-		"WhatsApp Profile",
+		"WA Profile",
 		fields=["name", "phone_number", "whatsapp_account", "wa_id"],
 		order_by="creation asc",
 	)
@@ -27,7 +27,7 @@ def execute():
 			_merge(losers, into=survivor.name, phone_number=phone_number)
 		elif phone_number != survivor.phone_number:
 			frappe.db.set_value(
-				"WhatsApp Profile", survivor.name, "phone_number", phone_number, update_modified=False
+				"WA Profile", survivor.name, "phone_number", phone_number, update_modified=False
 			)
 
 
@@ -41,18 +41,18 @@ def _normalize_stored(phone_number: str | None) -> str:
 
 
 def _merge(losers: list[str], into: str, phone_number: str) -> None:
-	frappe.db.set_value("WhatsApp Message", {"to": ("in", losers)}, "to", into, update_modified=False)
+	frappe.db.set_value("WA Message", {"to": ("in", losers)}, "to", into, update_modified=False)
 	loser_links = frappe.get_all(
 		"Dynamic Link",
-		filters={"parenttype": "WhatsApp Profile", "parent": ("in", losers)},
+		filters={"parenttype": "WA Profile", "parent": ("in", losers)},
 		fields=["link_doctype", "link_name", "link_title"],
 		order_by="parent, idx",
 	)
 	# deleted before the target is saved, or the target's unique-phone validation finds them
 	for loser in losers:
-		frappe.delete_doc("WhatsApp Profile", loser, ignore_permissions=True, force=True)
+		frappe.delete_doc("WA Profile", loser, ignore_permissions=True, force=True)
 
-	target = frappe.get_doc("WhatsApp Profile", into)
+	target = frappe.get_doc("WA Profile", into)
 	target.phone_number = phone_number
 	existing = {(link.link_doctype, link.link_name) for link in target.links}
 	for link in loser_links:

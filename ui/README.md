@@ -178,7 +178,7 @@ still typed in the box is a separate unsent message.
 
 ### The account form
 
-`useAccount()` and `AccountForm` render one `WhatsApp Account`: the plain fields and the Append
+`useAccount()` and `AccountForm` render one `WA Account`: the plain fields and the Append
 Actions table, with the Append To rule the desk form has (changing a row's doctype blanks its
 four mappings and reloads their options) inside the component, so a host does not write it.
 
@@ -220,7 +220,7 @@ so the account and template forms render their sections, labels and controls the
 
 ### The template form
 
-`useTemplate()` renders one `WhatsApp Template` through two views the host swaps between:
+`useTemplate()` renders one `WA Template` through two views the host swaps between:
 `TemplateForm`, a `FormLayout` schema (`templateLayout.ts`) with a body editor and the variables
 grid, and `TemplatePreview`, the message as the contact will read it. The page header, the
 toggle between them and the Save button are the host's, so they sit in its own header the way
@@ -407,7 +407,7 @@ same assembly if you want to inspect what would go out; it never sends.
 ```ts
 const messages = useMessages({
   references, // [doctype, docname] pairs — the conversation's scope
-  to, // recipient: a WhatsApp Profile name or a phone number
+  to, // recipient: a WA Profile name or a phone number
   initialDraft, // optional: text the draft starts with
 });
 
@@ -476,7 +476,7 @@ Kept apart from `useMessages()` because a template send composes nothing — the
 rendered server-side from the reference document — and because the offering is a property of
 the DocType, not of the conversation. `sendTemplate(name, { to?, referenceDocname? })` returns
 the new message's docname or `null`; `createTemplate(fields, accountName)` creates a
-`WhatsApp Template` and pushes it to Meta, then refreshes the list (a new template is not
+`WA Template` and pushes it to Meta, then refreshes the list (a new template is not
 sendable until Meta approves it, so it will not appear yet).
 
 ### Sender name is a prop, not a field
@@ -610,7 +610,7 @@ react_to_message(message, emoji)
 send_template(template, to, reference_doctype, reference_docname)
 ```
 
-From `whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template`:
+From `whatsapp.whatsapp.doctype.wa_template.wa_template`:
 
 ```
 get_sendable_templates(reference_doctype)
@@ -622,7 +622,7 @@ their type annotations, and that parameter is annotated `str`, so a raw array is
 before the method runs. `useMessages()` stringifies it for you.
 
 Realtime updates listen on the `whatsapp_message` event, published by
-`WhatsApp Message.notify_change()` with the reference doctype and docname, on that document's
+`WA Message.notify_change()` with the reference doctype and docname, on that document's
 room.
 
 ### Security
@@ -725,7 +725,7 @@ blanket rule is what kept this package fetch-free for longer than it should have
   imposes is a **day separator**.
 - **No account or settings management.** Choosing the WhatsApp account and enabling the
   channel stay in the host (or the desk UI). Editing templates is desk-side too: point a
-  "create a template" affordance at `/app/whatsapp-template/new`, or call the controller's
+  "create a template" affordance at `/app/wa-template/new`, or call the controller's
   `createTemplate()`.
 
 ## Types

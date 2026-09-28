@@ -9,9 +9,9 @@ import type {
   WhatsAppTemplateDoc,
 } from "./types";
 
-const DOCTYPE = "WhatsApp Template";
+const DOCTYPE = "WA Template";
 const COLUMNS_API =
-  "whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.get_doctype_columns";
+  "whatsapp.whatsapp.doctype.wa_template.wa_template.get_doctype_columns";
 
 const STATUS_THEME: Record<TemplateStatus, TemplateIndicator["theme"]> = {
   Pending: "orange",

@@ -20,7 +20,7 @@ def execute():
 		# Skip rows already masked (only '*' characters) — those tokens already live in __Auth.
 		if set(row.access_token) == {"*"}:
 			continue
-		doc = frappe.get_doc("WhatsApp Account", row.name)
+		doc = frappe.get_doc("WA Account", row.name)
 		doc.access_token = row.access_token
 		doc.save(ignore_permissions=True)
 

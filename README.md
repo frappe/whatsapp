@@ -5,7 +5,7 @@ Official WhatsApp integration for Frappe apps, built on Meta's WhatsApp Business
 Install it on a site and you can:
 
 - **Receive** messages from customers through a Meta webhook. Each message becomes a
-  `WhatsApp Message` record and each new sender a `WhatsApp Profile`.
+  `WA Message` record and each new sender a `WA Profile`.
 - **Send** text, media, reactions, interactive buttons/lists and approved templates, from Desk or
   from code, and watch the status move through Sent, Delivered and Read.
 - **Manage templates**: create them in Desk, push them to Meta for approval, and keep them in
@@ -15,7 +15,7 @@ Install it on a site and you can:
 - **Build on it**: a small whitelisted API and a Vue component library let a host app such as a
   CRM embed conversations without reimplementing any WhatsApp logic.
 - **See what happened**: every webhook, API call and send is recorded in a browsable
-  `WhatsApp Log`.
+  `WA Log`.
 
 ## Contents
 
@@ -42,7 +42,7 @@ bench install-app whatsapp
 ## Getting Started
 
 Six steps take a fresh site from nothing to a first message. Everything the app does along the
-way is recorded in **WhatsApp Log**, so keep it open beside Desk while you go.
+way is recorded in **WA Log**, so keep it open beside Desk while you go.
 
 ### 1. Set up the Meta side
 
@@ -59,9 +59,9 @@ way is recorded in **WhatsApp Log**, so keep it open beside Desk while you go.
 > Until the phone number is live, Meta only delivers to numbers you add under
 > **API Setup > To**. Sends to anyone else fail with "Recipient phone number not in allowed list".
 
-### 2. Fill in WhatsApp Settings
+### 2. Fill in WA Settings
 
-Open **WhatsApp Settings** in Desk.
+Open **WA Settings** in Desk.
 
 | Field | Value |
 |---|---|
@@ -83,16 +83,16 @@ In the app's **WhatsApp > Configuration** page:
    ```
 
 2. Set the **Verify token** to the value from step 2 and click **Verify and save**. The app
-   answers Meta's challenge and writes "Webhook verified successfully" to WhatsApp Log.
+   answers Meta's challenge and writes "Webhook verified successfully" to WA Log.
 3. Under **Webhook fields**, subscribe to `messages` and `message_template_status_update`.
    Other fields are delivered but ignored.
 
 The site must be reachable over HTTPS from the internet. For a local bench, put a tunnel such as
 ngrok in front of it and use the tunnel's URL.
 
-### 4. Create a WhatsApp Account
+### 4. Create a WA Account
 
-Open **WhatsApp Account > New** and fill in:
+Open **WA Account > New** and fill in:
 
 | Field | Value |
 |---|---|
@@ -103,7 +103,7 @@ Open **WhatsApp Account > New** and fill in:
 | Phone ID | The Phone Number ID from step 1. |
 | Access token | The system user token from step 1. Hidden after save. |
 
-- The first account saved becomes the **Default Account** in WhatsApp Settings. Later accounts
+- The first account saved becomes the **Default Account** in WA Settings. Later accounts
   leave that choice alone.
 - **Auto Send Read Receipts** marks incoming messages as read on WhatsApp as they arrive.
 - **Append Actions** is optional automation, covered under
@@ -117,7 +117,7 @@ form. It asks Meta which apps are subscribed and offers a **Subscribe** button i
 
 - **One active account:** the scheduler pulls templates from Meta daily. Nothing to do.
 - **Several active accounts:** the daily job only logs that it found more than one. Sync each by
-  hand: open the **WhatsApp Template** list, click **Sync from Meta** and pick the account.
+  hand: open the **WA Template** list, click **Sync from Meta** and pick the account.
 
 Each template arrives with its Meta status, and only **Approved** templates can be sent.
 
@@ -128,26 +128,26 @@ the contact last messaged you. Outside that window, which includes a contact you
 heard from, only an approved template gets through. So the first message to a new contact is a
 template.
 
-- **From Desk:** open **WhatsApp Message > New** and pick the recipient in **To**. This is a
-  WhatsApp Profile, created automatically for every sender that has messaged you, or by hand
+- **From Desk:** open **WA Message > New** and pick the recipient in **To**. This is a
+  WA Profile, created automatically for every sender that has messaged you, or by hand
   with a phone number. Tick **Is Template**, choose a template and **Submit**. The send happens
   on submit, and **Status** moves from Pending to Sent, then to Delivered and Read as Meta's
   status webhooks arrive.
 - **From code:** call [`send_template`](#send_template) or [`send_message`](#send_message). Both
   accept a raw phone number for `to` and create the profile if needed.
 
-Reply from the phone and the message lands as an incoming **WhatsApp Message** within a few
+Reply from the phone and the message lands as an incoming **WA Message** within a few
 seconds. The window is now open, and plain text sends work for the next 24 hours.
 
 ## Troubleshooting
 
-Start with **WhatsApp Log**. Every entry carries a **Level** (Info, Warning, Error, Debug) and an
+Start with **WA Log**. Every entry carries a **Level** (Info, Warning, Error, Debug) and an
 **Event Type** (Webhook, Template, Message, API, System), and API entries keep the request and
 response payloads. Filtering the list on Level = Error is usually the fastest way to the cause.
 
 | Symptom | Cause and fix |
 |---|---|
-| Meta reports the callback URL could not be verified | The verify token on Meta differs from **Webhook Verify Token** in WhatsApp Settings, or the URL is wrong. The response was a 403 "token mismatch" or "invalid request"; check the log entry of type Webhook. |
+| Meta reports the callback URL could not be verified | The verify token on Meta differs from **Webhook Verify Token** in WA Settings, or the URL is wrong. The response was a 403 "token mismatch" or "invalid request"; check the log entry of type Webhook. |
 | Log shows "HMAC signature verification failed" on every delivery | **Webhook Secret** does not match the app's App Secret. Copy it again from **App Settings > Basic**. |
 | Sends fail with "Recipient phone number not in allowed list" | The number is live only for test recipients. Add the recipient on **API Setup > To**, or complete Meta's business verification to go live. |
 | A text message fails but templates work | The customer service window is closed. Send a template and wait for a reply. |
@@ -162,10 +162,10 @@ response payloads. Filtering the list on Level = Error is usually the fastest wa
 | Incoming messages | Text, buttons, interactive replies, reactions, images, audio, documents, video and stickers. |
 | Outgoing messages | Template, text, media, reaction and interactive messages. |
 | Status tracking | Sent, Delivered, Read and Failed, updated from Meta's status webhooks. |
-| Profiles | A `WhatsApp Profile` is created automatically for every new contact. |
+| Profiles | A `WA Profile` is created automatically for every new contact. |
 | Replies | An outgoing message can quote an earlier one through the `reply_to_message` field. |
 | Reactions | Send and receive emoji reactions. |
-| Read receipts | Optional per account: tick **Auto Send Read Receipts** on the WhatsApp Account. |
+| Read receipts | Optional per account: tick **Auto Send Read Receipts** on the WA Account. |
 | Media | Attach an image, document, video or audio file to an outgoing message. It is uploaded to Meta at send time. |
 | Interactive | Quick reply buttons (up to 3) and list messages (up to 10 items). |
 
@@ -193,7 +193,7 @@ response payloads. Filtering the list on Level = Error is usually the fastest wa
   template approved and rejected.
 - **Append Actions:** automatically create a linked document in another DocType when a message
   comes in, goes out, or both. Configured per account.
-- **Server Scripts:** `WhatsApp Message` runs the standard Frappe lifecycle (`after_insert`,
+- **Server Scripts:** `WA Message` runs the standard Frappe lifecycle (`after_insert`,
   `on_update` and so on), so a Server Script can hook into it.
 
 #### WhatsApp notifications
@@ -204,20 +204,20 @@ the customer" then needs no code:
 
 1. Open **Notification > New**, set **Channel** to **WhatsApp** and pick the **Document Type**
    and event as usual.
-2. Choose a **WhatsApp Template**. It must be **Approved**, and if it has variables its
+2. Choose a **WA Template**. It must be **Approved**, and if it has variables its
    reference DocType must be the notification's Document Type, since that document fills them.
-3. Optionally choose a **WhatsApp Account**. Blank uses the default account.
+3. Optionally choose a **WA Account**. Blank uses the default account.
 4. Add **Recipients** by document field or by role. A document field must hold a phone number;
    the owner and role recipients use each user's **Mobile No**.
 
-Each recipient gets the template as a regular outgoing `WhatsApp Message` linked to the
+Each recipient gets the template as a regular outgoing `WA Message` linked to the
 triggering document, sent from a background job after the transaction commits. The message body
 comes from the template, so the notification's own Message field is hidden for this channel. A
-failed send is written to WhatsApp Log and does not block the document.
+failed send is written to WA Log and does not block the document.
 
 ### Observability
 
-- **WhatsApp Log** records every webhook event, API call, template operation and message send.
+- **WA Log** records every webhook event, API call, template operation and message send.
 - HMAC-SHA256 signature verification on every webhook delivery.
 
 ## Client API
@@ -235,7 +235,7 @@ logic. They are host-agnostic: no host's DocTypes or roles appear in their signa
 | [`create_template_and_push`](#create_template_and_push) | Create a template and submit it to Meta. |
 
 The message endpoints live in `whatsapp.whatsapp.api.messages`. The template endpoints live in
-`whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template`.
+`whatsapp.whatsapp.doctype.wa_template.wa_template`.
 
 ```js
 const name = await frappe.xcall("whatsapp.whatsapp.api.messages.send_message", {
@@ -280,11 +280,11 @@ whatsapp.whatsapp.api.messages.send_message(to, message, attach, content_type, r
 
 | Parameter | Description |
 |---|---|
-| `to` | A `WhatsApp Profile` name or a raw phone number. A missing profile is created. Resolved against the default account. |
+| `to` | A `WA Profile` name or a raw phone number. A missing profile is created. Resolved against the default account. |
 | `message` | The text, or the caption when `attach` is set. |
 | `attach` | Optional `file_url` of an existing Frappe `File` to send as media. |
 | `content_type` | `text` by default. With `attach`, one of `image`, `document`, `audio` or `video`. |
-| `reply_to` | Optional name of the `WhatsApp Message` to quote. |
+| `reply_to` | Optional name of the `WA Message` to quote. |
 | `reference_doctype`, `reference_docname` | Optional document the message belongs to. |
 
 Returns the new message's name. Throws if both `message` and `attach` are empty.
@@ -305,13 +305,13 @@ reference document.
 whatsapp.whatsapp.api.messages.react_to_message(message, emoji)
 ```
 
-Reacts to the `WhatsApp Message` named `message` and returns the reaction's name. A reaction is
+Reacts to the `WA Message` named `message` and returns the reaction's name. A reaction is
 its own message document, which `get_messages` folds back onto its target.
 
 ### `get_sendable_templates`
 
 ```
-whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.get_sendable_templates(reference_doctype)
+whatsapp.whatsapp.doctype.wa_template.wa_template.get_sendable_templates(reference_doctype)
 ```
 
 Returns the approved templates that can be sent from that DocType, with their buttons and
@@ -321,15 +321,15 @@ and has no variables.
 ### `create_template_and_push`
 
 ```
-whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template.create_template_and_push(doc_data, account_name)
+whatsapp.whatsapp.doctype.wa_template.wa_template.create_template_and_push(doc_data, account_name)
 ```
 
-Creates a `WhatsApp Template` from `doc_data`, or updates an existing one that has not been
+Creates a `WA Template` from `doc_data`, or updates an existing one that has not been
 pushed yet, and submits it to Meta for approval under `account_name`.
 
 ### Realtime updates
 
-`WhatsApp Message` publishes a `whatsapp_message` realtime event carrying the reference doctype
+`WA Message` publishes a `whatsapp_message` realtime event carrying the reference doctype
 and docname, so a conversation view can refresh itself. It fires on insert, on delete and on a
 status change from the webhook, and is emitted after commit.
 
@@ -362,7 +362,7 @@ Not implemented yet. **P1** items should land before a stable public release.
 
 | Priority | Item | Details |
 |---|---|---|
-| P1 | Role-based permissions | Every DocType is System Manager only. Support agents and other non-admin users need per-role read/write on `WhatsApp Message`, `WhatsApp Profile` and `WhatsApp Template`. |
+| P1 | Role-based permissions | Every DocType is System Manager only. Support agents and other non-admin users need per-role read/write on `WA Message`, `WA Profile` and `WA Template`. |
 | P1 | App screen entry | `add_to_apps_screen` in `hooks.py` is commented out, so the app has no entry point of its own in Desk. |
 | P2 | Webhook retry and recovery | If webhook processing throws midway, for example after the profile is created but before the message is inserted, partial state is left behind with no recovery path. |
 | P2 | Auto-block failing profiles | Block a profile after N consecutive failed messages. |
@@ -374,7 +374,7 @@ Not implemented yet. **P1** items should land before a stable public release.
 | P2 | Media download on webhook | Incoming media keeps only metadata (`media_id`, `mime_type`, `media_url`); the file is never fetched. Pulling it into a Frappe `File` needs a background job plus a realtime update so the form reflects the download. |
 | P2 | Manual "Mark as read" | Read receipts are automatic per account only. Add a button to mark a single incoming message as read. |
 | P2 | Send scheduling | Messages are sent immediately on submit. No delayed or time-zone-aware sends. |
-| P2 | Contact enrichment | `WhatsApp Profile` stores only the phone number and display name. No profile photo or other contact metadata from Meta. |
+| P2 | Contact enrichment | `WA Profile` stores only the phone number and display name. No profile photo or other contact metadata from Meta. |
 | P3 | Location messages | Send and receive `latitude`, `longitude`, `name` and `address`. |
 | P3 | Order and catalog messages | Handle the `order` webhook type, send product catalog messages, upload catalogs to Meta and create catalog-based templates. |
 | P3 | Bulk sending | Send one template to many recipients. |
