@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "field:profile_name",
+ "autoname": "hash",
  "creation": "2026-06-01 16:52:06.399512",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -23,8 +23,8 @@
   {
    "fieldname": "profile_name",
    "fieldtype": "Data",
-   "label": "Profile Name",
-   "unique": 1
+   "in_list_view": 1,
+   "label": "Profile Name"
   },
   {
    "fieldname": "phone_number",
@@ -108,7 +108,7 @@
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WhatsApp Profile",
- "naming_rule": "By fieldname",
+ "naming_rule": "Random",
  "owner": "Administrator",
  "permissions": [
   {
@@ -126,6 +126,8 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "profile_name,phone_number",
+ "show_title_field_in_link": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [
@@ -141,5 +143,6 @@
    "color": "Orange",
    "title": "Archived"
   }
- ]
+ ],
+ "title_field": "profile_name"
 }

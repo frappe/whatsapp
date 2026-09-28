@@ -38,10 +38,10 @@ class IntegrationTestWhatsAppProfile(IntegrationTestCase):
 		self.assertEqual(doc.profile_name, "John Doe")
 		self.assertEqual(doc.status, "Active")
 
-	def test_unique_per_account(self):
+	def test_same_sender_on_two_accounts_keeps_display_name(self):
 		acc = self._make_account()
 		acc2 = self._make_account()
-		frappe.get_doc(
+		doc1 = frappe.get_doc(
 			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
@@ -51,9 +51,26 @@ class IntegrationTestWhatsAppProfile(IntegrationTestCase):
 			doctype="WhatsApp Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc2,
-			profile_name="John (Other)",
+			profile_name="John",
 		).insert()
-		self.assertIsNotNone(doc2.name)
+		self.assertNotEqual(doc1.name, doc2.name)
+		self.assertEqual(doc2.profile_name, "John")
+
+	def test_two_senders_sharing_a_display_name(self):
+		acc = self._make_account()
+		doc1 = frappe.get_doc(
+			doctype="WhatsApp Profile",
+			phone_number="+1234567890",
+			whatsapp_account=acc,
+			profile_name="Rahul",
+		).insert()
+		doc2 = frappe.get_doc(
+			doctype="WhatsApp Profile",
+			phone_number="+1234567891",
+			whatsapp_account=acc,
+			profile_name="Rahul",
+		).insert()
+		self.assertNotEqual(doc1.name, doc2.name)
 
 	def test_duplicate_raises(self):
 		acc = self._make_account()
