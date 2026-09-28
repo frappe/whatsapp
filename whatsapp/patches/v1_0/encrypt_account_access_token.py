@@ -11,7 +11,7 @@ def execute():
 	rows = frappe.db.sql(
 		"""
 		SELECT name, access_token
-		FROM `tabWhatsApp Account`
+		FROM `tabWA Account`
 		WHERE access_token IS NOT NULL AND access_token != ''
 		""",
 		as_dict=True,

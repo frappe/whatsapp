@@ -1048,7 +1048,7 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		return doc
 
 	def _display_name(self, profile: str) -> str:
-		return frappe.db.get_value("WhatsApp Profile", profile, "profile_name")
+		return frappe.db.get_value("WA Profile", profile, "profile_name")
 
 	def _created_for(self, profile: str) -> list:
 		return frappe.get_all(

@@ -41,7 +41,7 @@ class IntegrationTestWAProfile(IntegrationTestCase):
 	def test_same_sender_on_two_accounts_keeps_display_name(self):
 		acc = self._make_account()
 		acc2 = self._make_account()
-		frappe.get_doc(
+		doc1 = frappe.get_doc(
 			doctype="WA Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
@@ -59,13 +59,13 @@ class IntegrationTestWAProfile(IntegrationTestCase):
 	def test_two_senders_sharing_a_display_name(self):
 		acc = self._make_account()
 		doc1 = frappe.get_doc(
-			doctype="WhatsApp Profile",
+			doctype="WA Profile",
 			phone_number="+1234567890",
 			whatsapp_account=acc,
 			profile_name="Rahul",
 		).insert()
 		doc2 = frappe.get_doc(
-			doctype="WhatsApp Profile",
+			doctype="WA Profile",
 			phone_number="+1234567891",
 			whatsapp_account=acc,
 			profile_name="Rahul",

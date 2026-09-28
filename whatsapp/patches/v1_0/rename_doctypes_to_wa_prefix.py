@@ -20,6 +20,14 @@ DOCTYPE_RENAMES = [
 
 def execute():
 	for old, new in DOCTYPE_RENAMES:
-		if frappe.db.exists("DocType", old) and not frappe.db.exists("DocType", new):
-			frappe.rename_doc("DocType", old, new, force=True)
+		if frappe.db.exists("DocType", new) or not _owned_by_this_app(old):
+			continue
+		frappe.rename_doc("DocType", old, new, force=True)
 	frappe.clear_cache()
+
+
+def _owned_by_this_app(doctype: str) -> bool:
+	"""Another installed app (frappe_whatsapp, twilio_integration) may own a DocType
+	with one of the old names; only rename the ones whose module belongs to us."""
+	module = frappe.db.get_value("DocType", doctype, "module")
+	return bool(module) and frappe.db.get_value("Module Def", module, "app_name") == "whatsapp"
