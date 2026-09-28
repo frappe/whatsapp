@@ -1,0 +1,16 @@
+import frappe
+
+
+def execute():
+	"""Profiles were named after the sender's display name, which one person messaging
+	two accounts, or two people sharing a name, both collide on. Every existing profile
+	takes the hash name new ones get; rename_doc carries its messages, logs and links."""
+	for name in frappe.get_all("WhatsApp Profile", pluck="name"):
+		frappe.rename_doc(
+			"WhatsApp Profile",
+			name,
+			frappe.generate_hash(length=10),
+			force=True,
+			show_alert=False,
+			rebuild_search=False,
+		)

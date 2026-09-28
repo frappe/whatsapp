@@ -11,3 +11,4 @@ whatsapp.patches.v1_0.titlecase_template_enums
 whatsapp.patches.v1_0.set_default_account_when_only_one
 whatsapp.patches.v1_0.fix_invalid_language_codes
 whatsapp.patches.v1_0.normalize_profile_phone_numbers
+whatsapp.patches.v1_0.rename_profiles_to_hash_names
