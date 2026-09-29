@@ -25,6 +25,9 @@ const props = withDefaults(defineProps<MessagesController & MessageInputProps>()
 	sendLabel: "Send",
 	replyingToLabel: "Replying to",
 	dismissReplyLabel: "Dismiss reply",
+	windowClosedLabel:
+		"The 24-hour customer service window has closed. Send a template to reopen it.",
+	windowUnopenedLabel: "Send a template to start the conversation.",
 });
 
 const emit = defineEmits<{
@@ -49,15 +52,21 @@ const replyToName = computed(() =>
 	props.replyTo?.direction === "Incoming" ? props.senderName : props.youLabel
 );
 
-const sendable = computed(() => props.canSend && !props.disabled);
-
-// Only the platform knows which modifier to name, so it is detected rather than passed in.
-const modifierKey = computed(() =>
-	typeof navigator !== "undefined" &&
-	/Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent)
-		? "⌘"
-		: "Ctrl"
-);
+// The window is a guess from the loaded messages, so it only informs; Meta's own refusal
+// is what stops a send that is really outside it.
+const windowStatus = computed(() => props.serviceWindow?.status ?? "open");
+const windowNotice = computed(() => {
+	switch (windowStatus.value) {
+		case "closed":
+			return props.windowClosedLabel;
+		case "unopened":
+			return props.windowUnopenedLabel;
+		default:
+			return null;
+	}
+});
+const locked = computed(() => props.disabled);
+const sendable = computed(() => props.canSend && !locked.value);
 
 function focus() {
 	nextTick(() => textareaRef.value?.el?.focus());
@@ -68,13 +77,17 @@ function focus() {
  * describe what went out, after the controller has cleared it.
  */
 async function submit(overrides?: Pick<SendMessagePayload, "message">) {
-	if (props.disabled) return;
+	if (!sendable.value) return;
 	const payload = props.buildPayload(overrides);
 	const name = await props.send(overrides);
 	if (name && payload) emit("send", payload);
 }
 
-function sendText() {
+// Shift+enter is left to the textarea, so it breaks the line. An enter that commits an IME
+// composition is neither a send nor a line break.
+function sendOnEnter(event: KeyboardEvent) {
+	if (event.isComposing) return;
+	event.preventDefault();
 	submit();
 }
 
@@ -144,13 +157,13 @@ function upload(file: File) {
 function onDrop(event: DragEvent) {
 	draggingOver.value = false;
 	const file = event.dataTransfer?.files?.[0];
-	if (file && !props.disabled) upload(file);
+	if (file && !locked.value) upload(file);
 }
 
 // Only when the clipboard actually carries a file — pasting text must stay a paste.
 function onPaste(event: ClipboardEvent) {
 	const file = event.clipboardData?.files?.[0];
-	if (!file || props.disabled) return;
+	if (!file || locked.value) return;
 	event.preventDefault();
 	upload(file);
 }
@@ -171,7 +184,16 @@ defineExpose({ focus });
 
 <template>
 	<!-- The dialog is a sibling of the composer, so a host's `class` needs a root above both. -->
-	<div class="flex flex-col">
+	<div class="flex flex-col gap-2">
+		<div
+			v-if="windowNotice"
+			role="status"
+			class="flex items-center gap-2 rounded-lg bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7"
+		>
+			<span class="lucide-info size-4 shrink-0 text-ink-amber-6" aria-hidden="true" />
+			{{ windowNotice }}
+		</div>
+
 		<!--
 			One control rather than a field beside a button row: the reply preview, the field and
 			the actions all sit inside the box, so they share its focus ring, its disabled state
@@ -219,9 +241,8 @@ defineExpose({ focus });
 				class="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent placeholder-ink-gray-5 [field-sizing:content]"
 				:rows="1"
 				:placeholder="placeholder"
-				:disabled="disabled"
-				@keydown.ctrl.enter.stop="sendText"
-				@keydown.meta.enter.stop="sendText"
+				:disabled="locked"
+				@keydown.enter.exact="sendOnEnter"
 			/>
 
 			<div class="flex items-center gap-1 px-1.5 pb-1.5">
@@ -234,11 +255,7 @@ defineExpose({ focus });
 				>
 					<template #default="{ openFileSelector }">
 						<Dropdown :options="uploadOptions(openFileSelector)">
-							<Button
-								variant="ghost"
-								:disabled="disabled"
-								aria-label="Attach a file"
-							>
+							<Button variant="ghost" :disabled="locked" aria-label="Attach a file">
 								<template #icon>
 									<span class="lucide-plus size-4.5" aria-hidden="true" />
 								</template>
@@ -253,10 +270,6 @@ defineExpose({ focus });
 					<template #content>
 						<span class="flex items-center gap-1">
 							{{ sendLabel }}
-							<kbd
-								class="rounded-sm bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
-								>{{ modifierKey }}</kbd
-							>
 							<kbd class="rounded-sm bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
 								>↵</kbd
 							>

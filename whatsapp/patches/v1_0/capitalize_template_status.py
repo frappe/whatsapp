@@ -15,8 +15,6 @@ def execute():
 		"DELETED": "Deleted",
 	}
 	for old, new in mapping.items():
-		frappe.db.set_value(
-			"WhatsApp Template", {"status": old}, "status", new, update_modified=False
-		)
+		frappe.db.set_value("WA Template", {"status": old}, "status", new, update_modified=False)
 
 	frappe.db.commit()

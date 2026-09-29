@@ -9,7 +9,7 @@ app's own endpoints.
 ## Language
 
 **Message**:
-One `WhatsApp Message` document — the atom of the conversation, inbound or
+One `WA Message` document — the atom of the conversation, inbound or
 outbound. Reactions arrive as Messages too, but they are folded away before the
 library sees them (see **Reaction**), so a Message in the view model is always
 something a **Bubble** is drawn for.
@@ -97,7 +97,7 @@ _Avoid_: "date header" (it separates, it does not head a section), "divider"
 thing made of one).
 
 **Template**:
-A pre-approved `WhatsApp Template` document, referenced by docname. This is
+A pre-approved `WA Template` document, referenced by docname. This is
 *provenance*: "this Message was sent from a Template, and here is which one."
 _Avoid_: using "template" bare when you mean the text (see below).
 

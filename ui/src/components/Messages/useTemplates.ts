@@ -9,7 +9,7 @@ import type {
 
 const MESSAGES_API = "whatsapp.whatsapp.api.messages";
 const TEMPLATE_API =
-  "whatsapp.whatsapp.doctype.whatsapp_template.whatsapp_template";
+  "whatsapp.whatsapp.doctype.wa_template.wa_template";
 
 /**
  * The template controller: which templates may be sent from a DocType, and the two writes

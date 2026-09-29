@@ -23,7 +23,7 @@ CUSTOM_FIELDS = {
 			"fieldname": "whatsapp_template",
 			"fieldtype": "Link",
 			"label": "WhatsApp Template",
-			"options": "WhatsApp Template",
+			"options": "WA Template",
 			"insert_after": "whatsapp_section",
 			"depends_on": SHOW_FOR_WHATSAPP,
 			"mandatory_depends_on": SHOW_FOR_WHATSAPP,
@@ -32,7 +32,7 @@ CUSTOM_FIELDS = {
 			"fieldname": "whatsapp_account",
 			"fieldtype": "Link",
 			"label": "WhatsApp Account",
-			"options": "WhatsApp Account",
+			"options": "WA Account",
 			"insert_after": "whatsapp_template",
 			"depends_on": SHOW_FOR_WHATSAPP,
 			"description": "Leave blank to use the default account from WhatsApp Settings",
@@ -58,17 +58,15 @@ def setup_notification_channel() -> None:
 
 def seed_languages() -> None:
 	"""Rows this doesn't know about are left alone: sync creates codes Meta added after us."""
-	stored = dict(frappe.get_all("WhatsApp Language", fields=["name", "language_name"], as_list=True))
+	stored = dict(frappe.get_all("WA Language", fields=["name", "language_name"], as_list=True))
 
 	for code, language_name in SUPPORTED_LANGUAGES.items():
 		if code not in stored:
-			frappe.get_doc(
-				doctype="WhatsApp Language", language_code=code, language_name=language_name
-			).insert(ignore_permissions=True)
-		elif stored[code] != language_name:
-			frappe.db.set_value(
-				"WhatsApp Language", code, "language_name", language_name, update_modified=False
+			frappe.get_doc(doctype="WA Language", language_code=code, language_name=language_name).insert(
+				ignore_permissions=True
 			)
+		elif stored[code] != language_name:
+			frappe.db.set_value("WA Language", code, "language_name", language_name, update_modified=False)
 
 
 def teardown_notification_channel() -> None:
@@ -129,10 +127,14 @@ def _set_property(fieldname: str, property_name: str, value: str, property_type:
 
 
 def _or_whatsapp(expression: str) -> str:
+	if not expression:
+		return f"eval:doc.channel == '{WHATSAPP_CHANNEL}'"
 	return f"eval: ({_strip_eval(expression)}) || doc.channel == '{WHATSAPP_CHANNEL}'"
 
 
 def _and_not_whatsapp(expression: str) -> str:
+	if not expression:
+		return f"eval:doc.channel != '{WHATSAPP_CHANNEL}'"
 	return f"eval: ({_strip_eval(expression)}) && doc.channel != '{WHATSAPP_CHANNEL}'"
 
 

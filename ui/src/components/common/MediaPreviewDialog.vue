@@ -44,6 +44,12 @@ function submit() {
 	show.value = false;
 }
 
+function sendOnEnter(event: KeyboardEvent) {
+	if (event.isComposing) return;
+	event.preventDefault();
+	submit();
+}
+
 watch(
 	() => props.open,
 	(value) => {
@@ -92,8 +98,7 @@ watch(
 					class="w-full"
 					:rows="1"
 					:placeholder="captionPlaceholder"
-					@keydown.ctrl.enter.stop="submit"
-					@keydown.meta.enter.stop="submit"
+					@keydown.enter.exact="sendOnEnter"
 				/>
 			</div>
 		</template>

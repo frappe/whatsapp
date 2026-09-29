@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "creation": "2026-05-26 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "append_to",
+  "trigger_on",
+  "section_break_field_mapping",
+  "message_field",
+  "sender_field",
+  "column_break_field",
+  "sender_name_field",
+  "timestamp_field"
+ ],
+ "fields": [
+  {
+   "fieldname": "append_to",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Append To",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "default": "Incoming",
+   "fieldname": "trigger_on",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Trigger On",
+   "options": "Incoming\nOutgoing\nBoth",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_field_mapping",
+   "fieldtype": "Section Break",
+   "label": "Fields on the Created Document"
+  },
+  {
+   "description": "Stores the message text",
+   "fieldname": "message_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Message Text",
+   "show_description_on_click": 1
+  },
+  {
+   "description": "Stores the contact phone number",
+   "fieldname": "sender_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Phone Number",
+   "reqd": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "fieldname": "column_break_field",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Stores the WhatsApp profile name",
+   "fieldname": "sender_name_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Contact Name",
+   "reqd": 1,
+   "show_description_on_click": 1
+  },
+  {
+   "description": "Stores when the message was sent in a Date or Datetime field",
+   "fieldname": "timestamp_field",
+   "fieldtype": "Autocomplete",
+   "in_list_view": 1,
+   "label": "Message Time",
+   "show_description_on_click": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-28 16:41:37.000000",
+ "modified_by": "Administrator",
+ "module": "WhatsApp",
+ "name": "WA Account Append",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

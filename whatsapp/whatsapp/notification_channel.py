@@ -10,7 +10,10 @@ from frappe.email.doctype.notification.notification import (
 
 from whatsapp.install import WHATSAPP_CHANNEL
 from whatsapp.whatsapp.api.utils import log
-from whatsapp.whatsapp.doctype.whatsapp_profile.whatsapp_profile import get_or_create_profile
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
+	get_or_create_profile,
+	normalize_phone,
+)
 
 
 class WhatsAppNotificationMixin:
@@ -28,7 +31,7 @@ class WhatsAppNotificationMixin:
 		if not self.subject:
 			frappe.throw(_("Subject is required — it names the notification"))
 
-		template = frappe.get_cached_doc("WhatsApp Template", self.get("whatsapp_template"))
+		template = frappe.get_cached_doc("WA Template", self.get("whatsapp_template"))
 		if template.status != "Approved":
 			frappe.throw(
 				_("Template {0} is {1} — only Approved templates can be sent").format(
@@ -63,9 +66,7 @@ class WhatsAppNotificationMixin:
 			)
 
 	def send_whatsapp_message(self, doc, context) -> None:
-		account = self.get("whatsapp_account") or frappe.db.get_single_value(
-			"WhatsApp Settings", "default_account"
-		)
+		account = self.get("whatsapp_account") or frappe.db.get_single_value("WA Settings", "default_account")
 		if not account:
 			frappe.throw(_("No WhatsApp Account set on the notification or in WhatsApp Settings"))
 
@@ -94,7 +95,7 @@ def send_template_message(
 	reference_doctype: str,
 	reference_docname: str,
 ) -> None:
-	message = frappe.new_doc("WhatsApp Message")
+	message = frappe.new_doc("WA Message")
 	message.update(
 		{
 			"direction": "Outgoing",
@@ -108,8 +109,3 @@ def send_template_message(
 	)
 	message.flags.ignore_permissions = True
 	message.submit()
-
-
-def normalize_phone(number: str) -> str:
-	# resolve_profile_by_phone matches the stored string exactly, and User.mobile_no is free-form
-	return "".join(character for character in number if character.isdigit())

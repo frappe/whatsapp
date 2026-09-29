@@ -103,7 +103,14 @@ export interface WhatsAppMessage {
   template_name?: string;
 }
 
-/** Exactly what `get_sendable_templates` returns, buttons included. */
+/** Which reference-document field fills one `{{variable_name}}` in a template's text. */
+export interface WhatsAppTemplateVariable {
+  variable_name: string;
+  /** fieldname on the template's `reference_doctype`; empty when nothing fills it */
+  variable_field?: string;
+}
+
+/** Exactly what `get_sendable_templates` returns, buttons and variables included. */
 export interface WhatsAppTemplate {
   /** opaque docname, and what `sendTemplate` takes */
   name: string;
@@ -122,6 +129,8 @@ export interface WhatsAppTemplate {
   language?: string;
   /** child table, so it needs its own query — optional for a host supplying its own list */
   buttons?: WhatsAppTemplateButton[];
+  /** lets a host preview the body with the reference document's values before sending */
+  template_variables?: WhatsAppTemplateVariable[];
 }
 
 // —— outbound payloads ——
@@ -235,6 +244,18 @@ export interface TemplateButtonsProps {
 /** A `[doctype, docname]` pair naming a document messages hang off. */
 export type MessageReference = [doctype: string, docname: string];
 
+/**
+ * Meta's customer service window: a free-form message reaches the contact only within 24
+ * hours of their last message; outside it, only a template does. Derived from the loaded
+ * conversation, so it is as wide as the references are.
+ */
+export interface CustomerServiceWindow {
+  /** any message opens a window, so it is `unopened` only while the conversation is empty */
+  status: "open" | "closed" | "unopened";
+  /** when the window lapses, or lapsed; `null` while unopened */
+  expiresAt: Date | null;
+}
+
 /** Options for `useMessages()`. Each may be a plain value, a ref, or a getter. */
 export interface UseMessagesOptions {
   /** the conversation's scope; **the first pair is where a send attaches** */
@@ -257,6 +278,8 @@ export interface MessagesController {
   sending: boolean;
   /** last failure of a fetch, a send or a reaction; `null` while healthy. Verbs never throw */
   error: unknown;
+  /** the contact's window; `null` until the conversation has loaded */
+  serviceWindow: CustomerServiceWindow | null;
   reload: () => Promise<void>;
   /**
    * Returns the new message's docname, or `null` when there was nothing to send, no
@@ -346,8 +369,11 @@ export interface TemplatesController {
  *
  * The reply preview sits inside the composer's border, above the field. Draws no page padding
  * of its own; a host supplies it, and a `class` lands on the root above the composer.
- * Accepts a dropped or pasted file as well as a picked one. Sending is ctrl/cmd+enter,
- * leaving a bare enter to break the line.
+ * Accepts a dropped or pasted file as well as a picked one. Enter sends; shift+enter breaks the line.
+ * While the controller's `serviceWindow` is not open a banner above the field says so —
+ * {@link MessageInputProps.windowClosedLabel} or {@link MessageInputProps.windowUnopenedLabel}.
+ * The field stays live: the window is worked out from the loaded messages, so a send Meta
+ * really refuses surfaces as a send error rather than a guess locking the box.
  *
  * Emits: `send` ({@link SendMessagePayload}) **after** the send lands, as a notification.
  * Slots: `leading-actions` — rendered at the start of the action row, inside the composer.
@@ -373,9 +399,18 @@ export interface MessageInputProps {
   /** default "Dismiss reply" — accessible name of the reply preview's close button */
   dismissReplyLabel?: string;
   /**
+   * default "The 24-hour customer service window has closed. Send a template to reopen it."
+   * Shown in a banner above the field while the window is closed.
+   */
+  windowClosedLabel?: string;
+  /**
+   * default "Send a template to start the conversation." Shown in the same banner while the
+   * conversation is empty.
+   */
+  windowUnopenedLabel?: string;
+  /**
    * default "Send". The send button is icon-only, so this is its tooltip and its accessible
-   * name. Do not append the keyboard hint — the tooltip renders it, and which modifier to
-   * name is detected from the platform.
+   * name. Do not append the keyboard hint — the tooltip renders it.
    */
   sendLabel?: string;
   disabled?: boolean;

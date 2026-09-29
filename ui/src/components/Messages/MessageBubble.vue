@@ -150,12 +150,13 @@ function nameFor(direction?: WhatsAppDirection) {
 				<!--
 					A border rather than a ring: frappe-ui registers `ringColor` for `outline`
 					only, so `ring-surface-*` silently falls back to Tailwind's default blue ring.
-					The chip straddles the bubble and the page, so it carries its own surface.
+					The chip straddles the bubble and the page, so it carries its own surface. The
+					hover fill marks it as the thing to hover for who reacted.
 				-->
 				<div
 					v-if="message.reactions?.length"
 					data-slot="reactions"
-					class="absolute -bottom-0.5 right-2 flex translate-y-1/2 gap-0.5 rounded-full border border-outline-gray-2 bg-surface-base px-1.5 py-0.5 text-sm shadow-sm"
+					class="absolute -bottom-0.5 right-2 flex translate-y-1/2 gap-0.5 rounded-full border border-outline-gray-1 bg-surface-base px-1.5 py-0.5 text-sm transition-colors hover:border-outline-gray-2 hover:bg-surface-gray-2"
 				>
 					<Tooltip
 						v-for="(reaction, i) in message.reactions"
