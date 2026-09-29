@@ -1094,16 +1094,34 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 
 		account = self._account_with_action()
 		profile = self._profile(account)
-		todo = frappe.get_doc(doctype="ToDo", description="first conversation").insert()
-		self._incoming(account, profile, reference_doctype="ToDo", reference_docname=todo.name)
+		heading = frappe.get_doc(doctype="Print Heading", print_heading=frappe.generate_hash()).insert()
+		self._incoming(account, profile, reference_doctype="Print Heading", reference_docname=heading.name)
 
 		second = self._incoming(account, profile)
 		second.reference_doctype = second.reference_docname = None
 		process_append_actions(second, trigger_on="Incoming")
 
 		self.assertEqual(self._created_for(profile), [])
-		self.assertEqual((second.reference_doctype, second.reference_docname), ("ToDo", todo.name))
-		self.assertEqual(frappe.db.get_value("WA Message", second.name, "reference_docname"), todo.name)
+		self.assertEqual(
+			(second.reference_doctype, second.reference_docname), ("Print Heading", heading.name)
+		)
+		self.assertEqual(frappe.db.get_value("WA Message", second.name, "reference_docname"), heading.name)
+
+	def test_reference_to_a_doctype_no_action_targets_is_not_reused(self):
+		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
+
+		account = self._account_with_action()
+		profile = self._profile(account)
+		todo = frappe.get_doc(doctype="ToDo", description="old target").insert()
+		self._incoming(account, profile, reference_doctype="ToDo", reference_docname=todo.name)
+
+		second = self._incoming(account, profile)
+		second.reference_doctype = second.reference_docname = None
+		process_append_actions(second, trigger_on="Incoming")
+
+		created = self._created_for(profile)
+		self.assertEqual(len(created), 1)
+		self.assertEqual((second.reference_doctype, second.reference_docname), ("Print Heading", created[0]))
 
 	def test_second_message_from_a_new_sender_does_not_open_a_second_record(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions

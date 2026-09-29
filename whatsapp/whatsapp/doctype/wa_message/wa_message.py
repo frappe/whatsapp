@@ -369,8 +369,8 @@ class WAMessage(Document):
 
 def process_append_actions(doc, trigger_on: str) -> None:
 	"""Attach the message to a document. A reference the message already carries is kept,
-	else the conversation's latest one is reused, and only a conversation with none
-	creates documents from the account's append actions."""
+	else the conversation's latest one to an append action's target is reused, and only a
+	conversation with none creates documents from the account's append actions."""
 	if doc.reference_doctype and doc.reference_docname:
 		return
 
@@ -384,7 +384,8 @@ def process_append_actions(doc, trigger_on: str) -> None:
 		return
 
 	lock_profile(doc.to)
-	reference = _previous_reference(doc) or _create_from_actions(doc, actions)
+	targets = [action.append_to for action in actions]
+	reference = _previous_reference(doc, targets) or _create_from_actions(doc, actions)
 	if not reference:
 		return
 
@@ -394,7 +395,7 @@ def process_append_actions(doc, trigger_on: str) -> None:
 	doc.notify_change()
 
 
-def _previous_reference(doc) -> tuple[str, str] | None:
+def _previous_reference(doc, targets: list[str]) -> tuple[str, str] | None:
 	# for_update reads rows committed after this transaction's snapshot began, which a
 	# plain read under REPEATABLE READ would miss.
 	row = frappe.db.get_value(
@@ -402,7 +403,7 @@ def _previous_reference(doc) -> tuple[str, str] | None:
 		{
 			"to": doc.to,
 			"name": ("!=", doc.name),
-			"reference_doctype": ("is", "set"),
+			"reference_doctype": ("in", targets),
 			"reference_docname": ("is", "set"),
 		},
 		["reference_doctype", "reference_docname"],
