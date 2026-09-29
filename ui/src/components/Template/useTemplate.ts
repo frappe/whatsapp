@@ -117,8 +117,10 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
 
   // Done at save rather than in a watcher so a loaded document is not dirtied by it.
   function mapVariablesToFields() {
+    const isField = (name?: string) => !!name && fieldOptions.value.includes(name);
     for (const row of doc.value.template_variables) {
-      row.variable_field = fieldOptions.value.includes(row.variable_name) ? row.variable_name : "";
+      if (isField(row.variable_field)) continue;
+      row.variable_field = isField(row.variable_name) ? row.variable_name : "";
     }
   }
 
