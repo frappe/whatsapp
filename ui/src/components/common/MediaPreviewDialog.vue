@@ -62,8 +62,8 @@ watch(
 </script>
 
 <template>
-	<Dialog v-model="show" :options="{ title: dialogTitle, size: 'lg' }">
-		<template #body-content>
+	<Dialog v-model="show" :title="dialogTitle" size="lg">
+		<template #default>
 			<div class="flex justify-center rounded-md bg-surface-gray-2 p-2">
 				<img
 					v-if="type === 'image'"
