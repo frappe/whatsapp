@@ -19,7 +19,7 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 	<div class="flex flex-col text-ink-gray-8">
 		<div
 			v-if="controller.lockReason"
-			class="mb-4 flex items-center gap-2 rounded bg-surface-gray-2 px-3 py-2 text-p-sm text-ink-gray-7"
+			class="mb-4 flex items-center gap-2 rounded-4 bg-surface-gray-2 px-3 py-2 text-p-sm text-ink-gray-7"
 		>
 			<span class="lucide-lock size-4 shrink-0" />
 			{{ controller.lockReason }}

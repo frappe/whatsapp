@@ -63,7 +63,7 @@ defineExpose({ onKeyDown });
 	     pointerdown or focus, so this list re-enables its own and never takes focus. -->
 	<div
 		v-if="items.length"
-		class="pointer-events-auto max-h-72 min-w-40 overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base shadow-2xl"
+		class="pointer-events-auto max-h-72 min-w-40 overflow-y-auto rounded-6 border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base shadow-2xl"
 		@pointerdown.stop
 	>
 		<button
@@ -72,7 +72,7 @@ defineExpose({ onKeyDown });
 			:ref="(el) => (itemRefs[index] = el as HTMLButtonElement)"
 			type="button"
 			tabindex="-1"
-			class="flex w-full items-center whitespace-nowrap rounded px-2 py-1.5 text-sm text-ink-gray-8"
+			class="flex w-full items-center whitespace-nowrap rounded-4 px-2 py-1.5 text-sm text-ink-gray-8"
 			:class="{ 'bg-surface-gray-2': index === selectedIndex }"
 			@mousedown.prevent
 			@click.stop.prevent="select(index)"

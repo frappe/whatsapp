@@ -15,18 +15,18 @@ const emit = defineEmits<{
 	select: [emoji: string];
 }>();
 
-function choose(emoji: string, togglePopover: () => void) {
+function choose(emoji: string, close: () => void) {
 	emit("select", emoji);
-	togglePopover();
+	close();
 }
 </script>
 
 <template>
-	<Popover transition="default">
-		<template #target="{ isOpen, togglePopover }">
+	<Popover bare>
+		<template #trigger="slotProps">
 			<!-- caller supplies its own trigger; the icon button is only the fallback -->
-			<slot v-bind="{ isOpen, togglePopover }">
-				<Button variant="ghost" aria-label="React" @click="togglePopover">
+			<slot v-bind="slotProps">
+				<Button variant="ghost" aria-label="React">
 					<template #icon>
 						<span
 							class="lucide-smile-plus size-4 text-ink-gray-7"
@@ -36,7 +36,7 @@ function choose(emoji: string, togglePopover: () => void) {
 				</Button>
 			</slot>
 		</template>
-		<template #body="{ togglePopover }">
+		<template #default="{ close }">
 			<div
 				class="flex items-center justify-center gap-1 rounded-full border border-outline-gray-1 bg-surface-elevation-2 px-2 py-1 shadow-md"
 			>
@@ -47,7 +47,7 @@ function choose(emoji: string, togglePopover: () => void) {
 					variant="ghost"
 					class="rounded-full"
 					:aria-label="`React with ${emoji}`"
-					@click="choose(emoji, togglePopover)"
+					@click="choose(emoji, close)"
 				>
 					<span class="text-xl leading-none">{{ emoji }}</span>
 				</Button>
