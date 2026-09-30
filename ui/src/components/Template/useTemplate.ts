@@ -14,7 +14,7 @@ const COLUMNS_API =
   "whatsapp.whatsapp.doctype.wa_template.wa_template.get_doctype_columns";
 
 const STATUS_THEME: Record<TemplateStatus, TemplateIndicator["theme"]> = {
-  Pending: "orange",
+  Pending: "amber",
   Approved: "green",
   Rejected: "red",
   Deleted: "gray",
@@ -51,7 +51,7 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
   const isDirty = computed(() => JSON.stringify(doc.value) !== loadedJson.value);
 
   const indicator = computed<TemplateIndicator | null>(() => {
-    if (isNew.value || isDirty.value) return { label: "Not Saved", theme: "orange" };
+    if (isNew.value || isDirty.value) return { label: "Not Saved", theme: "amber" };
     const status = doc.value.status;
     return status ? { label: status, theme: STATUS_THEME[status] } : null;
   });
