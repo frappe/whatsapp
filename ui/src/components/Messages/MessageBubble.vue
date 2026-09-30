@@ -224,13 +224,13 @@ function nameFor(direction?: WhatsAppDirection) {
 				<span
 					v-else-if="['Read', 'Delivered'].includes(message.status || '')"
 					class="lucide-check-check size-4"
-					:class="{ 'text-ink-blue-6': message.status == 'Read' }"
+					:class="{ 'text-ink-blue-5': message.status == 'Read' }"
 					aria-hidden="true"
 				/>
 			</template>
 
 			<!-- readable rather than hover-only: a send failure is the one thing worth reading -->
-			<span v-if="message.status == 'Failed'" class="min-w-0 break-words text-ink-red-7">
+			<span v-if="message.status == 'Failed'" class="min-w-0 break-words text-ink-red-6">
 				{{ message.error_message || failedMessageLabel }}
 			</span>
 		</div>
