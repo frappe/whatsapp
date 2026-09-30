@@ -188,7 +188,7 @@ defineExpose({ focus });
 		<div
 			v-if="windowNotice"
 			role="status"
-			class="flex items-center gap-2 rounded-lg bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7"
+			class="flex items-center gap-2 rounded-6 bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7"
 		>
 			<span class="lucide-info size-4 shrink-0 text-ink-amber-6" aria-hidden="true" />
 			{{ windowNotice }}
@@ -197,11 +197,11 @@ defineExpose({ focus });
 		<!--
 			One control rather than a field beside a button row: the reply preview, the field and
 			the actions all sit inside the box, so they share its focus ring, its disabled state
-			and its drop target. `overflow-hidden` keeps the preview's fill inside the rounded
+			and its drop target. `overflow-hidden` keeps the preview's fill inside the curved
 			corners — the attach menu and the send tooltip both portal out, so neither is clipped.
 		-->
 		<div
-			class="overflow-hidden rounded-lg border bg-surface-base transition-colors focus-within:border-outline-gray-3"
+			class="overflow-hidden rounded-6 border bg-surface-base transition-colors focus-within:border-outline-gray-3"
 			:class="
 				draggingOver ? 'border-outline-blue-3 bg-surface-blue-1' : 'border-outline-gray-2'
 			"
@@ -270,7 +270,7 @@ defineExpose({ focus });
 					<template #content>
 						<span class="flex items-center gap-1">
 							{{ sendLabel }}
-							<kbd class="rounded-sm bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
+							<kbd class="rounded-1 bg-surface-gray-7 px-1 text-xs text-ink-gray-2"
 								>↵</kbd
 							>
 						</span>

@@ -53,7 +53,7 @@ function nameFor(direction?: WhatsAppDirection) {
 			     and `break-words` already contains a long unbroken URL -->
 			<div
 				:id="message.name"
-				class="relative w-fit min-w-0 max-w-full break-words rounded-lg bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
+				class="relative w-fit min-w-0 max-w-full break-words rounded-6 bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
 			>
 				<!--
 					reply_message/reply_to_* only: `header`/`footer` describe *this* message's template.
@@ -66,7 +66,7 @@ function nameFor(direction?: WhatsAppDirection) {
 				<button
 					v-if="isReply"
 					type="button"
-					class="mb-1.5 block w-full rounded-r border-l-2 border-outline-gray-3 px-2 py-0.5 text-left text-ink-gray-7 transition-colors hover:bg-surface-gray-3"
+					class="mb-1.5 block w-full rounded-r-4 border-l-2 border-outline-gray-3 px-2 py-0.5 text-left text-ink-gray-7 transition-colors hover:bg-surface-gray-3"
 					@click="() => message.reply_to && emit('jump-to', message.reply_to)"
 				>
 					<div class="text-sm text-ink-gray-6">
@@ -95,7 +95,7 @@ function nameFor(direction?: WhatsAppDirection) {
 						<img
 							:src="message.media_url"
 							:alt="documentName(message, 'Image')"
-							class="max-h-72 max-w-full rounded object-contain"
+							class="max-h-72 max-w-full rounded-4 object-contain"
 						/>
 					</a>
 					<div
@@ -109,11 +109,11 @@ function nameFor(direction?: WhatsAppDirection) {
 						:href="message.media_url"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="flex min-w-0 items-center gap-2 rounded-md"
+						class="flex min-w-0 items-center gap-2 rounded-5"
 						:class="hasCaption(message.message) ? 'bg-surface-gray-4 p-2' : ''"
 					>
 						<span
-							class="lucide-file-text size-10 flex-shrink-0 rounded-md text-ink-gray-4"
+							class="lucide-file-text size-10 flex-shrink-0 rounded-5 text-ink-gray-4"
 							aria-hidden="true"
 						/>
 						<div class="flex min-w-0 flex-1 flex-col">
@@ -138,7 +138,7 @@ function nameFor(direction?: WhatsAppDirection) {
 					<video
 						:src="message.media_url"
 						controls
-						class="max-h-72 w-full rounded bg-black object-contain"
+						class="max-h-72 w-full rounded-4 bg-black object-contain"
 					/>
 					<div
 						v-if="hasCaption(message.message)"

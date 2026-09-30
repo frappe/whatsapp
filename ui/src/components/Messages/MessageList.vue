@@ -112,10 +112,10 @@ onBeforeUnmount(() => {
 		<!-- distinct from empty: a failed fetch must not read as "nothing was ever sent" -->
 		<div
 			v-else-if="error && !messages.length"
-			class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-outline-gray-2 p-6 text-center"
+			class="flex flex-col items-center gap-2 rounded-6 border border-dashed border-outline-gray-2 p-6 text-center"
 		>
 			<span
-				class="grid size-7 place-items-center rounded-md bg-surface-gray-3 text-ink-gray-7"
+				class="grid size-7 place-items-center rounded-5 bg-surface-gray-3 text-ink-gray-7"
 				aria-hidden="true"
 			>
 				<span class="lucide-triangle-alert size-4" />
@@ -125,10 +125,10 @@ onBeforeUnmount(() => {
 
 		<div
 			v-else-if="!messages.length"
-			class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-outline-gray-2 p-6 text-center"
+			class="flex flex-col items-center gap-2 rounded-6 border border-dashed border-outline-gray-2 p-6 text-center"
 		>
 			<span
-				class="grid size-7 place-items-center rounded-md bg-surface-gray-3 text-ink-gray-7"
+				class="grid size-7 place-items-center rounded-5 bg-surface-gray-3 text-ink-gray-7"
 				aria-hidden="true"
 			>
 				<span class="lucide-message-circle size-4" />
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
 				<li
 					v-else
 					:ref="(el) => registerRow(row.message.name, el)"
-					class="group flex gap-2 rounded-lg transition-shadow [contain-intrinsic-size:auto_5rem] [content-visibility:auto]"
+					class="group flex gap-2 rounded-6 transition-shadow [contain-intrinsic-size:auto_5rem] [content-visibility:auto]"
 					:class="[
 						rowClass,
 						row.message.direction == 'Outgoing' ? 'flex-row-reverse' : '',

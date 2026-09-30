@@ -64,18 +64,18 @@ watch(
 <template>
 	<Dialog v-model="show" :title="dialogTitle" size="lg">
 		<template #default>
-			<div class="flex justify-center rounded-md bg-surface-gray-2 p-2">
+			<div class="flex justify-center rounded-5 bg-surface-gray-2 p-2">
 				<img
 					v-if="type === 'image'"
 					:src="file?.file_url"
 					:alt="documentName(attachment, 'Image')"
-					class="max-h-80 rounded-md object-contain"
+					class="max-h-80 rounded-5 object-contain"
 				/>
 				<video
 					v-else-if="type === 'video'"
 					:src="file?.file_url"
 					controls
-					class="max-h-80 rounded-md"
+					class="max-h-80 rounded-5"
 				/>
 				<div v-else class="flex w-full items-center gap-2 p-2">
 					<span
