@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const caption = ref("");
-const captionRef = ref<{ el?: HTMLTextAreaElement } | null>(null);
+const captionRef = ref<{ focus: () => void } | null>(null);
 
 const show = computed({
 	get: () => props.open,
@@ -55,7 +55,7 @@ watch(
 	(value) => {
 		if (value) {
 			caption.value = "";
-			nextTick(() => captionRef.value?.el?.focus());
+			nextTick(() => captionRef.value?.focus());
 		}
 	}
 );

@@ -35,7 +35,7 @@ const emit = defineEmits<{
 }>();
 
 // View state only; nothing here is part of the message being composed.
-const textareaRef = ref<{ el?: HTMLTextAreaElement } | null>(null);
+const textareaRef = ref<{ focus: () => void } | null>(null);
 const uploaderRef = ref<{ inputRef?: HTMLInputElement } | null>(null);
 const acceptedFileTypes = ref<string>();
 const showMediaPreview = ref(false);
@@ -69,7 +69,7 @@ const locked = computed(() => props.disabled);
 const sendable = computed(() => props.canSend && !locked.value);
 
 function focus() {
-	nextTick(() => textareaRef.value?.el?.focus());
+	nextTick(() => textareaRef.value?.focus());
 }
 
 /**
