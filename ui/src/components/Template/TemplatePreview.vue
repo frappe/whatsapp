@@ -22,7 +22,7 @@ const body = computed(() => fillVariables(doc.value.message, examples.value));
 </script>
 
 <template>
-	<div class="max-w-sm rounded-lg bg-surface-gray-1 p-3 text-p-sm text-ink-gray-9">
+	<div class="max-w-sm rounded-6 bg-surface-gray-1 p-3 text-p-sm text-ink-gray-9">
 		<TemplateContent
 			v-if="header || body"
 			:header="header"

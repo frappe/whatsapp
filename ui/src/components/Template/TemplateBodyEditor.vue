@@ -47,7 +47,7 @@ const variables = SuggestionExtension.configure<VariableItem>({
 	},
 	command: ({ editor, range, item }) =>
 		editor.chain().focus().deleteRange(range).insertContent(`{{${item.value}}} `).run(),
-	component: VariableSuggestionList,
+	listComponent: VariableSuggestionList,
 });
 
 // WhatsApp text supports only bold, italic, strike and line breaks.
@@ -90,12 +90,12 @@ const toolbar = [Bold, Italic, Strike];
 			<div>
 				<div
 					v-if="!field.readOnly"
-					class="flex items-center rounded-t border border-b-0 border-outline-gray-2 bg-surface-gray-1 px-1 py-1"
+					class="flex items-center rounded-t-4 border border-b-0 border-outline-gray-2 bg-surface-gray-1 px-1 py-1"
 				>
 					<EditorFixedMenu :items="toolbar" />
 				</div>
 				<EditorContent
-					class="max-h-80 min-h-32 overflow-auto rounded-b border border-outline-gray-2 bg-surface-white px-3 py-2 text-base text-ink-gray-8 prose-sm"
+					class="max-h-80 min-h-32 overflow-auto rounded-b-4 border border-outline-gray-2 bg-surface-white px-3 py-2 text-base text-ink-gray-8 prose-sm"
 				/>
 			</div>
 		</Editor>

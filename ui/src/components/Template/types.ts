@@ -61,7 +61,7 @@ export interface UseTemplateOptions {
 /** The one badge a host shows beside the title: `Not Saved`, or else the Meta status. */
 export interface TemplateIndicator {
   label: string;
-  theme: "orange" | "green" | "red" | "gray";
+  theme: "amber" | "green" | "red" | "gray";
 }
 
 /**
