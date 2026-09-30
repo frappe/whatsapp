@@ -47,7 +47,7 @@ const variables = SuggestionExtension.configure<VariableItem>({
 	},
 	command: ({ editor, range, item }) =>
 		editor.chain().focus().deleteRange(range).insertContent(`{{${item.value}}} `).run(),
-	component: VariableSuggestionList,
+	listComponent: VariableSuggestionList,
 });
 
 // WhatsApp text supports only bold, italic, strike and line breaks.
