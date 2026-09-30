@@ -186,18 +186,12 @@ onBeforeUnmount(() => {
 						<!-- the bubble owns the reveal and the Failed guard for this whole pair -->
 						<template #actions>
 							<ReactionPicker
-								v-slot="{ togglePopover }"
 								:emojis="reactionEmojis"
 								@select="
 									emit('react', { messageName: row.message.name, emoji: $event })
 								"
 							>
-								<Button
-									variant="ghost"
-									size="xs"
-									:aria-label="reactLabel"
-									@click="togglePopover"
-								>
+								<Button variant="ghost" size="xs" :aria-label="reactLabel">
 									<template #icon>
 										<span
 											class="lucide-smile-plus size-4 text-ink-gray-7"
