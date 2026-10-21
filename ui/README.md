@@ -157,6 +157,10 @@ land on it as fall-through attrs and be stamped into the DOM. Its actions are **
 `@reply` to `setReplyTo` so a message picked in the list becomes the reply the input quotes,
 and `@react` to `react()`.
 
+If the host can run on a site where the WhatsApp app is not installed or not set up, pass
+`enabled` (a ref or getter). While it is false, `useMessages()` fetches nothing and joins no
+realtime room, so the host does not get an "App whatsapp is not installed" error.
+
 Bind `error` as well as `loading`: without it a failed fetch falls through to the empty state
 and reads as "this conversation has no messages", which is a different and untrue claim.
 

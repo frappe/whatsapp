@@ -64,6 +64,7 @@ function resolveSocket(): RealtimeSocket | undefined {
 export function useMessages(options: UseMessagesOptions): MessagesController {
   const references = () => toValue(options.references) ?? [];
   const recipient = () => toValue(options.to) ?? "";
+  const enabled = () => toValue(options.enabled) ?? true;
 
   const draft = ref(options.initialDraft ?? "");
   const pendingMedia = ref<MediaFile>();
@@ -126,6 +127,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   );
 
   async function reload() {
+    if (!enabled()) return;
     try {
       await list.reload();
     } catch {
@@ -256,7 +258,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
 
   // A stable key, so a getter that rebuilds an equal array does not refetch on every tick.
   const referencesKey = computed(() => JSON.stringify(references()));
-  watch(referencesKey, () => reload(), { immediate: true });
+  watch([referencesKey, enabled], () => reload(), { immediate: true });
 
   const socket = resolveSocket();
   if (socket) {
@@ -282,12 +284,12 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     };
     const resubscribe = () => {
       unsubscribeAll();
-      subscribed = [...references()];
+      subscribed = enabled() ? [...references()] : [];
       for (const [doctype, docname] of subscribed) {
         socket.emit("doc_subscribe", doctype, docname);
       }
     };
-    watch(referencesKey, resubscribe, { immediate: true });
+    watch([referencesKey, enabled], resubscribe, { immediate: true });
 
     socket.on("whatsapp_message", onMessage);
     // Scope disposal, not unmount: a host may keep a controller alive across a component.

@@ -263,6 +263,11 @@ export interface UseMessagesOptions {
   /** recipient — a `WhatsApp Profile` name or a phone number; required to send */
   to: MaybeRefOrGetter<string | undefined>;
   initialDraft?: string;
+  /**
+   * while false, nothing is fetched and no realtime room is joined — for a host that mounts
+   * the conversation on a site where the WhatsApp app may not be installed. Defaults to true
+   */
+  enabled?: MaybeRefOrGetter<boolean>;
 }
 
 /**
