@@ -125,8 +125,7 @@ class IntegrationTestNotificationChannel(IntegrationTestCase):
 		self.assertTrue(meta.get_field("whatsapp_account"))
 
 	def test_subject_stays_visible_and_message_section_hides(self):
-		"""Notification.autoname is `subject or notification_title` — a hidden Subject would
-		leave every WhatsApp rule with a hash name."""
+		"""Frappe names a Notification after its Subject and falls back to a hash when it is empty."""
 		meta = frappe.get_meta("Notification")
 		self.assertIn("WhatsApp", meta.get_field("subject").depends_on)
 		self.assertIn("WhatsApp", meta.get_field("subject").mandatory_depends_on)
