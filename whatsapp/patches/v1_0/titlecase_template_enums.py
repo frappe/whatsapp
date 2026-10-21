@@ -5,10 +5,10 @@ from whatsapp.whatsapp.api.utils import BUTTON_TYPES, HEADER_TYPES, TEMPLATE_TYP
 VARIABLE_FORMATS = {"named": "Named", "positional": "Positional"}
 
 FIELD_MAPPINGS = (
-	("WhatsApp Template", "template_type", TEMPLATE_TYPES),
-	("WhatsApp Template", "header_type", HEADER_TYPES),
-	("WhatsApp Template", "variable_format", VARIABLE_FORMATS),
-	("WhatsApp Template Button", "button_type", BUTTON_TYPES),
+	("WA Template", "template_type", TEMPLATE_TYPES),
+	("WA Template", "header_type", HEADER_TYPES),
+	("WA Template", "variable_format", VARIABLE_FORMATS),
+	("WA Template Button", "button_type", BUTTON_TYPES),
 )
 
 

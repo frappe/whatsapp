@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const caption = ref("");
-const captionRef = ref<{ el?: HTMLTextAreaElement } | null>(null);
+const captionRef = ref<{ focus: () => void } | null>(null);
 
 const show = computed({
 	get: () => props.open,
@@ -44,32 +44,38 @@ function submit() {
 	show.value = false;
 }
 
+function sendOnEnter(event: KeyboardEvent) {
+	if (event.isComposing) return;
+	event.preventDefault();
+	submit();
+}
+
 watch(
 	() => props.open,
 	(value) => {
 		if (value) {
 			caption.value = "";
-			nextTick(() => captionRef.value?.el?.focus());
+			nextTick(() => captionRef.value?.focus());
 		}
 	}
 );
 </script>
 
 <template>
-	<Dialog v-model="show" :options="{ title: dialogTitle, size: 'lg' }">
-		<template #body-content>
-			<div class="flex justify-center rounded-md bg-surface-gray-2 p-2">
+	<Dialog v-model="show" :title="dialogTitle" size="lg">
+		<template #default>
+			<div class="flex justify-center rounded-5 bg-surface-gray-2 p-2">
 				<img
 					v-if="type === 'image'"
 					:src="file?.file_url"
 					:alt="documentName(attachment, 'Image')"
-					class="max-h-80 rounded-md object-contain"
+					class="max-h-80 rounded-5 object-contain"
 				/>
 				<video
 					v-else-if="type === 'video'"
 					:src="file?.file_url"
 					controls
-					class="max-h-80 rounded-md"
+					class="max-h-80 rounded-5"
 				/>
 				<div v-else class="flex w-full items-center gap-2 p-2">
 					<span
@@ -92,8 +98,7 @@ watch(
 					class="w-full"
 					:rows="1"
 					:placeholder="captionPlaceholder"
-					@keydown.ctrl.enter.stop="submit"
-					@keydown.meta.enter.stop="submit"
+					@keydown.enter.exact="sendOnEnter"
 				/>
 			</div>
 		</template>

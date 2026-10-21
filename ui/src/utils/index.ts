@@ -9,3 +9,4 @@ export {
   hasCaption,
 } from "./media";
 export type { MediaAttachment } from "./media";
+export { serverErrorMessage } from "./serverError";

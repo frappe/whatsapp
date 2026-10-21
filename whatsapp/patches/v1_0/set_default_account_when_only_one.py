@@ -9,9 +9,9 @@ def execute():
 	may have one account and no default, which leaves WhatsApp switched off in CRM
 	(crm.api.whatsapp.is_whatsapp_enabled requires a default). Fill it in.
 	"""
-	if frappe.db.get_single_value("WhatsApp Settings", "default_account"):
+	if frappe.db.get_single_value("WA Settings", "default_account"):
 		return
 
-	accounts = frappe.get_all("WhatsApp Account", pluck="name", limit=2)
+	accounts = frappe.get_all("WA Account", pluck="name", limit=2)
 	if len(accounts) == 1:
-		frappe.db.set_single_value("WhatsApp Settings", "default_account", accounts[0])
+		frappe.db.set_single_value("WA Settings", "default_account", accounts[0])

@@ -17,7 +17,7 @@ Frappe app providing WhatsApp Business Cloud API (Graph API v22.0) integration. 
 bench run-tests --app whatsapp
 
 # Run tests for a single doctype
-bench run-tests --app whatsapp --doctype "WhatsApp Message"
+bench run-tests --app whatsapp --doctype "WA Message"
 
 # Run a single test method
 bench run-tests --app whatsapp --test test_method_name
@@ -46,29 +46,29 @@ whatsapp/whatsapp/
     whatsapp.py                 # WhatsApp class — wraps all Facebook Graph API calls
     utils.py                    # Template payload builders, {{var}} interpolation, log() utility
   doctype/
-    whatsapp_account/           # Per-account config (phone_id, access_token, auto_read_receipts)
-    whatsapp_account_append/    # Child table: Append Actions config per account
-    whatsapp_message/           # Core message record (inbound + outbound)
-    whatsapp_template/          # Template management + Meta sync (daily scheduled job)
-    whatsapp_template_button/   # Child table for template buttons
-    whatsapp_message_interactive_button/  # Child table for interactive message buttons
-    whatsapp_message_list_item/ # Child table for list message items
-    whatsapp_profile/           # Auto-created contact record for each unique sender
-    whatsapp_log/               # Audit log for all webhook/API/template/message events
-    whatsapp_settings/          # App-level singleton settings
-    template_variable/          # Child table for named/positional template variables
+    wa_account/           # Per-account config (phone_id, access_token, auto_read_receipts)
+    wa_account_append/    # Child table: Append Actions config per account
+    wa_message/           # Core message record (inbound + outbound)
+    wa_template/          # Template management + Meta sync (daily scheduled job)
+    wa_template_button/   # Child table for template buttons
+    wa_message_interactive_button/  # Child table for interactive message buttons
+    wa_message_list_item/ # Child table for list message items
+    wa_profile/           # Auto-created contact record for each unique sender
+    wa_log/               # Audit log for all webhook/API/template/message events
+    wa_settings/          # App-level singleton settings
+    wa_template_variable/ # Child table for named/positional template variables
   notification/                 # 6 built-in Frappe Notifications (received, sent, failed, etc.)
 ```
 
-**Message flow (inbound):** Meta → `webhook.py` → creates `WhatsApp Message` + `WhatsApp Profile` → triggers Append Actions → fires Frappe Notifications.
+**Message flow (inbound):** Meta → `webhook.py` → creates `WA Message` + `WA Profile` → triggers Append Actions → fires Frappe Notifications.
 
-**Message flow (outbound):** Caller creates `WhatsApp Message` doc → `whatsapp_message.py` `after_insert` → `WhatsApp` API class → logs result in `WhatsApp Log`.
+**Message flow (outbound):** Caller creates `WA Message` doc → `wa_message.py` `after_insert` → `WhatsApp` API class → logs result in `WA Log`.
 
 **Template sync:** `whatsapp_template.sync_all` runs daily via scheduler hooks (`whatsapp/hooks.py` `scheduler_events`). Sample templates are flagged and skipped to avoid unnecessary Meta API calls.
 
 ## Key Conventions
 
-**Logging:** All significant events MUST use `log()` from `whatsapp.whatsapp.api.utils` — this creates browsable `WhatsApp Log` records. `frappe.logger()` writes to files only and is not sufficient.
+**Logging:** All significant events MUST use `log()` from `whatsapp.whatsapp.api.utils` — this creates browsable `WA Log` records. `frappe.logger()` writes to files only and is not sufficient.
 
 ```python
 from whatsapp.whatsapp.api.utils import log
@@ -77,8 +77,8 @@ log(
     level="Info",          # Info | Warning | Error | Debug
     event_type="Message",  # Webhook | Template | Message | API | System
     message="...",
-    account="...",         # optional WhatsApp Account name
-    reference_doctype="WhatsApp Message",
+    account="...",         # optional WA Account name
+    reference_doctype="WA Message",
     reference_docname=doc.name,
     request_data={...},    # outgoing payload
     response_data={...},   # API response
@@ -166,7 +166,7 @@ Examples:
 ```
 feat(message): add reply-to support for outbound messages
 fix(webhook): handle missing account gracefully
-feat!: rename WhatsAppSettings fields
+feat!: rename WASettings fields
 ```
 
 ## Testing Patterns
@@ -176,9 +176,9 @@ Tests extend `frappe.tests.IntegrationTestCase` (auto-rollback, test records) or
 ```python
 from frappe.tests import IntegrationTestCase
 
-class TestWhatsAppMessage(IntegrationTestCase):
+class TestWAMessage(IntegrationTestCase):
     def test_something(self):
-        doc = frappe.get_doc({"doctype": "WhatsApp Message", ...}).insert()
+        doc = frappe.get_doc({"doctype": "WA Message", ...}).insert()
         self.assertEqual(doc.status, "Sent")
 ```
 

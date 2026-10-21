@@ -8,8 +8,9 @@ import {
   toValue,
   watch,
 } from "vue";
-import { createResource } from "frappe-ui";
+import { createResource, dayjsLocal } from "frappe-ui";
 import type {
+  CustomerServiceWindow,
   MediaFile,
   MessageReference,
   MessagesController,
@@ -20,6 +21,7 @@ import type {
 } from "./types";
 
 const API = "whatsapp.whatsapp.api.messages";
+const CUSTOMER_SERVICE_WINDOW_HOURS = 24;
 
 /** The socket methods used here. Structural, so this package never imports socket.io. */
 interface RealtimeSocket {
@@ -62,6 +64,7 @@ function resolveSocket(): RealtimeSocket | undefined {
 export function useMessages(options: UseMessagesOptions): MessagesController {
   const references = () => toValue(options.references) ?? [];
   const recipient = () => toValue(options.to) ?? "";
+  const enabled = () => toValue(options.enabled) ?? true;
 
   const draft = ref(options.initialDraft ?? "");
   const pendingMedia = ref<MediaFile>();
@@ -88,6 +91,32 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     )
   );
   const loading = computed<boolean>(() => Boolean(list.loading));
+
+  // `now` is only bumped at the expiry instant, so a tab left open across the boundary
+  // locks its composer the moment the window closes rather than on its next reload.
+  const now = ref(Date.now());
+  const serviceWindow = computed<CustomerServiceWindow | null>(() => {
+    if (list.data == null) return null;
+    const last = messages.value[messages.value.length - 1];
+    if (!last?.creation) return { status: "unopened", expiresAt: null };
+    const expiresAt = dayjsLocal(last.creation).add(CUSTOMER_SERVICE_WINDOW_HOURS, "hour");
+    return {
+      status: expiresAt.valueOf() > now.value ? "open" : "closed",
+      expiresAt: expiresAt.toDate(),
+    };
+  });
+
+  let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+  watch(
+    () => serviceWindow.value?.expiresAt?.valueOf(),
+    (expiresAt) => {
+      clearTimeout(expiryTimer);
+      const wait = (expiresAt ?? 0) - Date.now();
+      if (wait > 0) expiryTimer = setTimeout(() => (now.value = Date.now()), wait);
+    },
+    { immediate: true }
+  );
+  onScopeDispose(() => clearTimeout(expiryTimer));
   // A resource clears its error when its next call starts.
   const error = computed<unknown>(
     () =>
@@ -98,6 +127,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   );
 
   async function reload() {
+    if (!enabled()) return;
     try {
       await list.reload();
     } catch {
@@ -128,8 +158,8 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     pendingType.value = "document";
   }
 
-  // Guards the double-send: `send()` awaits, and without this a second ctrl+enter during
-  // the round trip posts the same draft twice.
+  // Guards the double-send: `send()` awaits, and without this a second enter during the
+  // round trip posts the same draft twice.
   const sending = ref(false);
 
   const canSend = computed(
@@ -228,7 +258,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
 
   // A stable key, so a getter that rebuilds an equal array does not refetch on every tick.
   const referencesKey = computed(() => JSON.stringify(references()));
-  watch(referencesKey, () => reload(), { immediate: true });
+  watch([referencesKey, enabled], () => reload(), { immediate: true });
 
   const socket = resolveSocket();
   if (socket) {
@@ -254,12 +284,12 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     };
     const resubscribe = () => {
       unsubscribeAll();
-      subscribed = [...references()];
+      subscribed = enabled() ? [...references()] : [];
       for (const [doctype, docname] of subscribed) {
         socket.emit("doc_subscribe", doctype, docname);
       }
     };
-    watch(referencesKey, resubscribe, { immediate: true });
+    watch([referencesKey, enabled], resubscribe, { immediate: true });
 
     socket.on("whatsapp_message", onMessage);
     // Scope disposal, not unmount: a host may keep a controller alive across a component.
@@ -276,6 +306,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     loading,
     sending,
     error,
+    serviceWindow,
     reload,
     send,
     react,

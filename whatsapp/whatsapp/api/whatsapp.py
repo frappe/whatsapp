@@ -104,6 +104,12 @@ class WhatsApp:
 	def delete_template(self, template_id):
 		return self._request("DELETE", f"{template_id}")
 
+	def get_subscribed_apps(self) -> dict:
+		return self._request("GET", f"{self.business_id}/subscribed_apps")
+
+	def subscribe_app(self) -> dict:
+		return self._request("POST", f"{self.business_id}/subscribed_apps")
+
 	def send_message(self, payload):
 		payload.setdefault("messaging_product", "whatsapp")
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)

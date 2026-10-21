@@ -1,4 +1,3 @@
-import { formatBytes } from "frappe-ui";
 import type { MediaKind } from "../types";
 
 /** MIME prefixes that map to a dedicated renderer. Everything else is a document. */
@@ -49,4 +48,14 @@ export function documentMeta(attachment: MediaAttachment): string {
 /** Legacy rows store the file URL back in `message`, which is not a caption. */
 export function hasCaption(caption?: string): boolean {
   return Boolean(caption && !caption.startsWith("/files/"));
+}
+
+// frappe-ui stopped exporting its formatBytes in 1.0.0-rc.2; same output as its copy.
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    const mb = bytes / 1024 / 1024;
+    return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
 }
