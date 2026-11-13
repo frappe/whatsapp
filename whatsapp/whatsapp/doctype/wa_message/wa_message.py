@@ -423,8 +423,11 @@ def _create_from_actions(doc, actions) -> tuple[str, str] | None:
 
 			# a mapped field is written even when the message carries no value, so an
 			# empty field on the created document means exactly that
-			new_doc.set(action.sender_field, profile.phone_number)
-			new_doc.set(action.sender_name_field, profile.profile_name)
+			if action.sender_field:
+				new_doc.set(action.sender_field, profile.phone_number)
+
+			if action.sender_name_field:
+				new_doc.set(action.sender_name_field, profile.profile_name)
 
 			if action.message_field:
 				new_doc.set(action.message_field, doc.message)
