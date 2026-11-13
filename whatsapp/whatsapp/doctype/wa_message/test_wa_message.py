@@ -1004,7 +1004,7 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		super().setUp()
 		frappe.set_user("Administrator")
 
-	def _account_with_action(self, trigger_on="Incoming", extra_actions=()) -> str:
+	def _account_with_action(self, trigger_on="Incoming", extra_actions=(), action=None) -> str:
 		uid = frappe.generate_hash(length=6)
 		account = frappe.get_doc(
 			doctype="WA Account",
@@ -1015,17 +1015,14 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 			app_id="test_app",
 			access_token="test_token",
 		)
-		account.append(
-			"append_actions",
-			{
-				"append_to": "Print Heading",
-				"trigger_on": trigger_on,
-				"sender_field": "description",
-				"sender_name_field": "print_heading",
-			},
-		)
-		for action in extra_actions:
-			account.append("append_actions", action)
+		action = action or {
+			"append_to": "Print Heading",
+			"sender_field": "description",
+			"sender_name_field": "print_heading",
+		}
+		account.append("append_actions", {"trigger_on": trigger_on, **action})
+		for extra in extra_actions:
+			account.append("append_actions", extra)
 		return account.insert().name
 
 	def _profile(self, account: str, phone: str = "+14155552671") -> str:
@@ -1075,6 +1072,19 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		self.assertEqual(frappe.db.get_value("Print Heading", created[0], "description"), "+14155552671")
 		links = frappe.get_doc("WA Profile", profile).links
 		self.assertIn(("Print Heading", created[0]), {(link.link_doctype, link.link_name) for link in links})
+
+	def test_action_without_sender_mappings_still_creates_the_record(self):
+		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
+
+		account = self._account_with_action(action={"append_to": "ToDo", "message_field": "description"})
+		profile = self._profile(account)
+		doc = self._incoming(account, profile)
+		doc.reference_doctype = doc.reference_docname = None
+
+		process_append_actions(doc, trigger_on="Incoming")
+
+		self.assertEqual(doc.reference_doctype, "ToDo")
+		self.assertEqual(frappe.db.get_value("ToDo", doc.reference_docname, "description"), "hello")
 
 	def test_message_that_already_has_a_reference_creates_nothing(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions

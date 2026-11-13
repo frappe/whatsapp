@@ -14,8 +14,8 @@ const columns: GridColumn[] = [
 	{ fieldname: "append_to", label: "Append To", reqd: true },
 	{ fieldname: "trigger_on", label: "Trigger On", reqd: true, width: 120 },
 	{ fieldname: "message_field", label: "Message Text" },
-	{ fieldname: "sender_field", label: "Phone Number", reqd: true },
-	{ fieldname: "sender_name_field", label: "Contact Name", reqd: true },
+	{ fieldname: "sender_field", label: "Phone Number" },
+	{ fieldname: "sender_name_field", label: "Contact Name" },
 	{ fieldname: "timestamp_field", label: "Message Time" },
 ];
 
