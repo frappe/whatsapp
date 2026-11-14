@@ -136,9 +136,9 @@ class WATemplate(Document):
 		for variable in self.template_variables:
 			if not (variable.variable_example or "").strip():
 				frappe.throw(
-					_("Add an example for {{{{{0}}}}}: Meta reviews the template with it").format(
-						variable.variable_name
-					),
+					_(
+						"Add an example value for the variable {{{{{0}}}}}. Meta needs it to review the template."
+					).format(variable.variable_name),
 					title=_("Example missing"),
 				)
 
