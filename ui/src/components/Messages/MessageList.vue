@@ -200,6 +200,7 @@ onBeforeUnmount(() => {
 									</template>
 								</Button>
 							</ReactionPicker>
+							<slot name="actions" :message="row.message" />
 						</template>
 					</MessageBubble>
 				</li>
