@@ -147,6 +147,9 @@ class WATemplate(Document):
 		during Meta-driven sync."""
 		if self.flags.get("from_sync") or self.whatsapp_template_id:
 			return
+		# validate runs before Frappe's mandatory check, so an empty label must be caught here
+		if not (self.template_label or "").strip():
+			frappe.throw(_("Template label is required"), frappe.MandatoryError)
 
 		derived = normalize_string(self.template_label)
 		if derived == self.template_name:

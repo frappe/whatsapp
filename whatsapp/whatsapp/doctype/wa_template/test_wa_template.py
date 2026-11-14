@@ -175,6 +175,17 @@ class IntegrationTestWATemplate(WithoutHostAccessGuards, IntegrationTestCase):
 		doc.insert()
 		self.assertEqual(doc.status, "Pending")
 
+	def test_template_without_label_asks_for_it(self):
+		doc = frappe.get_doc(
+			doctype="WA Template",
+			template_type="Utility",
+			language="en_US",
+			message="Hello",
+			whatsapp_account=self._make_account(),
+		)
+		with self.assertRaisesRegex(frappe.MandatoryError, "Template label"):
+			doc.insert()
+
 	def test_sync_leaves_variable_field_empty_for_new_variables(self):
 		"""New variables introduced by Meta should start with empty variable_field."""
 		from whatsapp.whatsapp.doctype.wa_template.wa_template import _upsert_template
