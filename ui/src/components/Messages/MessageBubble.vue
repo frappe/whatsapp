@@ -47,13 +47,13 @@ function nameFor(direction?: WhatsAppDirection) {
 		:data-direction="message.direction"
 	>
 		<div
-			class="flex w-full items-center gap-1 group-data-[direction=Outgoing]/bubble:flex-row-reverse"
+			class="flex w-full items-center gap-1 has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:flex-row-reverse"
 		>
 			<!-- no `overflow-hidden`: it would clip the reaction chip that hangs below the edge,
 			     and `break-words` already contains a long unbroken URL -->
 			<div
 				:id="message.name"
-				class="relative w-fit min-w-0 max-w-full break-words rounded-6 bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] has-[[data-slot=reactions]]:mb-3 group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
+				class="relative w-fit min-w-0 max-w-full break-words rounded-6 bg-surface-gray-1 px-2.5 py-1.5 text-p-base text-ink-gray-9 shadow-[inset_0_0_0.25px_0.25px_rgba(0,0,0,0.03)] group-data-[direction=Outgoing]/bubble:bg-surface-gray-2"
 			>
 				<!--
 					reply_message/reply_to_* only: `header`/`footer` describe *this* message's template.
