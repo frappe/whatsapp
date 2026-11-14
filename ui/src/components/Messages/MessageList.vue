@@ -8,6 +8,7 @@ import type { MessageListProps, ReactPayload, WhatsAppMessage } from "./types";
 const props = withDefaults(defineProps<MessageListProps>(), {
 	messages: () => [],
 	rowClass: "",
+	canReply: true,
 	senderName: "Contact",
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
@@ -174,6 +175,7 @@ onBeforeUnmount(() => {
 
 					<MessageBubble
 						:message="row.message"
+						:can-reply="canReply"
 						:sender-name="senderName"
 						:you-label="youLabel"
 						:reacted-by-label="reactedByLabel"

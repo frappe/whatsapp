@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<MessageBubbleProps>(), {
 	senderName: "Contact",
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
+	canReply: true,
 	replyLabel: "Reply",
 	replyingToLabel: "Replying to",
 	failedMessageLabel: "Failed to send message",
@@ -181,6 +182,7 @@ function nameFor(direction?: WhatsAppDirection) {
 				class="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-hover/bubble:pointer-events-auto group-hover/bubble:opacity-100 group-focus-within/bubble:pointer-events-auto group-focus-within/bubble:opacity-100"
 			>
 				<Button
+					v-if="canReply"
 					variant="ghost"
 					size="xs"
 					:tooltip="replyLabel"
