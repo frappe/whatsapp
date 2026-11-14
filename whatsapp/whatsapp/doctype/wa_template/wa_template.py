@@ -127,12 +127,29 @@ class WATemplate(Document):
 		self._derive_template_name()
 		self._sync_template_variables()
 		self.validate_template_name()
+		self.validate_variable_examples()
+
+	def validate_variable_examples(self) -> None:
+		"""Meta refuses a variable without an example, and the push in before_save runs before the mandatory check."""
+		if self.flags.get("from_sync"):
+			return
+		for variable in self.template_variables:
+			if not (variable.variable_example or "").strip():
+				frappe.throw(
+					_(
+						"Add an example value for the variable {{{{{0}}}}}. Meta needs it to review the template."
+					).format(variable.variable_name),
+					title=_("Example missing"),
+				)
 
 	def _derive_template_name(self) -> None:
 		"""Locked once pushed to Meta, which doesn't allow a rename, and never overridden
 		during Meta-driven sync."""
 		if self.flags.get("from_sync") or self.whatsapp_template_id:
 			return
+		# validate runs before Frappe's mandatory check, so an empty label must be caught here
+		if not (self.template_label or "").strip():
+			frappe.throw(_("Template label is required"), frappe.MandatoryError)
 
 		derived = normalize_string(self.template_label)
 		if derived == self.template_name:
