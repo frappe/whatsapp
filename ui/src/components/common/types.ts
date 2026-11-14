@@ -30,4 +30,6 @@ export interface MediaPreviewDialogProps {
 export interface ReactionPickerProps {
   /** default `["👍", "❤️", "😂", "😮", "😢", "🙏"]` */
   emojis?: string[];
+  /** the viewer's current reaction, shown pressed; picking it again removes it */
+  selected?: string;
 }

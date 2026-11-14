@@ -57,6 +57,10 @@ const rows = computed<Row[]>(() => {
 	return out;
 });
 
+function ownReaction(message: WhatsAppMessage) {
+	return message.reactions?.find((reaction) => reaction.direction == "Outgoing")?.emoji;
+}
+
 // Scoped to this list: two lists on one page would otherwise fight over `document`, and a
 // docname shares the id namespace with every other element on the page.
 const rowElements = new Map<string, HTMLElement>();
@@ -187,6 +191,7 @@ onBeforeUnmount(() => {
 						<template #actions>
 							<ReactionPicker
 								:emojis="reactionEmojis"
+								:selected="ownReaction(row.message)"
 								@select="
 									emit('react', { messageName: row.message.name, emoji: $event })
 								"
