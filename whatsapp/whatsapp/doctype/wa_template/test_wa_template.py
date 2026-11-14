@@ -175,6 +175,16 @@ class IntegrationTestWATemplate(WithoutHostAccessGuards, IntegrationTestCase):
 		doc.insert()
 		self.assertEqual(doc.status, "Pending")
 
+	def test_empty_text_header_is_left_out_of_the_payload(self):
+		from whatsapp.whatsapp.api.utils import build_create_template_payload
+
+		doc = frappe.new_doc("WA Template", template_label="No header", message="Hello")
+		self.assertEqual(doc.header_type, "Text")
+		self.assertEqual([c["type"] for c in build_create_template_payload(doc)["components"]], ["BODY"])
+
+		doc.header_text = "Order update"
+		self.assertEqual(build_create_template_payload(doc)["components"][0]["text"], "Order update")
+
 	def test_template_without_label_asks_for_it(self):
 		doc = frappe.get_doc(
 			doctype="WA Template",
