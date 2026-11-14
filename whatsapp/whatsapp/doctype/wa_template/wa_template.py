@@ -127,6 +127,20 @@ class WATemplate(Document):
 		self._derive_template_name()
 		self._sync_template_variables()
 		self.validate_template_name()
+		self.validate_variable_examples()
+
+	def validate_variable_examples(self) -> None:
+		"""Meta refuses a variable without an example, and the push in before_save runs before the mandatory check."""
+		if self.flags.get("from_sync"):
+			return
+		for variable in self.template_variables:
+			if not (variable.variable_example or "").strip():
+				frappe.throw(
+					_("Add an example for {{{{{0}}}}}: Meta reviews the template with it").format(
+						variable.variable_name
+					),
+					title=_("Example missing"),
+				)
 
 	def _derive_template_name(self) -> None:
 		"""Locked once pushed to Meta, which doesn't allow a rename, and never overridden

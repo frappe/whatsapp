@@ -153,6 +153,28 @@ class IntegrationTestWATemplate(WithoutHostAccessGuards, IntegrationTestCase):
 		self.assertEqual(doc.status, "Pending")
 		MockWhatsApp.return_value.update_template.assert_not_called()
 
+	@patch("whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp")
+	def test_variable_without_example_is_refused_before_meta(self, MockWhatsApp):
+		uid = frappe.generate_hash(length=6)
+		doc = frappe.get_doc(
+			doctype="WA Template",
+			template_label=f"_Test Example {uid}",
+			template_type="Utility",
+			language="en_US",
+			message="Hi {{customer_name}}",
+			whatsapp_account=self._make_account(),
+			template_variables=[{"variable_name": "customer_name", "variable_example": " "}],
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "customer_name"):
+			doc.insert()
+		MockWhatsApp.return_value.create_template.assert_not_called()
+
+		doc.template_variables[0].variable_example = "Asha"
+		MockWhatsApp.return_value.create_template.return_value = {"id": f"tmpl_{uid}", "status": "PENDING"}
+		doc.insert()
+		self.assertEqual(doc.status, "Pending")
+
 	def test_sync_leaves_variable_field_empty_for_new_variables(self):
 		"""New variables introduced by Meta should start with empty variable_field."""
 		from whatsapp.whatsapp.doctype.wa_template.wa_template import _upsert_template
