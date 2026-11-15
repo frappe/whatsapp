@@ -10,7 +10,7 @@ To get security fixes, update to the [latest release](https://github.com/frappe/
 
 ## Security Advisories
 
-We publish security advisories for Frappe WhatsApp Integration in this repository's [Security tab](https://github.com/frappe/frappe/security/advisories).
+We publish security advisories for Frappe WhatsApp Integration in this repository's [Security tab](https://github.com/frappe/whatsapp/security/advisories).
 
 <br>
 <br>
