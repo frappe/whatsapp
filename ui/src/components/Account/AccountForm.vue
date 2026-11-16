@@ -10,7 +10,7 @@ import type { AccountFormProps } from "./types";
 const props = withDefaults(defineProps<AccountFormProps>(), { showAppendActions: true });
 
 defineSlots<{
-	/** host settings, rendered in the Settings section under Auto Send Read Receipts */
+	/** host settings, in a section of their own after the account's Settings; the host draws its heading */
 	settings?: (props: { doc: AccountFormProps["controller"]["doc"] }) => unknown;
 }>();
 
@@ -24,7 +24,7 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 <template>
 	<div class="flex flex-col text-ink-gray-8">
 		<FormLayout v-model:doc="controller.doc" :layout="layout" />
-		<div v-if="$slots.settings" class="flex flex-col gap-4">
+		<div v-if="$slots.settings" class="mt-5 border-t border-outline-elevation-2 pt-5">
 			<slot name="settings" :doc="controller.doc" />
 		</div>
 
