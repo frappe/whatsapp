@@ -65,7 +65,7 @@ const windowNotice = computed(() => {
 			return null;
 	}
 });
-const locked = computed(() => props.disabled);
+const locked = computed(() => props.disabled || props.sending);
 const sendable = computed(() => props.canSend && !locked.value);
 
 function focus() {
@@ -172,6 +172,12 @@ function onPaste(event: ClipboardEvent) {
 watch(
 	() => props.replyTo,
 	(value) => value && focus()
+);
+
+// the field is disabled while sending, which drops focus, so hand it back afterwards
+watch(
+	() => props.sending,
+	(sending, wasSending) => wasSending && !sending && focus()
 );
 
 // Dismissing the preview abandons the upload; leaving it staged would attach it to whatever
