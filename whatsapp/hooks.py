@@ -151,6 +151,10 @@ before_uninstall = "whatsapp.install.teardown_notification_channel"
 # client-facing message/template endpoint and throws to deny.
 # whatsapp_access_guard = ["crm.api.whatsapp.validate_access"]
 
+# Hosts that create records for some append-to doctypes themselves list them here; their
+# append action rows then only switch that on, and this app neither runs nor shows them.
+# whatsapp_managed_doctypes = ["CRM Lead", "CRM Deal"]
+
 # Document Events
 # ---------------
 # Hook on document methods and events

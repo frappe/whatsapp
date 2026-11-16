@@ -1086,6 +1086,42 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		self.assertEqual(doc.reference_doctype, "ToDo")
 		self.assertEqual(frappe.db.get_value("ToDo", doc.reference_docname, "description"), "hello")
 
+	def test_managed_doctype_row_is_left_to_the_host(self):
+		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
+
+		account = self._account_with_action()
+		profile = self._profile(account)
+		doc = self._incoming(account, profile)
+		doc.reference_doctype = doc.reference_docname = None
+
+		with patch(
+			"whatsapp.whatsapp.doctype.wa_message.wa_message.get_managed_doctypes",
+			return_value=["Print Heading"],
+		):
+			process_append_actions(doc, trigger_on="Incoming")
+
+		self.assertEqual(self._created_for(profile), [])
+		self.assertIsNone(doc.reference_doctype)
+
+	def test_unmanaged_rows_still_run_beside_a_managed_one(self):
+		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
+
+		account = self._account_with_action(
+			extra_actions=[{"append_to": "ToDo", "trigger_on": "Incoming", "message_field": "description"}]
+		)
+		profile = self._profile(account)
+		doc = self._incoming(account, profile)
+		doc.reference_doctype = doc.reference_docname = None
+
+		with patch(
+			"whatsapp.whatsapp.doctype.wa_message.wa_message.get_managed_doctypes",
+			return_value=["Print Heading"],
+		):
+			process_append_actions(doc, trigger_on="Incoming")
+
+		self.assertEqual(self._created_for(profile), [])
+		self.assertEqual(doc.reference_doctype, "ToDo")
+
 	def test_message_that_already_has_a_reference_creates_nothing(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
 

@@ -79,6 +79,13 @@ def run_access_guards() -> None:
 		frappe.get_attr(method)()
 
 
+def get_managed_doctypes() -> list[str]:
+	"""Append-to doctypes a host app creates records for itself, from its
+	`whatsapp_managed_doctypes` hook. Their append action rows are the host's opt-in switch,
+	so this app neither runs them nor lists them in the account form's table."""
+	return frappe.get_hooks("whatsapp_managed_doctypes")
+
+
 def get_template_variables(text: str) -> list[str]:
 	if not text:
 		return []

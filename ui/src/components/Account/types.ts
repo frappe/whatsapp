@@ -62,6 +62,8 @@ export interface FieldOption {
 export interface UseAccountOptions {
   /** Account to load. Empty or absent renders a blank account that `save()` creates. */
   name?: MaybeRefOrGetter<string | undefined>;
+  /** Values a new account starts with. They count as the clean state, so a blank form isn't dirty. */
+  defaults?: Partial<WhatsAppAccount>;
 }
 
 /**
@@ -84,12 +86,24 @@ export interface AccountController {
   setAppendTo(row: AppendAction, doctype: string | null): Promise<void>;
   /** Options for one slot on one doctype; empty until loaded. Shared by every row on that doctype. */
   optionsFor(doctype: string | undefined, slot: MappingSlot): FieldOption[];
+  /**
+   * Append-to doctypes the installed host apps create records for themselves (their
+   * `whatsapp_managed_doctypes` hook). Their rows are switched by the host's settings, so the
+   * table leaves them out; they are still saved with the account.
+   */
+  managedDoctypes: string[];
 }
 
 export interface AccountFormProps {
   controller: AccountController;
+  /** Shows the Append Actions table; a host that manages the rows itself passes false. */
+  appendActions?: boolean;
 }
 
 export interface AppendActionsTableProps {
   controller: AccountController;
 }
+
+/** The row a host's toggle adds when switched on; its mappings are the host's presets. */
+export type AppendToggleRow = Pick<AppendAction, "append_to" | "trigger_on"> &
+  Partial<Pick<AppendAction, MappingSlot>>;
