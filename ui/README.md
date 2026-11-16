@@ -382,7 +382,7 @@ async function submit() {
     Replying to {{ messages.replyTo.direction === "Incoming" ? contactName : "You" }}
     <button @click="messages.clearReply()">×</button>
   </div>
-  <!-- MessageInput sends on enter, leaving shift+enter to break the line -->
+  <!-- MessageInput sends on enter or cmd/ctrl+enter, leaving shift+enter to break the line -->
   <textarea v-model="messages.draft" @keydown.enter.exact.prevent="submit" />
   <button :disabled="!messages.canSend" @click="submit">Send</button>
 </template>

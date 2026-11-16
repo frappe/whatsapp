@@ -378,7 +378,7 @@ export interface TemplatesController {
  *
  * The reply preview sits inside the composer's border, above the field. Draws no page padding
  * of its own; a host supplies it, and a `class` lands on the root above the composer.
- * Accepts a dropped or pasted file as well as a picked one. Enter sends; shift+enter breaks the line.
+ * Accepts a dropped or pasted file as well as a picked one. Enter or cmd/ctrl+enter sends; shift+enter breaks the line.
  * While the controller's `serviceWindow` is not open a banner above the field says so —
  * {@link MessageInputProps.windowClosedLabel} or {@link MessageInputProps.windowUnopenedLabel}.
  * The field stays live: the window is worked out from the loaded messages, so a send Meta
