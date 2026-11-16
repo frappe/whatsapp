@@ -6,6 +6,7 @@ import requests
 from frappe import _
 from frappe.model.document import Document
 
+from whatsapp.whatsapp.api.utils import log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
 
 # Which fieldtypes can hold the value an append action writes into each mapping slot.
@@ -86,6 +87,23 @@ class WAAccount(Document):
 			)
 
 		frappe.db.set_single_value("WA Settings", "default_account", "")
+
+	def after_delete(self):
+		"""Not in on_trash: Frappe's link check runs after it and can still refuse the delete."""
+		if not self.business_id or frappe.db.exists("WA Account", {"business_id": self.business_id}):
+			return
+
+		try:
+			_client_for(self).unsubscribe_app()
+		except requests.RequestException as e:
+			log("Warning", "API", f"Could not unsubscribe the app from WABA {self.business_id}: {e}")
+			frappe.msgprint(
+				_(
+					"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
+				).format(e),
+				indicator="orange",
+				alert=True,
+			)
 
 
 def _validate_mapped_field(action, slot: str, target_meta) -> None:

@@ -85,6 +85,38 @@ class IntegrationTestWAAccount(IntegrationTestCase):
 		self.assertFalse(self._default())
 		self.assertFalse(frappe.db.exists("WA Account", account.name))
 
+	@patch("whatsapp.whatsapp.doctype.wa_account.wa_account._get_whatsapp_client")
+	def test_deleting_an_account_unsubscribes_the_app_from_its_waba(self, get_client):
+		self._account("A")
+		account = self._account("B")
+		account.db_set("business_id", "waba_deleted")
+
+		account.delete()
+
+		get_client.return_value.unsubscribe_app.assert_called_once_with()
+
+	@patch("whatsapp.whatsapp.doctype.wa_account.wa_account._get_whatsapp_client")
+	def test_deleting_one_of_two_accounts_on_a_waba_keeps_the_subscription(self, get_client):
+		first = self._account("A")
+		second = self._account("B")
+		first.db_set("business_id", "waba_shared")
+		second.db_set("business_id", "waba_shared")
+
+		second.delete()
+
+		get_client.return_value.unsubscribe_app.assert_not_called()
+
+	@patch("whatsapp.whatsapp.doctype.wa_account.wa_account._get_whatsapp_client")
+	def test_a_meta_error_does_not_stop_the_delete(self, get_client):
+		get_client.return_value.unsubscribe_app.side_effect = requests.HTTPError("Code 190: bad token")
+		self._account("A")
+		account = self._account("B")
+		account.db_set("business_id", "waba_bad_token")
+
+		account.delete()
+
+		self.assertFalse(frappe.db.exists("WA Account", account.name))
+
 	def _append_action(self, account, **mapping):
 		account.append(
 			"append_actions",
