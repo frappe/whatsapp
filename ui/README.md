@@ -215,6 +215,50 @@ doctype's own validation is what reports a missing mapping. The access token arr
 and goes back untouched unless the admin types over it; never blank it, Frappe reads an empty
 value as "delete the stored token".
 
+#### Host settings
+
+A host that owns what an account's messages turn into can swap the Append Actions table for its
+own control: `:append-actions="false"` hides the table, and the `settings` slot (scoped with
+`doc`) renders under Auto Send Read Receipts in the Settings section. `defaults` sets what a new
+account starts with, and counts as its clean state. Helpdesk turns its `HD Ticket` row into a
+checkbox this way:
+
+```vue
+<script setup lang="ts">
+import { AccountForm, useAccount } from "@whatsapp/ui";
+import { Checkbox } from "frappe-ui";
+import { computed } from "vue";
+
+const TICKET_ACTION = { append_to: "HD Ticket", trigger_on: "Incoming" } as const;
+
+const props = defineProps<{ name?: string }>();
+const account = useAccount({
+  name: () => props.name,
+  defaults: { append_actions: [{ ...TICKET_ACTION }] },
+});
+
+const createTickets = computed({
+  get: () => account.doc.append_actions.some((row) => row.append_to === "HD Ticket"),
+  set: (on: boolean) => {
+    const rows = account.doc.append_actions.filter((row) => row.append_to !== "HD Ticket");
+    account.doc.append_actions = on ? [...rows, { ...TICKET_ACTION }] : rows;
+  },
+});
+</script>
+
+<template>
+  <AccountForm :controller="account" :append-actions="false">
+    <template #settings>
+      <Checkbox v-model="createTickets" label="Create tickets" />
+    </template>
+  </AccountForm>
+</template>
+```
+
+The row is saved with the rest of the form, and the account's other rows (another app's) are
+kept. A host that files a message itself and wants the app to leave it unfiled sets
+`doc.flags.skip_append_actions` on it before it is submitted; see [Backend](#backend).
+
 `AppendActionsTable` is exported on its own for a host that lays the fields out differently.
 It is `@framework/ui`'s `Grid` with a `Link` for Append To, a `Select` for Trigger On, and a
 `Combobox` per mapping slot fed by `controller.optionsFor(doctype, slot)`.

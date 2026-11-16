@@ -62,6 +62,8 @@ export interface FieldOption {
 export interface UseAccountOptions {
   /** Account to load. Empty or absent renders a blank account that `save()` creates. */
   name?: MaybeRefOrGetter<string | undefined>;
+  /** Values a new account starts with. They count as the clean state, so a blank form isn't dirty. */
+  defaults?: Partial<WhatsAppAccount>;
 }
 
 /**
@@ -88,6 +90,8 @@ export interface AccountController {
 
 export interface AccountFormProps {
   controller: AccountController;
+  /** Shows the Append Actions table; a host that manages the rows itself passes false. */
+  appendActions?: boolean;
 }
 
 export interface AppendActionsTableProps {

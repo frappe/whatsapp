@@ -1086,6 +1086,20 @@ class IntegrationTestAppendActions(IntegrationTestCase):
 		self.assertEqual(doc.reference_doctype, "ToDo")
 		self.assertEqual(frappe.db.get_value("ToDo", doc.reference_docname, "description"), "hello")
 
+	def test_message_flagged_to_skip_creates_nothing(self):
+		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
+
+		account = self._account_with_action()
+		profile = self._profile(account)
+		doc = self._incoming(account, profile)
+		doc.reference_doctype = doc.reference_docname = None
+		doc.flags.skip_append_actions = True
+
+		process_append_actions(doc, trigger_on="Incoming")
+
+		self.assertEqual(self._created_for(profile), [])
+		self.assertIsNone(doc.reference_doctype)
+
 	def test_message_that_already_has_a_reference_creates_nothing(self):
 		from whatsapp.whatsapp.doctype.wa_message.wa_message import process_append_actions
 

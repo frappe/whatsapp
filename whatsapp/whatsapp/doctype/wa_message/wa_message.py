@@ -370,8 +370,9 @@ class WAMessage(Document):
 def process_append_actions(doc, trigger_on: str) -> None:
 	"""Attach the message to a document. A reference the message already carries is kept,
 	else the conversation's latest one to an append action's target is reused, and only a
-	conversation with none creates documents from the account's append actions."""
-	if doc.reference_doctype and doc.reference_docname:
+	conversation with none creates documents from the account's append actions. A host app
+	that files the message itself sets `doc.flags.skip_append_actions` to keep it unfiled."""
+	if doc.flags.skip_append_actions or (doc.reference_doctype and doc.reference_docname):
 		return
 
 	account = frappe.get_cached_doc("WA Account", doc.whatsapp_account)
