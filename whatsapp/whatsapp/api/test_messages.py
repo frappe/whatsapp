@@ -41,6 +41,8 @@ from whatsapp.whatsapp.doctype.wa_template.wa_template import (
 	sync_from_account,
 )
 
+EXTRA_TEST_RECORD_DEPENDENCIES = ["User"]
+
 
 class WithoutHostAccessGuards:
 	"""Clears `whatsapp_access_guard` for every test in the class.
