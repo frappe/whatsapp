@@ -1,7 +1,5 @@
 import {
   computed,
-  getCurrentInstance,
-  inject,
   onScopeDispose,
   reactive,
   ref,
@@ -9,6 +7,7 @@ import {
   watch,
 } from "vue";
 import { createResource, dayjsLocal } from "frappe-ui";
+import { getSocketInstance, subscribeToDoc } from "@framework/ui";
 import type {
   CustomerServiceWindow,
   MediaFile,
@@ -22,40 +21,6 @@ import type {
 
 const API = "whatsapp.whatsapp.api.messages";
 const CUSTOMER_SERVICE_WINDOW_HOURS = 24;
-
-/** The socket methods used here. Structural, so this package never imports socket.io. */
-interface RealtimeSocket {
-  emit(event: string, ...args: unknown[]): void;
-  on(event: string, handler: (...args: unknown[]) => void): void;
-  off(event: string, handler: (...args: unknown[]) => void): void;
-}
-
-/**
- * The host's existing connection, never a new one — frappe-ui's `initSocket()` would open a
- * second. Its plugin sets the `$socket` global this reads; a host may `provide()` one instead.
- */
-function resolveSocket(): RealtimeSocket | undefined {
-  const instance = getCurrentInstance();
-  if (!instance) {
-    throw new Error("useMessages() must be called during setup().");
-  }
-
-  const globals = instance.appContext.config.globalProperties;
-  const socket =
-    inject<RealtimeSocket | undefined>("socket", undefined) ??
-    inject<RealtimeSocket | undefined>("$socket", undefined) ??
-    (globals.socket as RealtimeSocket | undefined) ??
-    (globals.$socket as RealtimeSocket | undefined);
-
-  if (!socket && import.meta.env?.DEV) {
-    console.warn(
-      "useMessages: no socket found, so live updates are off. Expose one via " +
-        "provide('socket'|'$socket', …) or a $socket global."
-    );
-  }
-
-  return socket;
-}
 
 /**
  * The conversation controller: the messages attached to a set of reference documents, what
@@ -260,7 +225,7 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
   const referencesKey = computed(() => JSON.stringify(references()));
   watch([referencesKey, enabled], () => reload(), { immediate: true });
 
-  const socket = resolveSocket();
+  const socket = getSocketInstance();
   if (socket) {
     const onMessage = (payload: unknown) => {
       const event = (payload ?? {}) as Partial<
@@ -274,28 +239,45 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
       if (concerns) reload();
     };
 
-    // The app publishes on each reference document's room, and a client is in no room until
-    // it asks: `doc_subscribe` is what the socket server permission-checks and joins.
-    let subscribed: MessageReference[] = [];
-    const unsubscribeAll = () => {
-      for (const [doctype, docname] of subscribed) {
-        socket.emit("doc_unsubscribe", doctype, docname);
-      }
+    // Rooms are shared with every other consumer of the same document (a host's activity
+    // timeline, say), so they are held through @framework/ui's counted table: a bare
+    // `doc_unsubscribe` from either side would drop the other out of the room. The new rooms
+    // are held before the old are released, so an unchanged room is never left and rejoined.
+    let leaveRooms: Array<() => void> = [];
+    const leaveAll = () => {
+      for (const leave of leaveRooms) leave();
+      leaveRooms = [];
     };
-    const resubscribe = () => {
-      unsubscribeAll();
-      subscribed = enabled() ? [...references()] : [];
-      for (const [doctype, docname] of subscribed) {
-        socket.emit("doc_subscribe", doctype, docname);
-      }
+    const holdRooms = () => {
+      const held = enabled()
+        ? references().map(([doctype, docname]) =>
+            subscribeToDoc(socket, doctype, docname)
+          )
+        : [];
+      leaveAll();
+      leaveRooms = held;
     };
-    watch([referencesKey, enabled], resubscribe, { immediate: true });
+    watch([referencesKey, enabled], holdRooms, { immediate: true });
+
+    // The rooms are rejoined on reconnect, but nothing was buffered while the socket was
+    // down, so whatever arrived in the gap is fetched once it is back.
+    let dropped = false;
+    const onDisconnect = () => (dropped = true);
+    const onConnect = () => {
+      if (!dropped) return;
+      dropped = false;
+      reload();
+    };
 
     socket.on("whatsapp_message", onMessage);
+    socket.on("disconnect", onDisconnect);
+    socket.on("connect", onConnect);
     // Scope disposal, not unmount: a host may keep a controller alive across a component.
     onScopeDispose(() => {
       socket.off("whatsapp_message", onMessage);
-      unsubscribeAll();
+      socket.off("disconnect", onDisconnect);
+      socket.off("connect", onConnect);
+      leaveAll();
     });
   }
 

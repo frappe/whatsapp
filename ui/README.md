@@ -509,13 +509,15 @@ alongside the host's would mean duplicate room joins and doubled events. What it
 wiring.
 
 The app publishes that event to each reference **document's** room rather than site-wide, so
-the controller also emits `doc_subscribe` for every reference — the socket server checks read
-permission on the document before joining, which is what keeps the event off other users'
-connections. The subscriptions follow the reference list when it changes, and are dropped on
-effect-scope dispose along with the handler, so a controller held longer than a component is
-still cleaned up correctly. Rooms belong to the connection, not to the controller: two
-controllers on the same reference share one subscription, and the first to dispose leaves the
-room for both.
+the controller joins every reference's room — the socket server checks read permission on the
+document before joining, which is what keeps the event off other users' connections. Rooms
+belong to the connection, not to the controller, and the server's `doc_unsubscribe` leaves
+outright, so they are held through `subscribeToDoc` from `@framework/ui`: the room is left only
+when its last holder releases it, whether that holder is another controller or a host's
+`ActivityTimeline` on the same document. The holds follow the reference list when it changes
+and are released on effect-scope dispose along with the handler, so a controller held longer
+than a component is still cleaned up correctly. After a reconnect the rooms are rejoined and
+the conversation is refetched once, since nothing that arrived while disconnected was buffered.
 
 Expose the socket at your app root with `provide("socket", socket)` (`"$socket"` and an
 `app.config.globalProperties.$socket` global are also read). **With no socket the subscription
