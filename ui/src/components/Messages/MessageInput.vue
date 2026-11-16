@@ -83,8 +83,9 @@ async function submit(overrides?: Pick<SendMessagePayload, "message">) {
 	if (name && payload) emit("send", payload);
 }
 
-// Shift+enter is left to the textarea, so it breaks the line. An enter that commits an IME
-// composition is neither a send nor a line break.
+// Cmd/ctrl+enter also sends, as in the email and comment composers. Shift+enter is left to the
+// textarea, so it breaks the line. An enter that commits an IME composition is neither a send
+// nor a line break.
 function sendOnEnter(event: KeyboardEvent) {
 	if (event.isComposing) return;
 	event.preventDefault();
@@ -243,6 +244,8 @@ defineExpose({ focus });
 				:placeholder="placeholder"
 				:disabled="locked"
 				@keydown.enter.exact="sendOnEnter"
+				@keydown.meta.enter.exact="sendOnEnter"
+				@keydown.ctrl.enter.exact="sendOnEnter"
 			/>
 
 			<div class="flex items-center gap-1 px-1.5 pb-1.5">
