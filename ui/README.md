@@ -223,11 +223,11 @@ action row for such a doctype is then the host's on/off switch rather than a map
 does not run it, and the Append Actions table leaves it out, so `controller.managedDoctypes` is
 filtered from both the rows and the Append To choices. The row still saves with the account.
 
-The host draws the switch in the `settings` slot (scoped with `doc`), rendered as a section of its
-own after the account's Settings, with the same divider as Append Actions; the host draws the
-section's heading. `useAppendToggle(controller, row)` is the switch's model: true while the account
-has a row for `row.append_to`, adding `row` when turned on and removing it when turned off. An
-existing row is kept as it is, so turning a setting on never overwrites saved mappings.
+The host draws the switch in the `settings` slot (scoped with `doc`), rendered as further fields of
+the Settings section, under Auto Send Read Receipts and spaced like its fields.
+`useAppendToggle(controller, row)` is the switch's model: true while the account has a row for
+`row.append_to`, adding `row` when turned on and removing it when turned off. An existing row is
+kept as it is, so turning a setting on never overwrites saved mappings.
 `defaults` sets what a new account starts with, and counts as its clean state. Helpdesk:
 
 ```vue
