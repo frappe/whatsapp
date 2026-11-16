@@ -193,7 +193,8 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 	variable_format = getattr(doc, "variable_format", None) or "Named"
 	components = []
 
-	if doc.header_type:
+	# Text is the default header type, so a Text header with no text means the template has none
+	if doc.header_type and (doc.header_type != "Text" or doc.header_text):
 		header = {"type": "HEADER", "format": _to_meta(HEADER_TYPES, doc.header_type)}
 		if doc.header_type == "Text" and doc.header_text:
 			header["text"] = doc.header_text
