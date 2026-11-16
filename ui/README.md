@@ -176,9 +176,10 @@ losing any behaviour.
 
 It calls `messages.send()` itself and emits `send` only **after** the send lands — that is a
 notification (scroll to the bottom, close a drawer), not a request to perform the call. The
-controller clears what the send consumed: a text send is a full `reset()`, a media send
-clears only the attachment and the reply, because its body was the caption and whatever is
-still typed in the box is a separate unsent message.
+controller clears what the send consumed: a text send clears the draft, the attachment and the
+reply, a media send only the attachment and the reply, because its body was the caption and
+whatever is still typed in the box is a separate unsent message. Each is cleared only if it is
+still what was sent, so text typed, or a reply chosen, while the send was in flight survives.
 
 ### The account form
 

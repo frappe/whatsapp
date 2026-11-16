@@ -292,7 +292,8 @@ export interface MessagesController {
   reload: () => Promise<void>;
   /**
    * Returns the new message's docname, or `null` when there was nothing to send, no
-   * recipient, or the call failed. A media send keeps the draft; a text send clears it.
+   * recipient, or the call failed. A media send keeps the draft; a text send clears it, unless
+   * it was edited while the send was in flight.
    */
   send: (
     overrides?: Pick<SendMessagePayload, "message">
