@@ -215,6 +215,48 @@ doctype's own validation is what reports a missing mapping. The access token arr
 and goes back untouched unless the admin types over it; never blank it, Frappe reads an empty
 value as "delete the stored token".
 
+#### Host settings
+
+A host that creates records for some doctypes itself (CRM its leads and deals, Helpdesk its
+tickets) lists them in its `hooks.py` (see [Managed doctypes](#managed-doctypes)). An append
+action row for such a doctype is then the host's on/off switch rather than a mapping: the app
+does not run it, and the Append Actions table leaves it out, so `controller.managedDoctypes` is
+filtered from both the rows and the Append To choices. The row still saves with the account.
+
+The host draws the switch in the `settings` slot (scoped with `doc`), rendered under Auto Send
+Read Receipts. `useAppendToggle(controller, row)` is the switch's model: true while the account
+has a row for `row.append_to`, adding `row` when turned on and removing it when turned off. An
+existing row is kept as it is, so turning a setting on never overwrites saved mappings.
+`defaults` sets what a new account starts with, and counts as its clean state. Helpdesk:
+
+```vue
+<script setup lang="ts">
+import { AccountForm, useAccount, useAppendToggle } from "@whatsapp/ui";
+import { Checkbox } from "frappe-ui";
+
+const TICKET_ACTION = { append_to: "HD Ticket", trigger_on: "Incoming" } as const;
+
+const props = defineProps<{ name?: string }>();
+const account = useAccount({
+  name: () => props.name,
+  defaults: { append_actions: [{ ...TICKET_ACTION }] },
+});
+const createTickets = useAppendToggle(account, TICKET_ACTION);
+</script>
+
+<template>
+  <AccountForm :controller="account">
+    <template #settings>
+      <Checkbox v-model="createTickets" label="Create tickets" />
+    </template>
+  </AccountForm>
+</template>
+```
+
+Mutually exclusive settings are two toggles behind one control: CRM offers None, Leads or Deals
+as a single choice and switches the two rows together. `:show-append-actions="false"` hides the
+table completely, for a host whose admins should only see its own settings.
+
 `AppendActionsTable` is exported on its own for a host that lays the fields out differently.
 It is `@framework/ui`'s `Grid` with a `Link` for Append To, a `Select` for Trigger On, and a
 `Combobox` per mapping slot fed by `controller.optionsFor(doctype, slot)`.
@@ -382,7 +424,7 @@ async function submit() {
     Replying to {{ messages.replyTo.direction === "Incoming" ? contactName : "You" }}
     <button @click="messages.clearReply()">×</button>
   </div>
-  <!-- MessageInput sends on enter, leaving shift+enter to break the line -->
+  <!-- MessageInput sends on enter or cmd/ctrl+enter, leaving shift+enter to break the line -->
   <textarea v-model="messages.draft" @keydown.enter.exact.prevent="submit" />
   <button :disabled="!messages.canSend" @click="submit">Send</button>
 </template>
@@ -509,13 +551,15 @@ alongside the host's would mean duplicate room joins and doubled events. What it
 wiring.
 
 The app publishes that event to each reference **document's** room rather than site-wide, so
-the controller also emits `doc_subscribe` for every reference — the socket server checks read
-permission on the document before joining, which is what keeps the event off other users'
-connections. The subscriptions follow the reference list when it changes, and are dropped on
-effect-scope dispose along with the handler, so a controller held longer than a component is
-still cleaned up correctly. Rooms belong to the connection, not to the controller: two
-controllers on the same reference share one subscription, and the first to dispose leaves the
-room for both.
+the controller joins every reference's room — the socket server checks read permission on the
+document before joining, which is what keeps the event off other users' connections. Rooms
+belong to the connection, not to the controller, and the server's `doc_unsubscribe` leaves
+outright, so they are held through `subscribeToDoc` from `@framework/ui`: the room is left only
+when its last holder releases it, whether that holder is another controller or a host's
+`ActivityTimeline` on the same document. The holds follow the reference list when it changes
+and are released on effect-scope dispose along with the handler, so a controller held longer
+than a component is still cleaned up correctly. After a reconnect the rooms are rejoined and
+the conversation is refetched once, since nothing that arrived while disconnected was buffered.
 
 Expose the socket at your app root with `provide("socket", socket)` (`"$socket"` and an
 `app.config.globalProperties.$socket` global are also read). **With no socket the subscription
@@ -570,6 +614,24 @@ built-in two do, so the row stays uniform:
 
 CRM uses it for the template picker, since the picker itself is host chrome — see
 [Sending a template](#sending-a-template).
+
+### Host actions on a message
+
+`MessageList`'s `actions` slot renders after the reply and react buttons of each bubble, with
+the same hover reveal, and gets the row's `message`. Render nothing for messages it doesn't
+apply to:
+
+```vue
+<MessageList v-bind="messages">
+  <template #actions="{ message }">
+    <Button v-if="linkFor(message)" variant="ghost" size="xs" :route="linkFor(message)">
+      <template #icon>
+        <span class="lucide-arrow-up-right size-4" aria-hidden="true" />
+      </template>
+    </Button>
+  </template>
+</MessageList>
+```
 
 ### Where a `class` lands
 
@@ -652,6 +714,21 @@ body. A guard takes no arguments: the reference document is already checked per 
 is left for the host to answer is the one question the app cannot, whether this user may use
 WhatsApp at all. The app registers nothing itself, so an unregistered hook leaves the endpoints
 exactly as they were.
+
+### Managed doctypes
+
+A host that creates records from incoming messages itself, rather than through an append
+action's field mapping, declares those doctypes:
+
+```python
+whatsapp_managed_doctypes = ["CRM Lead", "CRM Deal"]
+```
+
+`process_append_actions` skips rows for these doctypes and still runs the account's other rows,
+so a host's switch never turns another app's append actions off. The host then sets the
+message's reference itself (in a `WA Message` `validate` or `before_insert` doc event) when its
+row is present; a message it leaves unfiled stays unfiled by its rows, while other apps' rows
+still apply. `get_managed_append_doctypes` returns the list to the account form.
 
 ## Conventions
 

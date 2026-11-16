@@ -79,6 +79,13 @@ def run_access_guards() -> None:
 		frappe.get_attr(method)()
 
 
+def get_managed_doctypes() -> list[str]:
+	"""Append-to doctypes a host app creates records for itself, from its
+	`whatsapp_managed_doctypes` hook. Their append action rows are the host's opt-in switch,
+	so this app neither runs them nor lists them in the account form's table."""
+	return frappe.get_hooks("whatsapp_managed_doctypes")
+
+
 def get_template_variables(text: str) -> list[str]:
 	if not text:
 		return []
@@ -193,7 +200,8 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 	variable_format = getattr(doc, "variable_format", None) or "Named"
 	components = []
 
-	if doc.header_type:
+	# Text is the default header type, so a Text header with no text means the template has none
+	if doc.header_type and (doc.header_type != "Text" or doc.header_text):
 		header = {"type": "HEADER", "format": _to_meta(HEADER_TYPES, doc.header_type)}
 		if doc.header_type == "Text" and doc.header_text:
 			header["text"] = doc.header_text

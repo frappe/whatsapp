@@ -51,7 +51,6 @@
    "fieldtype": "Autocomplete",
    "in_list_view": 1,
    "label": "Phone Number",
-   "reqd": 1,
    "show_description_on_click": 1
   },
   {
@@ -64,7 +63,6 @@
    "fieldtype": "Autocomplete",
    "in_list_view": 1,
    "label": "Contact Name",
-   "reqd": 1,
    "show_description_on_click": 1
   },
   {
@@ -80,7 +78,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-28 16:41:37.000000",
+ "modified": "2026-11-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Account Append",

@@ -7,7 +7,12 @@ import { accountLayout } from "./accountLayout";
 import { serverErrorMessage } from "../../utils/serverError";
 import type { AccountFormProps } from "./types";
 
-const props = defineProps<AccountFormProps>();
+const props = withDefaults(defineProps<AccountFormProps>(), { showAppendActions: true });
+
+defineSlots<{
+	/** host settings, rendered in the Settings section under Auto Send Read Receipts */
+	settings?: (props: { doc: AccountFormProps["controller"]["doc"] }) => unknown;
+}>();
 
 provide(CommitKey, NO_COMMIT);
 
@@ -19,8 +24,11 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 <template>
 	<div class="flex flex-col text-ink-gray-8">
 		<FormLayout v-model:doc="controller.doc" :layout="layout" />
+		<div v-if="$slots.settings" class="flex flex-col gap-4">
+			<slot name="settings" :doc="controller.doc" />
+		</div>
 
-		<div class="mt-5 border-t border-outline-elevation-2 pt-5">
+		<div v-if="showAppendActions" class="mt-5 border-t border-outline-elevation-2 pt-5">
 			<div class="text-base-medium text-ink-gray-9">Append Actions</div>
 			<div class="mt-6">
 				<AppendActionsTable :controller="controller" />

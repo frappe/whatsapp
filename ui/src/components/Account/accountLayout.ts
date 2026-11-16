@@ -51,7 +51,7 @@ export function accountLayout(controller: AccountController): FormLayoutSchema {
           ],
         },
         {
-          label: "Read Receipts",
+          label: "Settings",
           collapsible: false,
           columns: [
             {

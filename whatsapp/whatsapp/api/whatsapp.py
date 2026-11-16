@@ -110,6 +110,9 @@ class WhatsApp:
 	def subscribe_app(self) -> dict:
 		return self._request("POST", f"{self.business_id}/subscribed_apps")
 
+	def unsubscribe_app(self) -> dict:
+		return self._request("DELETE", f"{self.business_id}/subscribed_apps")
+
 	def send_message(self, payload):
 		payload.setdefault("messaging_product", "whatsapp")
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)

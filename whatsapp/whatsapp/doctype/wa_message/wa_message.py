@@ -17,6 +17,7 @@ from whatsapp.whatsapp.api.utils import (
 	build_reaction_message_payload,
 	build_template_message_payload,
 	build_text_message_payload,
+	get_managed_doctypes,
 	log,
 )
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
@@ -370,15 +371,17 @@ class WAMessage(Document):
 def process_append_actions(doc, trigger_on: str) -> None:
 	"""Attach the message to a document. A reference the message already carries is kept,
 	else the conversation's latest one to an append action's target is reused, and only a
-	conversation with none creates documents from the account's append actions."""
+	conversation with none creates documents from the account's append actions. Rows for a
+	host's managed doctypes are left to that host."""
 	if doc.reference_doctype and doc.reference_docname:
 		return
 
 	account = frappe.get_cached_doc("WA Account", doc.whatsapp_account)
+	managed = get_managed_doctypes()
 	actions = [
 		action
 		for action in account.get("append_actions", [])
-		if action.trigger_on in (trigger_on, "Both") and action.append_to
+		if action.trigger_on in (trigger_on, "Both") and action.append_to and action.append_to not in managed
 	]
 	if not actions:
 		return
@@ -423,8 +426,11 @@ def _create_from_actions(doc, actions) -> tuple[str, str] | None:
 
 			# a mapped field is written even when the message carries no value, so an
 			# empty field on the created document means exactly that
-			new_doc.set(action.sender_field, profile.phone_number)
-			new_doc.set(action.sender_name_field, profile.profile_name)
+			if action.sender_field:
+				new_doc.set(action.sender_field, profile.phone_number)
+
+			if action.sender_name_field:
+				new_doc.set(action.sender_name_field, profile.profile_name)
 
 			if action.message_field:
 				new_doc.set(action.message_field, doc.message)

@@ -8,6 +8,7 @@ import type { MessageListProps, ReactPayload, WhatsAppMessage } from "./types";
 const props = withDefaults(defineProps<MessageListProps>(), {
 	messages: () => [],
 	rowClass: "",
+	canReply: true,
 	senderName: "Contact",
 	youLabel: "You",
 	reactedByLabel: "Reacted by",
@@ -56,6 +57,10 @@ const rows = computed<Row[]>(() => {
 	}
 	return out;
 });
+
+function ownReaction(message: WhatsAppMessage) {
+	return message.reactions?.find((reaction) => reaction.direction == "Outgoing")?.emoji;
+}
 
 // Scoped to this list: two lists on one page would otherwise fight over `document`, and a
 // docname shares the id namespace with every other element on the page.
@@ -174,6 +179,7 @@ onBeforeUnmount(() => {
 
 					<MessageBubble
 						:message="row.message"
+						:can-reply="canReply"
 						:sender-name="senderName"
 						:you-label="youLabel"
 						:reacted-by-label="reactedByLabel"
@@ -187,6 +193,7 @@ onBeforeUnmount(() => {
 						<template #actions>
 							<ReactionPicker
 								:emojis="reactionEmojis"
+								:selected="ownReaction(row.message)"
 								@select="
 									emit('react', { messageName: row.message.name, emoji: $event })
 								"
@@ -200,6 +207,7 @@ onBeforeUnmount(() => {
 									</template>
 								</Button>
 							</ReactionPicker>
+							<slot name="actions" :message="row.message" />
 						</template>
 					</MessageBubble>
 				</li>
