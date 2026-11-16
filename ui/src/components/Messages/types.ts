@@ -176,6 +176,8 @@ export interface MessageListProps {
   error?: unknown;
   /** applied to every message row, for a host that needs to find rows in the DOM */
   rowClass?: string;
+  /** default true; false drops each bubble's reply button, for a thread the host won't answer */
+  canReply?: boolean;
 
   // — chrome (English defaults; override to translate) —
   /** default "Contact" — the other participant, named on every incoming bubble */
@@ -223,6 +225,8 @@ export interface MessageBubbleProps {
   youLabel?: string;
   /** default "Reacted by" */
   reactedByLabel?: string;
+  /** default true */
+  canReply?: boolean;
   /** default "Reply" */
   replyLabel?: string;
   /** default "Replying to" — prefixes the sender named in the reply quote */

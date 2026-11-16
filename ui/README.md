@@ -571,6 +571,24 @@ built-in two do, so the row stays uniform:
 CRM uses it for the template picker, since the picker itself is host chrome — see
 [Sending a template](#sending-a-template).
 
+### Host actions on a message
+
+`MessageList`'s `actions` slot renders after the reply and react buttons of each bubble, with
+the same hover reveal, and gets the row's `message`. Render nothing for messages it doesn't
+apply to:
+
+```vue
+<MessageList v-bind="messages">
+  <template #actions="{ message }">
+    <Button v-if="linkFor(message)" variant="ghost" size="xs" :route="linkFor(message)">
+      <template #icon>
+        <span class="lucide-arrow-up-right size-4" aria-hidden="true" />
+      </template>
+    </Button>
+  </template>
+</MessageList>
+```
+
 ### Where a `class` lands
 
 `MessageInput`'s reply preview sits **inside** the composer's border, above the field, so there
