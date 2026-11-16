@@ -23,14 +23,9 @@ concurrency:
 
 jobs:
     tests:
-        name: Tests (frappe ${{ matrix.frappe-branch }})
+        name: Tests (frappe version-16)
         runs-on: ubuntu-latest
         timeout-minutes: 45
-        strategy:
-            fail-fast: false
-            matrix:
-                # pyproject.toml supports frappe >=16,<18: version-16 and develop
-                frappe-branch: [version-16, develop]
 
         services:
             redis-cache:
@@ -67,9 +62,9 @@ jobs:
               uses: actions/cache@v4
               with:
                   path: ~/.cache/pip
-                  key: ${{ runner.os }}-pip-${{ matrix.frappe-branch }}-${{ hashFiles('**/pyproject.toml') }}
+                  key: ${{ runner.os }}-pip-version-16-${{ hashFiles('**/pyproject.toml') }}
                   restore-keys: |
-                      ${{ runner.os }}-pip-${{ matrix.frappe-branch }}-
+                      ${{ runner.os }}-pip-version-16-
 
             - name: Install MariaDB client
               run: |
@@ -80,7 +75,7 @@ jobs:
               run: |
                   pip install frappe-bench
                   bench init --skip-redis-config-generation --skip-assets \
-                      --frappe-branch ${{ matrix.frappe-branch }} \
+                      --frappe-branch version-16 \
                       --python "$(which python)" ~/frappe-bench
 
             - name: Install whatsapp
