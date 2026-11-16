@@ -97,7 +97,7 @@ export interface AccountController {
 export interface AccountFormProps {
   controller: AccountController;
   /** Shows the Append Actions table; a host that manages the rows itself passes false. */
-  appendActions?: boolean;
+  showAppendActions?: boolean;
 }
 
 export interface AppendActionsTableProps {

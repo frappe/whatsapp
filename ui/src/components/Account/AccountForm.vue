@@ -7,7 +7,7 @@ import { accountLayout } from "./accountLayout";
 import { serverErrorMessage } from "../../utils/serverError";
 import type { AccountFormProps } from "./types";
 
-const props = withDefaults(defineProps<AccountFormProps>(), { appendActions: true });
+const props = withDefaults(defineProps<AccountFormProps>(), { showAppendActions: true });
 
 defineSlots<{
 	/** host settings, rendered in the Settings section under Auto Send Read Receipts */
@@ -28,7 +28,7 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 			<slot name="settings" :doc="controller.doc" />
 		</div>
 
-		<div v-if="appendActions" class="mt-5 border-t border-outline-elevation-2 pt-5">
+		<div v-if="showAppendActions" class="mt-5 border-t border-outline-elevation-2 pt-5">
 			<div class="text-base-medium text-ink-gray-9">Append Actions</div>
 			<div class="mt-6">
 				<AppendActionsTable :controller="controller" />

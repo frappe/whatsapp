@@ -254,7 +254,7 @@ const createTickets = useAppendToggle(account, TICKET_ACTION);
 ```
 
 Mutually exclusive settings are two toggles behind one control: CRM offers None, Leads or Deals
-as a single choice and switches the two rows together. `:append-actions="false"` hides the
+as a single choice and switches the two rows together. `:show-append-actions="false"` hides the
 table completely, for a host whose admins should only see its own settings.
 
 `AppendActionsTable` is exported on its own for a host that lays the fields out differently.
