@@ -7,16 +7,17 @@ export const REACTION_EMOJIS: string[] = ["👍", "❤️", "😂", "😮", "�
 import { Button, Popover } from "frappe-ui";
 import type { ReactionPickerProps } from "./types";
 
-withDefaults(defineProps<ReactionPickerProps>(), {
+const props = withDefaults(defineProps<ReactionPickerProps>(), {
 	emojis: () => REACTION_EMOJIS,
 });
 
 const emit = defineEmits<{
+	/** the emoji picked, or "" when the current reaction was picked again to remove it */
 	select: [emoji: string];
 }>();
 
 function choose(emoji: string, close: () => void) {
-	emit("select", emoji);
+	emit("select", emoji == props.selected ? "" : emoji);
 	close();
 }
 </script>
@@ -46,7 +47,9 @@ function choose(emoji: string, close: () => void) {
 					:key="emoji"
 					variant="ghost"
 					class="rounded-full"
+					:class="{ '!bg-surface-gray-3': emoji == selected }"
 					:aria-label="`React with ${emoji}`"
+					:aria-pressed="emoji == selected"
 					@click="choose(emoji, close)"
 				>
 					<span class="text-xl leading-none">{{ emoji }}</span>
