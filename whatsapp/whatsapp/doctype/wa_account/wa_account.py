@@ -6,7 +6,7 @@ import requests
 from frappe import _
 from frappe.model.document import Document
 
-from whatsapp.whatsapp.api.utils import log
+from whatsapp.whatsapp.api.utils import get_managed_doctypes, log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
 
 # Which fieldtypes can hold the value an append action writes into each mapping slot.
@@ -157,6 +157,12 @@ def get_append_field_options(target_doctype: str = "", slot: str = "", txt: str 
 		for df in frappe.get_meta(target_doctype).fields
 		if df.fieldtype in fieldtypes and (txt in df.fieldname.lower() or txt in (df.label or "").lower())
 	]
+
+
+@frappe.whitelist()
+def get_managed_append_doctypes() -> list[str]:
+	frappe.has_permission("WA Account", "read", throw=True)
+	return get_managed_doctypes()
 
 
 @frappe.whitelist()

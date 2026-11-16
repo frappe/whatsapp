@@ -11,15 +11,17 @@ import {
 } from "./types";
 
 const DOCTYPE = "WA Account";
-const OPTIONS_API =
-  "whatsapp.whatsapp.doctype.wa_account.wa_account.get_append_field_options";
+const ACCOUNT_API = "whatsapp.whatsapp.doctype.wa_account.wa_account";
+const OPTIONS_API = `${ACCOUNT_API}.get_append_field_options`;
 
-export function emptyAccount(): WhatsAppAccount {
+export function emptyAccount(defaults: Partial<WhatsAppAccount> = {}): WhatsAppAccount {
   return {
     doctype: DOCTYPE,
     status: "Active",
     auto_read_receipts: 0,
     append_actions: [],
+    // copied, so editing a new account never edits the host's defaults
+    ...JSON.parse(JSON.stringify(defaults)),
   };
 }
 
@@ -29,11 +31,17 @@ export function emptyAppendAction(): AppendAction {
 
 export function useAccount(options: UseAccountOptions = {}): AccountController {
   const docName = ref(toValue(options.name) || "");
-  const doc = ref<WhatsAppAccount>(emptyAccount());
+  const blank = () => emptyAccount(options.defaults);
+  const doc = ref<WhatsAppAccount>(blank());
   const loadedJson = ref("");
   const loading = ref(false);
   const saving = ref(false);
   const error = ref<unknown>(null);
+
+  const managedDoctypes = ref<string[]>([]);
+  call<string[]>(`${ACCOUNT_API}.get_managed_append_doctypes`).then(
+    (doctypes) => (managedDoctypes.value = doctypes)
+  );
 
   const fieldOptions = reactive(new Map<string, FieldOption[]>());
   const pendingOptions = new Map<string, Promise<void>>();
@@ -79,7 +87,7 @@ export function useAccount(options: UseAccountOptions = {}): AccountController {
 
   async function reload() {
     if (!docName.value) {
-      adopt(emptyAccount());
+      adopt(blank());
       return;
     }
     const name = docName.value;
@@ -146,5 +154,6 @@ export function useAccount(options: UseAccountOptions = {}): AccountController {
     reload,
     setAppendTo,
     optionsFor,
+    managedDoctypes,
   }) as AccountController;
 }

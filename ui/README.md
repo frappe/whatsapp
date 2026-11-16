@@ -215,6 +215,48 @@ doctype's own validation is what reports a missing mapping. The access token arr
 and goes back untouched unless the admin types over it; never blank it, Frappe reads an empty
 value as "delete the stored token".
 
+#### Host settings
+
+A host that creates records for some doctypes itself (CRM its leads and deals, Helpdesk its
+tickets) lists them in its `hooks.py` (see [Managed doctypes](#managed-doctypes)). An append
+action row for such a doctype is then the host's on/off switch rather than a mapping: the app
+does not run it, and the Append Actions table leaves it out, so `controller.managedDoctypes` is
+filtered from both the rows and the Append To choices. The row still saves with the account.
+
+The host draws the switch in the `settings` slot (scoped with `doc`), rendered under Auto Send
+Read Receipts. `useAppendToggle(controller, row)` is the switch's model: true while the account
+has a row for `row.append_to`, adding `row` when turned on and removing it when turned off. An
+existing row is kept as it is, so turning a setting on never overwrites saved mappings.
+`defaults` sets what a new account starts with, and counts as its clean state. Helpdesk:
+
+```vue
+<script setup lang="ts">
+import { AccountForm, useAccount, useAppendToggle } from "@whatsapp/ui";
+import { Checkbox } from "frappe-ui";
+
+const TICKET_ACTION = { append_to: "HD Ticket", trigger_on: "Incoming" } as const;
+
+const props = defineProps<{ name?: string }>();
+const account = useAccount({
+  name: () => props.name,
+  defaults: { append_actions: [{ ...TICKET_ACTION }] },
+});
+const createTickets = useAppendToggle(account, TICKET_ACTION);
+</script>
+
+<template>
+  <AccountForm :controller="account">
+    <template #settings>
+      <Checkbox v-model="createTickets" label="Create tickets" />
+    </template>
+  </AccountForm>
+</template>
+```
+
+Mutually exclusive settings are two toggles behind one control: CRM offers None, Leads or Deals
+as a single choice and switches the two rows together. `:show-append-actions="false"` hides the
+table completely, for a host whose admins should only see its own settings.
+
 `AppendActionsTable` is exported on its own for a host that lays the fields out differently.
 It is `@framework/ui`'s `Grid` with a `Link` for Append To, a `Select` for Trigger On, and a
 `Combobox` per mapping slot fed by `controller.optionsFor(doctype, slot)`.
@@ -670,6 +712,21 @@ body. A guard takes no arguments: the reference document is already checked per 
 is left for the host to answer is the one question the app cannot, whether this user may use
 WhatsApp at all. The app registers nothing itself, so an unregistered hook leaves the endpoints
 exactly as they were.
+
+### Managed doctypes
+
+A host that creates records from incoming messages itself, rather than through an append
+action's field mapping, declares those doctypes:
+
+```python
+whatsapp_managed_doctypes = ["CRM Lead", "CRM Deal"]
+```
+
+`process_append_actions` skips rows for these doctypes and still runs the account's other rows,
+so a host's switch never turns another app's append actions off. The host then sets the
+message's reference itself (in a `WA Message` `validate` or `before_insert` doc event) when its
+row is present; a message it leaves unfiled stays unfiled by its rows, while other apps' rows
+still apply. `get_managed_append_doctypes` returns the list to the account form.
 
 ## Conventions
 
