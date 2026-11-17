@@ -25,6 +25,7 @@ from whatsapp.whatsapp.api.messages import (
 	send_message,
 	send_template,
 )
+from whatsapp.whatsapp.api.meta_errors import META_ERRORS
 from whatsapp.whatsapp.api.utils import (
 	get_logs,
 	humanize_error_message,
@@ -167,21 +168,22 @@ class TestHumanizeErrorMessage(UnitTestCase):
 			'"details":"Recipient phone number not in allowed list: Add recipient phone number '
 			'to recipient list and try again."},"fbtrace_id":"AeALCYwKZ1csanln8U18Q9i"}}'
 		)
-		self.assertEqual(
-			humanize_error_message(raw),
-			"(#131030) Recipient phone number not in allowed list",
-		)
+		self.assertEqual(humanize_error_message(raw), str(META_ERRORS[131030]))
 
 	def test_extracts_message_from_webhook_errors_array(self):
-		raw = '[{"code":131030,"title":"Undeliverable","message":"(#131030) Not allowed"}]'
-		self.assertEqual(humanize_error_message(raw), "(#131030) Not allowed")
+		raw = '[{"code":131047,"title":"Re-engagement message","message":"(#131047) Re-engagement"}]'
+		self.assertEqual(humanize_error_message(raw), str(META_ERRORS[131047]))
+
+	def test_unknown_code_keeps_metas_message(self):
+		raw = '[{"code":999999,"title":"Undeliverable","message":"(#999999) Not allowed"}]'
+		self.assertEqual(humanize_error_message(raw), "(#999999) Not allowed")
 
 	def test_falls_back_to_error_user_msg(self):
 		raw = '{"error":{"code":131030,"error_user_msg":"Add the number to your allowed list"}}'
 		self.assertEqual(humanize_error_message(raw), "Add the number to your allowed list")
 
 	def test_falls_back_to_title(self):
-		self.assertEqual(humanize_error_message('[{"code":131030,"title":"Undeliverable"}]'), "Undeliverable")
+		self.assertEqual(humanize_error_message('[{"code":999999,"title":"Undeliverable"}]'), "Undeliverable")
 
 	def test_empty_errors_array_returns_original(self):
 		self.assertEqual(humanize_error_message("[]"), "[]")

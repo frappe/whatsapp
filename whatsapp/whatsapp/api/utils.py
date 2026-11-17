@@ -4,6 +4,8 @@ from typing import TypedDict, cast
 
 import frappe
 
+from whatsapp.whatsapp.api.meta_errors import describe_meta_error
+
 MIME_CONTENT_TYPE_MAP = {
 	"image/": "image",
 	"audio/": "audio",
@@ -149,16 +151,14 @@ def humanize_error_message(raw: str | None) -> str | None:
 
 	try:
 		data = json.loads(raw)
-	except (ValueError, TypeError):
+	except ValueError, TypeError:
 		return raw
 
 	if isinstance(data, list):
 		data = data[0] if data else {}
 
 	if isinstance(data, dict):
-		error = data.get("error", data)
-		if isinstance(error, dict):
-			return error.get("message") or error.get("error_user_msg") or error.get("title") or raw
+		return describe_meta_error(data.get("error", data)) or raw
 
 	return raw
 
