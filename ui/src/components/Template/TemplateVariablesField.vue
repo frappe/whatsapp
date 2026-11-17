@@ -48,14 +48,14 @@ function setExample(index: number, example: string) {
 				class="grid grid-cols-2 border-t border-outline-gray-2 bg-surface-base"
 			>
 				<div
-					class="flex min-w-0 items-center border-r border-outline-gray-2 px-2 text-sm text-ink-gray-7"
+					class="flex min-w-0 cursor-default items-center border-r border-outline-gray-2 bg-surface-gray-1 px-2 text-sm text-ink-gray-5"
 					:title="braced(row.variable_name)"
 				>
 					<span class="truncate">{{ labelOf(row.variable_name) }}</span>
 				</div>
 				<input
 					type="text"
-					class="h-[34px] w-full min-w-0 border-none bg-surface-base px-2 text-sm text-ink-gray-8 placeholder-ink-gray-4 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-outline-gray-3 disabled:text-ink-gray-5"
+					class="h-[34px] w-full min-w-0 border-none bg-surface-base px-2 text-sm text-ink-gray-8 placeholder-ink-gray-4 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-outline-gray-3 disabled:cursor-default disabled:bg-surface-gray-1 disabled:text-ink-gray-5"
 					:value="row.variable_example"
 					:placeholder="field.placeholder"
 					:disabled="field.readOnly"

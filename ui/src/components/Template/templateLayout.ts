@@ -146,11 +146,6 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
         {
           hideLabel: true,
           hideBorder: true,
-          columns: [{ fields: [{ fieldname: "footer", fieldtype: "Data", label: "Footer" }] }],
-        },
-        {
-          hideLabel: true,
-          hideBorder: true,
           columns: [
             {
               fields: [
@@ -169,6 +164,11 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
               ],
             },
           ],
+        },
+        {
+          hideLabel: true,
+          hideBorder: true,
+          columns: [{ fields: [{ fieldname: "footer", fieldtype: "Data", label: "Footer" }] }],
         },
         {
           hideLabel: true,
