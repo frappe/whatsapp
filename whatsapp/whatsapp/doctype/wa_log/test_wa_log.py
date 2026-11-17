@@ -33,3 +33,10 @@ class IntegrationTestWALog(IntegrationTestCase):
 			name = log("Info", "System", "from code")
 
 		self.assertEqual(frappe.db.get_value("WA Log", name, "message"), "from code")
+
+	def test_even_administrator_cannot_edit_a_log(self):
+		doc = frappe.get_doc("WA Log", log("Info", "System", "from code"))
+		doc.message = "edited"
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.save()
