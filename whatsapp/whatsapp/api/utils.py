@@ -151,7 +151,7 @@ def humanize_error_message(raw: str | None) -> str | None:
 
 	try:
 		data = json.loads(raw)
-	except ValueError, TypeError:
+	except (ValueError, TypeError):
 		return raw
 
 	if isinstance(data, list):

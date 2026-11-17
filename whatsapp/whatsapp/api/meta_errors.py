@@ -84,7 +84,7 @@ def describe_meta_error(error: dict) -> str | None:
 def _as_int(code) -> int | None:
 	try:
 		return int(code)
-	except TypeError, ValueError:
+	except (TypeError, ValueError):
 		return None
 
 

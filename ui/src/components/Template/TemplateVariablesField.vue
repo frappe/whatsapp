@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { FormLabel } from "frappe-ui";
 import type { TemplateVariablesFieldProps, TemplateVariableRow } from "./types";
 
@@ -23,6 +23,18 @@ function braced(name: string) {
 
 function labelOf(name: string) {
 	return labels.value.get(name) ?? name;
+}
+
+// Marked only once left empty, so a fresh row is not red before the user reaches it.
+const visited = ref(new Set<string>());
+
+function isMissing(row: TemplateVariableRow) {
+	return !props.field.readOnly && visited.value.has(row.variable_name) && !row.variable_example?.trim();
+}
+
+function leave(row: TemplateVariableRow) {
+	visited.value = new Set(visited.value).add(row.variable_name);
+	emit("change", rows.value);
 }
 
 function setExample(index: number, example: string) {
@@ -59,9 +71,11 @@ function setExample(index: number, example: string) {
 					:value="row.variable_example"
 					:placeholder="field.placeholder"
 					:disabled="field.readOnly"
+					:class="{ 'shadow-[inset_0_0_0_1px_var(--outline-red-5)]': isMissing(row) }"
+					:aria-invalid="isMissing(row) || undefined"
 					:aria-label="`Example for ${labelOf(row.variable_name)}`"
 					@input="setExample(index, ($event.target as HTMLInputElement).value)"
-					@blur="emit('change', rows)"
+					@blur="leave(row)"
 				/>
 			</div>
 		</div>

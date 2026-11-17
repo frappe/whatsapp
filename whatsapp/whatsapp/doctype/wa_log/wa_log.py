@@ -27,7 +27,7 @@ class WALog(Document):
 		traceback: DF.Code | None
 	# end: auto-generated types
 
-	def validate(self):
+	def validate(self) -> None:
 		# Administrator holds every permission, so the missing write permission does not stop it.
 		if not self.is_new():
 			frappe.throw(_("WhatsApp logs cannot be edited."))

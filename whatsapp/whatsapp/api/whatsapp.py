@@ -43,7 +43,9 @@ class WhatsApp:
 		self._log_api_success(method, url, kwargs.get("json"), result)
 		return result
 
-	def _log_api_error(self, method: str, url: str, payload: dict | None, resp: requests.Response) -> None:
+	def _log_api_error(
+		self, method: str, url: str, payload: dict | None, resp: requests.Response
+	) -> None:
 		try:
 			event_type = "API"
 			if "message_templates" in url or "/templates" in url:
@@ -149,6 +151,6 @@ class WhatsApp:
 def _extract_meta_error(body: str) -> str:
 	try:
 		error = json.loads(body).get("error")
-	except ValueError, AttributeError:
+	except (ValueError, AttributeError):
 		return body
 	return describe_meta_error(error) or body
