@@ -4,7 +4,8 @@ import { ErrorMessage } from "frappe-ui";
 import { CommitKey, FormLayout, NO_COMMIT } from "@framework/ui/components/FormLayout";
 import AppendActionsTable from "./AppendActionsTable.vue";
 import { accountLayout } from "./accountLayout";
-import { serverErrorMessage } from "../../utils/serverError";
+import { isMetaError, serverErrorMessage } from "../../utils/serverError";
+import WhatsAppDocsLink from "../common/WhatsAppDocsLink.vue";
 import type { AccountFormProps } from "./types";
 
 const props = withDefaults(defineProps<AccountFormProps>(), { showAppendActions: true });
@@ -39,5 +40,6 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 		</div>
 
 		<ErrorMessage class="mt-4" :message="errorMessage" />
+		<WhatsAppDocsLink v-if="isMetaError(controller.error)" class="mt-1 text-sm text-ink-gray-6" />
 	</div>
 </template>

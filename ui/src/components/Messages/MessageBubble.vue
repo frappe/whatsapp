@@ -5,6 +5,7 @@ import { Button, LoadingIndicator, Tooltip, dayjsLocal } from "frappe-ui";
 import TemplateContent from "./TemplateContent.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
 import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "../../utils/media";
+import WhatsAppDocsLink from "../common/WhatsAppDocsLink.vue";
 import type { MessageBubbleProps, WhatsAppDirection, WhatsAppMessage } from "./types";
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
@@ -233,7 +234,8 @@ function nameFor(direction?: WhatsAppDirection) {
 
 			<!-- readable rather than hover-only: a send failure is the one thing worth reading -->
 			<span v-if="message.status == 'Failed'" class="min-w-0 break-words text-ink-red-6">
-				{{ message.error_message || failedMessageLabel }}
+				{{ message.error_message || failedMessageLabel }} ·
+				<WhatsAppDocsLink />
 			</span>
 		</div>
 	</div>

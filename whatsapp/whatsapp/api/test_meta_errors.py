@@ -5,7 +5,7 @@ import json
 
 from frappe.tests import UnitTestCase
 
-from whatsapp.whatsapp.api.meta_errors import META_ERRORS, describe_meta_error
+from whatsapp.whatsapp.api.meta_errors import DOCS_URL, META_ERRORS, describe_meta_error, with_docs_link
 from whatsapp.whatsapp.api.whatsapp import _extract_meta_error
 
 TEMPLATE_REFUSAL = {
@@ -46,3 +46,9 @@ class TestMetaErrors(UnitTestCase):
 	def test_a_body_that_is_not_a_meta_error_comes_back_unchanged(self):
 		self.assertEqual(_extract_meta_error("<html>Bad Gateway</html>"), "<html>Bad Gateway</html>")
 		self.assertEqual(_extract_meta_error('["not", "an", "object"]'), '["not", "an", "object"]')
+
+	def test_a_shown_error_links_to_the_docs(self):
+		shown = with_docs_link("Meta rejected the request")
+
+		self.assertTrue(shown.startswith("Meta rejected the request · "))
+		self.assertIn(f'href="{DOCS_URL}"', shown)

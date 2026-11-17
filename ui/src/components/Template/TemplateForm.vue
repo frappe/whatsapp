@@ -3,7 +3,8 @@ import { computed, provide } from "vue";
 import { ErrorMessage } from "frappe-ui";
 import { CommitKey, FormLayout, NO_COMMIT } from "@framework/ui/components/FormLayout";
 import { templateLayout } from "./templateLayout";
-import { serverErrorMessage } from "../../utils/serverError";
+import { isMetaError, serverErrorMessage } from "../../utils/serverError";
+import WhatsAppDocsLink from "../common/WhatsAppDocsLink.vue";
 import type { TemplateFormProps } from "./types";
 
 const props = defineProps<TemplateFormProps>();
@@ -26,5 +27,6 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 		</div>
 		<FormLayout v-model:doc="controller.doc" :layout="layout" />
 		<ErrorMessage class="mt-4" :message="errorMessage" />
+		<WhatsAppDocsLink v-if="isMetaError(controller.error)" class="mt-1 text-sm text-ink-gray-6" />
 	</div>
 </template>

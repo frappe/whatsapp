@@ -1,4 +1,5 @@
 export { default as MediaPreviewDialog } from "./MediaPreviewDialog.vue";
+export { default as WhatsAppDocsLink } from "./WhatsAppDocsLink.vue";
 export {
   default as ReactionPicker,
   REACTION_EMOJIS,
