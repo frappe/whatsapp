@@ -7,7 +7,6 @@ import frappe
 import requests
 from frappe.tests import IntegrationTestCase
 
-from whatsapp.whatsapp.api.meta_errors import DOCS_URL
 from whatsapp.whatsapp.doctype.wa_account.wa_account import (
 	check_webhook_subscription,
 	get_append_field_options,
@@ -229,7 +228,6 @@ class IntegrationTestWAAccount(IntegrationTestCase):
 		with self.assertRaises(frappe.ValidationError) as ctx:
 			check_webhook_subscription(account.name)
 		self.assertIn("Code 190", str(ctx.exception))
-		self.assertIn(DOCS_URL, str(ctx.exception))
 
 	@patch("whatsapp.whatsapp.doctype.wa_account.wa_account._get_whatsapp_client")
 	def test_subscribe_posts_to_meta_then_rechecks(self, get_client):

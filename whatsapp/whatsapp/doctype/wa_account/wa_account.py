@@ -6,7 +6,6 @@ import requests
 from frappe import _
 from frappe.model.document import Document
 
-from whatsapp.whatsapp.api.meta_errors import with_docs_link
 from whatsapp.whatsapp.api.utils import get_managed_doctypes, log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
 
@@ -181,7 +180,7 @@ def check_webhook_subscription(account: str) -> dict:
 	try:
 		response = _client_for(account_doc).get_subscribed_apps()
 	except requests.HTTPError as e:
-		frappe.throw(with_docs_link(_("Meta rejected the request: {0}").format(e)))
+		frappe.throw(_("Meta rejected the request: {0}").format(e))
 
 	apps = [entry.get("whatsapp_business_api_data", {}) for entry in response.get("data", [])]
 	app_ids = {app.get("id") for app in apps}
@@ -202,7 +201,7 @@ def subscribe_webhook(account: str) -> dict:
 	try:
 		_client_for(account_doc).subscribe_app()
 	except requests.HTTPError as e:
-		frappe.throw(with_docs_link(_("Meta rejected the subscription: {0}").format(e)))
+		frappe.throw(_("Meta rejected the subscription: {0}").format(e))
 
 	return check_webhook_subscription(account)
 

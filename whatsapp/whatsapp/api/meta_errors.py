@@ -7,10 +7,7 @@ Codes from https://developers.facebook.com/documentation/business-messaging/what
 Template errors arrive as code 100 with an `error_subcode`, so subcodes are looked up first.
 """
 
-from frappe import _, _lt
-
-# General docs, not a per-error page: the user searches from there.
-DOCS_URL = "https://developers.facebook.com/documentation/business-messaging/whatsapp"
+from frappe import _lt
 
 META_ERRORS = {
 	# authorization
@@ -66,12 +63,6 @@ META_ERRORS = {
 	2388299: _lt("Variables cannot start or end the template."),
 	2494100: _lt("Account in maintenance mode. Try again shortly."),
 }
-
-
-def with_docs_link(message: str) -> str:
-	"""`message` followed by a link to Meta's WhatsApp documentation."""
-	link = _("WhatsApp API documentation")
-	return f'{message} · <a href="{DOCS_URL}" target="_blank" rel="noopener noreferrer">{link}</a>'
 
 
 def describe_meta_error(error: dict) -> str | None:

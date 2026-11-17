@@ -9,5 +9,4 @@ export {
   hasCaption,
 } from "./media";
 export type { MediaAttachment } from "./media";
-export { isMetaError, serverErrorMessage } from "./serverError";
-export { WHATSAPP_DOCS_URL } from "./metaDocs";
+export { serverErrorMessage } from "./serverError";

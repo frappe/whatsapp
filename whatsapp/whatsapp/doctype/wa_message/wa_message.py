@@ -9,7 +9,6 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
-from whatsapp.whatsapp.api.meta_errors import with_docs_link
 from whatsapp.whatsapp.api.utils import (
 	MEDIA_HEADER_TYPES,
 	build_interactive_buttons_payload,
@@ -228,7 +227,7 @@ class WAMessage(Document):
 				self.db_set("status", "Failed")
 				self.db_set("error_message", str(e))
 				self.run_notifications("on_send_failed")
-				frappe.throw(with_docs_link(_("Failed to upload media: {0}").format(str(e))))
+				frappe.throw(_("Failed to upload media: {0}").format(str(e)))
 
 		if self.is_template and self.whatsapp_template:
 			template_doc = frappe.get_doc("WA Template", self.whatsapp_template)
@@ -260,9 +259,7 @@ class WAMessage(Document):
 						self.db_set("status", "Failed")
 						self.db_set("error_message", str(e))
 						self.run_notifications("on_send_failed")
-						frappe.throw(
-							with_docs_link(_("Failed to upload template header media: {0}").format(str(e)))
-						)
+						frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
 
 		payload = self._build_payload()
 		try:
@@ -307,7 +304,7 @@ class WAMessage(Document):
 			self.db_set("status", "Failed")
 			self.db_set("error_message", str(e))
 			self.run_notifications("on_send_failed")
-			frappe.throw(with_docs_link(_("Failed to send message: {0}").format(str(e))))
+			frappe.throw(_("Failed to send message: {0}").format(str(e)))
 
 	def _build_payload(self) -> dict:
 		profile = frappe.get_cached_doc("WA Profile", self.to)

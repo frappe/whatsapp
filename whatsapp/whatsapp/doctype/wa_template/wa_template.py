@@ -10,7 +10,6 @@ from frappe import _
 from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
-from whatsapp.whatsapp.api.meta_errors import with_docs_link
 from whatsapp.whatsapp.api.utils import (
 	build_create_template_payload,
 	log,
@@ -236,7 +235,7 @@ class WATemplate(Document):
 				request_data=payload,
 				traceback=frappe.get_traceback(),
 			)
-			frappe.throw(with_docs_link(_("Failed to push template to Meta: {0}").format(str(e))))
+			frappe.throw(_("Failed to push template to Meta: {0}").format(str(e)))
 
 		template_id = result.get("id")
 		if not template_id:
@@ -251,7 +250,7 @@ class WATemplate(Document):
 				request_data=payload,
 				response_data=result,
 			)
-			frappe.throw(with_docs_link(_("Meta API did not return a template ID")))
+			frappe.throw(_("Meta API did not return a template ID"))
 
 		self.whatsapp_template_id = template_id
 		self.status = normalize_template_status(result.get("status", ""))
@@ -330,7 +329,7 @@ class WATemplate(Document):
 				request_data=payload,
 				traceback=frappe.get_traceback(),
 			)
-			frappe.throw(with_docs_link(_("Failed to update template in Meta: {0}").format(str(e))))
+			frappe.throw(_("Failed to update template in Meta: {0}").format(str(e)))
 
 		self.status = normalize_template_status(result.get("status", ""))
 		logger.info("_update_in_meta | success | status=%s", self.status)
@@ -643,7 +642,7 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 			request_data=payload,
 			traceback=frappe.get_traceback(),
 		)
-		frappe.throw(with_docs_link(_("Failed to push template to Meta: {0}").format(str(e))))
+		frappe.throw(_("Failed to push template to Meta: {0}").format(str(e)))
 
 	template_id = result.get("id", None)
 	if not template_id:
@@ -655,7 +654,7 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 			request_data=payload,
 			response_data=result,
 		)
-		frappe.throw(with_docs_link(_("Meta API did not return a template ID")))
+		frappe.throw(_("Meta API did not return a template ID"))
 
 	doc.whatsapp_template_id = template_id
 	doc.status = normalize_template_status(result.get("status", ""))
