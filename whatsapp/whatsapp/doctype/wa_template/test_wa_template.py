@@ -13,7 +13,9 @@ from whatsapp.whatsapp.doctype.wa_template.wa_template import (
 	_mark_deleted_templates,
 	_upsert_template,
 	create_template_and_push,
+	get_doctype_columns,
 	get_sendable_templates,
+	get_variable_fields,
 )
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
@@ -877,3 +879,12 @@ class IntegrationTestRetiredLanguageCodePatch(IntegrationTestCase):
 		self.assertFalse(frappe.db.exists("WA Template", retired))
 		self.assertEqual(frappe.db.get_value("WA Template", kept, "language"), "en_GB")
 		self.assertEqual(frappe.db.get_value("WA Message", message, "whatsapp_template"), kept)
+
+
+class IntegrationTestVariableFields(IntegrationTestCase):
+	def test_fields_carry_their_label(self):
+		fields = {field["value"]: field["label"] for field in get_variable_fields("ToDo")}
+
+		self.assertEqual(fields["status"], "Status")
+		self.assertNotIn("description", fields)
+		self.assertEqual(get_doctype_columns("ToDo"), list(fields))

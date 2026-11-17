@@ -82,8 +82,8 @@ export interface TemplateController {
   lockReason: string | null;
   /** the last load or save failure, cleared when the next one starts */
   error: unknown;
-  /** fieldnames of `doc.reference_doctype`; empty until loaded, or when there is no doctype */
-  fieldOptions: string[];
+  /** fields of `doc.reference_doctype` a variable can name; empty until loaded, or when there is no doctype */
+  fieldOptions: VariableItem[];
   /** Inserts or saves the whole document, then reloads it. Resolves to the docname, or null on failure. */
   save(): Promise<string | null>;
   reload(): Promise<void>;
@@ -103,9 +103,13 @@ export interface TemplateBodyEditorProps {
   field: FieldMeta;
   modelValue: unknown;
   /** read on every keystroke after `{{`, so a getter keeps it live */
-  fields: () => string[];
+  fields: () => VariableItem[];
 }
 
+export type TemplateVariablesFieldProps = TemplateBodyEditorProps;
+
+/** A field of the reference DocType: `{{value}}` in the text, shown to the user as `label`. */
 export interface VariableItem {
   value: string;
+  label: string;
 }

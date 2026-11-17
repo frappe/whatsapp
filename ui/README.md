@@ -321,13 +321,14 @@ and shows under the fields like any other error.
 **The body is a tiptap editor, not a textarea.** WhatsApp bodies are plain text with `*bold*`,
 `_italic_` and `~strike~`, so the editor holds a paragraph-only document and `whatsappText.ts`
 translates both ways on every edit; `doc.message` is always the plain text Meta receives. Typing
-`{{` offers the fields of `doc.reference_doctype` (from `get_doctype_columns`) and inserts
+`{{` lists the fields of `doc.reference_doctype` by label (from `get_variable_fields`) and inserts
 `{{fieldname}}`; there is no free-form variable, because a variable is filled from that document
 at send time (see `DESIGN_DECISIONS.md`).
 
 **Variables follow the text.** The controller keeps one `template_variables` row per distinct
 `{{name}}` in the header and body, preserving the example typed for a name that is still there.
-The grid asks only for the example Meta reviews the template with; `variable_field` is set on
+`TemplateVariablesField` shows each one by its field label and asks only for the example Meta
+reviews the template with: rows are never added, removed or reordered by hand. `variable_field` is set on
 save to the variable's own name when it is a field of the reference DocType.
 
 **Preview.** `TemplatePreview` renders through `TemplateContent`, the component a sent template

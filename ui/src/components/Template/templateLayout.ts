@@ -1,20 +1,10 @@
 import type { FieldNode, FormLayoutSchema } from "@framework/ui/components/FormLayout";
 import TemplateBodyEditor from "./TemplateBodyEditor.vue";
+import TemplateVariablesField from "./TemplateVariablesField.vue";
 import type { TemplateController } from "./types";
 
 // Only documents a template can be sent from: child rows and singles have no record to bind to.
 const REFERENCE_FILTERS = { istable: 0, issingle: 0 };
-
-const VARIABLE_COLUMNS: FieldNode[] = [
-  { fieldname: "variable_name", fieldtype: "Data", label: "Variable", readOnly: true },
-  {
-    fieldname: "variable_example",
-    fieldtype: "Data",
-    label: "Example",
-    reqd: true,
-    placeholder: "Meta reviews the template with this value",
-  },
-];
 
 // Copy Code is not offered: `build_create_template_payload` drops it before the push.
 const BUTTON_COLUMNS: FieldNode[] = [
@@ -168,8 +158,13 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
                   fieldname: "template_variables",
                   fieldtype: "Table",
                   label: "Variables",
+                  description: "Meta reviews the template with these example values",
+                  placeholder: "Example value",
                   hidden: doc.template_variables.length === 0,
-                  childFields: VARIABLE_COLUMNS,
+                  ui: {
+                    component: TemplateVariablesField,
+                    props: { fields: () => controller.fieldOptions },
+                  },
                 },
               ],
             },
