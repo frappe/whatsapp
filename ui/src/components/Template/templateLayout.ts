@@ -61,14 +61,6 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
                   placeholder: "Order shipped",
                 },
                 {
-                  fieldname: "template_name",
-                  fieldtype: "Data",
-                  label: "Template name",
-                  readOnly: true,
-                  placeholder: "Derived from the label on save",
-                  description: "Shared by every language variant of this template",
-                },
-                {
                   fieldname: "whatsapp_account",
                   fieldtype: "Link",
                   label: "WhatsApp Account",
