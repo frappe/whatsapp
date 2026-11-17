@@ -1,10 +1,13 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 # See license.txt
 
+import json
 import logging
 
 import frappe
 import requests
+
+from whatsapp.whatsapp.api.meta_errors import describe_meta_error
 
 
 class WhatsApp:
@@ -147,14 +150,7 @@ class WhatsApp:
 
 def _extract_meta_error(body: str) -> str:
 	try:
-		data = requests.json_decoder.decode(body)
-		error = data.get("error", {})
-		if error.get("error_user_msg"):
-			return error["error_user_msg"]
-		if error.get("error_user_title"):
-			return error["error_user_title"]
-		if error.get("message"):
-			return f"Code {error['code']}: {error['message']}"
-	except Exception:
-		pass
-	return body
+		error = json.loads(body).get("error")
+	except (ValueError, AttributeError):
+		return body
+	return describe_meta_error(error) or body

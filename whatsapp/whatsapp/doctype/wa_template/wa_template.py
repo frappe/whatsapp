@@ -585,12 +585,22 @@ def sync_from_account(account_name: str) -> dict:
 	}
 
 
+VARIABLE_FIELDTYPES = ("Data", "Link", "Select", "Small Text", "Text")
+
+
 @frappe.whitelist()
 def get_doctype_columns(doctype: str) -> list[str]:
+	return [field["value"] for field in get_variable_fields(doctype)]
+
+
+@frappe.whitelist()
+def get_variable_fields(doctype: str) -> list[dict]:
+	"""Fields of `doctype` a template variable can be filled from."""
 	frappe.has_permission(doctype, "read", throw=True)
-	meta = frappe.get_meta(doctype)
 	return [
-		df.fieldname for df in meta.fields if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text")
+		{"value": df.fieldname, "label": _(df.label) if df.label else df.fieldname}
+		for df in frappe.get_meta(doctype).fields
+		if df.fieldtype in VARIABLE_FIELDTYPES
 	]
 
 
