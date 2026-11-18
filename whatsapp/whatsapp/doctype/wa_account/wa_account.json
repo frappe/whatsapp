@@ -33,7 +33,7 @@
       "fieldname": "status",
       "fieldtype": "Select",
       "label": "Status",
-      "options": "Active\nInactive"
+      "options": "Active\nInactive\nDisconnected"
     },
     {
       "fieldname": "app_id",
@@ -127,7 +127,7 @@
       "link_fieldname": "account"
     }
   ],
-  "modified": "2026-11-18 15:00:00.000000",
+  "modified": "2026-11-18 16:30:00.000000",
   "modified_by": "Administrator",
   "module": "WhatsApp",
   "name": "WA Account",

@@ -40,7 +40,7 @@ class WAAccount(Document):
 		business_id: DF.Data | None
 		connected_with_meta: DF.Check
 		phone_id: DF.Data | None
-		status: DF.Literal["Active", "Inactive"]
+		status: DF.Literal["Active", "Inactive", "Disconnected"]
 		two_step_pin: DF.Password | None
 		webhook_secret: DF.Password | None
 	# end: auto-generated types
