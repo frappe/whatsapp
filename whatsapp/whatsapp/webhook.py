@@ -126,55 +126,63 @@ def _verify_central_signature(payload: dict) -> None:
 
 
 def _names_meta_connected_account(payload: dict) -> bool:
-	"""True when the payload would reach an account connected with Meta.
+	"""True when the payload would reach or change a record of an account connected with Meta.
 
-	_handle_messages finds the account by phone_number_id, else the default account,
-	so check those as well as the WABA id in entry[].id.
+	Find each account the same way processing does: the WABA id in entry[].id, the
+	account of each messages change (_account_for_phone), and the account of each
+	message and template that a status update changes.
 	"""
-	entries = [entry for entry in payload.get("entry") or [] if isinstance(entry, dict)]
-	waba_ids = {entry.get("id") for entry in entries} - {None, ""}
-	phone_ids = {
-		((change.get("value") or {}).get("metadata") or {}).get("phone_number_id")
-		for entry in entries
-		for change in entry.get("changes") or []
-		if isinstance(change, dict) and change.get("field") == "messages"
-	} - {None, ""}
+	accounts, message_ids, template_ids = set(), set(), set()
+	for entry in payload.get("entry") or []:
+		if not isinstance(entry, dict):
+			continue
+		if entry.get("id"):
+			accounts.update(frappe.get_all("WA Account", {"business_id": entry["id"]}, pluck="name"))
+		for change in entry.get("changes") or []:
+			if not isinstance(change, dict) or not isinstance(value := change.get("value"), dict):
+				continue
+			if change.get("field") == "messages":
+				accounts.add(_account_for_phone((value.get("metadata") or {}).get("phone_number_id")))
+				message_ids.update(
+					status.get("id") for status in value.get("statuses") or [] if isinstance(status, dict)
+				)
+			elif change.get("field") == "message_template_status_update":
+				template_ids.add(value.get("message_template_id"))
 
-	or_filters = {}
-	if waba_ids:
-		or_filters["business_id"] = ("in", list(waba_ids))
-	if phone_ids:
-		or_filters["phone_id"] = ("in", list(phone_ids))
-	accounts = (
-		frappe.get_all("WA Account", or_filters=or_filters, fields=["phone_id", "connected_with_meta"])
-		if or_filters
-		else []
-	)
-	if any(account.connected_with_meta for account in accounts):
-		return True
-
-	if phone_ids - {account.phone_id for account in accounts}:
-		default_account = frappe.db.get_single_value("WA Settings", "default_account")
-		return bool(
-			default_account and frappe.db.get_value("WA Account", default_account, "connected_with_meta")
+	if message_ids := message_ids - {None, ""}:
+		accounts.update(
+			frappe.get_all("WA Message", {"message_id": ("in", list(message_ids))}, pluck="whatsapp_account")
 		)
-	return False
+	if template_ids := template_ids - {None, ""}:
+		accounts.update(
+			frappe.get_all(
+				"WA Template", {"whatsapp_template_id": ("in", list(template_ids))}, pluck="whatsapp_account"
+			)
+		)
+	accounts -= {None, ""}
+	return bool(
+		accounts
+		and frappe.db.exists("WA Account", {"name": ("in", list(accounts)), "connected_with_meta": 1})
+	)
+
+
+def _account_for_phone(phone_number_id: str | None) -> str | None:
+	"""The account that a messages change goes to: matched by phone_id, else the default account."""
+	return frappe.db.get_value("WA Account", {"phone_id": phone_number_id}, "name") or (
+		frappe.db.get_single_value("WA Settings", "default_account") or None
+	)
 
 
 def _handle_messages(value: dict) -> None:
 	metadata = value.get("metadata", {})
 	phone_number_id = metadata.get("phone_number_id")
 
-	account_name = frappe.db.get_value("WA Account", {"phone_id": phone_number_id}, "name")
+	account_name = _account_for_phone(phone_number_id)
 	if not account_name:
-		default_account = frappe.db.get_single_value("WA Settings", "default_account")
-		if default_account:
-			account_name = default_account
-		else:
-			msg = f"No account found for phone_number_id={phone_number_id} and no default account set"
-			log("Error", "Webhook", msg, response_data=value)
-			frappe.log_error(title="WhatsApp Webhook", message=msg)
-			return
+		msg = f"No account found for phone_number_id={phone_number_id} and no default account set"
+		log("Error", "Webhook", msg, response_data=value)
+		frappe.log_error(title="WhatsApp Webhook", message=msg)
+		return
 
 	contacts = value.get("contacts", [])
 	contact_profile = contacts[0].get("profile", {}) if contacts else {}
