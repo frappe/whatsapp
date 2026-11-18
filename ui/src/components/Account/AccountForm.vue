@@ -35,7 +35,7 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 			<div class="grow basis-64 text-p-sm text-ink-gray-6">
 				Sign in with Meta to pick a business number, or enter the details below.
 			</div>
-			<ConnectWithMetaButton variant="solid" />
+			<ConnectWithMetaButton variant="subtle" />
 		</div>
 		<div
 			v-else-if="controller.doc.status === 'Disconnected'"
