@@ -10,7 +10,7 @@ const props = defineProps<TemplateFormProps>();
 
 provide(CommitKey, NO_COMMIT);
 
-const layout = computed(() => templateLayout(props.controller));
+const layout = computed(() => templateLayout(props.controller, props.flowChrome));
 
 const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 </script>
@@ -28,3 +28,15 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 		<ErrorMessage class="mt-4" :message="errorMessage" />
 	</div>
 </template>
+
+<style scoped>
+/* A Flow button's section fades in; it is the last section, so nothing below it moves. */
+:deep([data-part="flow-button"]) {
+	animation: flow-button-in 150ms ease-out;
+}
+@keyframes flow-button-in {
+	from {
+		opacity: 0;
+	}
+}
+</style>

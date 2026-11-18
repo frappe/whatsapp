@@ -21,6 +21,10 @@
       "import": "./src/components/Template/index.ts",
       "types": "./src/components/Template/index.ts"
     },
+    "./FlowBuilder": {
+      "import": "./src/components/FlowBuilder/index.ts",
+      "types": "./src/components/FlowBuilder/index.ts"
+    },
     "./common": {
       "import": "./src/components/common/index.ts",
       "types": "./src/components/common/index.ts"
@@ -40,6 +44,9 @@
     "src",
     "vite"
   ],
+  "scripts": {
+    "test": "vitest run"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/frappe/whatsapp.git"
@@ -53,5 +60,8 @@
     "@framework/ui": "*",
     "frappe-ui": ">=1.0.0-rc.2",
     "vue": ">=3.3.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.12"
   }
 }

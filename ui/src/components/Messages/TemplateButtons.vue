@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import type { Component } from "vue";
+import LucideClipboardList from "~icons/lucide/clipboard-list";
 import LucideCopy from "~icons/lucide/copy";
 import LucideCornerUpLeft from "~icons/lucide/corner-up-left";
 import LucideExternalLink from "~icons/lucide/external-link";
+import LucideFileText from "~icons/lucide/file-text";
+import LucideMegaphone from "~icons/lucide/megaphone";
 import LucidePhone from "~icons/lucide/phone";
+import LucideStar from "~icons/lucide/star";
 import type { TemplateButtonsProps, WhatsAppTemplateButton } from "./types";
 
 withDefaults(defineProps<TemplateButtonsProps>(), {
@@ -18,7 +22,20 @@ const BUTTON_TYPE_ICONS: Record<WhatsAppTemplateButton["button_type"], Component
 	"Voice Call": LucidePhone,
 	"Copy Code": LucideCopy,
 	"Quick Reply": LucideCornerUpLeft,
+	Flow: LucideClipboardList,
 };
+
+const FLOW_ICONS: Record<string, Component> = {
+	Document: LucideFileText,
+	Promotion: LucideMegaphone,
+	Review: LucideStar,
+};
+
+function iconFor(button: WhatsAppTemplateButton): Component | undefined {
+	const flowIcon =
+		button.button_type === "Flow" ? FLOW_ICONS[button.flow_icon ?? ""] : undefined;
+	return flowIcon ?? BUTTON_TYPE_ICONS[button.button_type];
+}
 </script>
 
 <template>
@@ -30,11 +47,7 @@ const BUTTON_TYPE_ICONS: Record<WhatsAppTemplateButton["button_type"], Component
 			:key="i"
 			class="flex items-center justify-center gap-1.5 border-t border-outline-gray-2 py-2 text-sm text-ink-gray-7"
 		>
-			<component
-				:is="BUTTON_TYPE_ICONS[btn.button_type]"
-				v-if="BUTTON_TYPE_ICONS[btn.button_type]"
-				class="size-3.5"
-			/>
+			<component :is="iconFor(btn)" v-if="iconFor(btn)" class="size-3.5" />
 			{{ btn.button_text }}
 		</div>
 	</div>

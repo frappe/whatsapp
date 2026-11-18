@@ -2,10 +2,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Button, LoadingIndicator, Tooltip, dayjsLocal } from "frappe-ui";
+import FlowAnswers from "./FlowAnswers.vue";
+import TemplateButtons from "./TemplateButtons.vue";
 import TemplateContent from "./TemplateContent.vue";
 import { formatWhatsAppMessage } from "../../utils/formatMessage";
 import { contentTypeFromMime, documentMeta, documentName, hasCaption } from "../../utils/media";
-import type { MessageBubbleProps, WhatsAppDirection, WhatsAppMessage } from "./types";
+import type {
+	MessageBubbleProps,
+	WhatsAppDirection,
+	WhatsAppMessage,
+	WhatsAppTemplateButton,
+} from "./types";
 
 const props = withDefaults(defineProps<MessageBubbleProps>(), {
 	senderName: "Contact",
@@ -15,6 +22,12 @@ const props = withDefaults(defineProps<MessageBubbleProps>(), {
 	replyLabel: "Reply",
 	replyingToLabel: "Replying to",
 	failedMessageLabel: "Failed to send message",
+	flowSubmittedLabel: "Form submitted",
+	flowSensitiveLabel: "Hidden: the form marks this answer as sensitive",
+	flowYesLabel: "Yes",
+	flowNoLabel: "No",
+	flowOneFileLabel: "1 file",
+	flowFilesLabel: "{0} files",
 });
 
 const emit = defineEmits<{
@@ -22,8 +35,25 @@ const emit = defineEmits<{
 	"jump-to": [name: string];
 }>();
 
-/** No stored column: a message is a reply iff it points at another message's id. */
-const isReply = computed(() => Boolean(props.message.context_message_id));
+/**
+ * No stored column: a message is a reply iff it points at another message's id, or the server
+ * resolved what it replies to (a Flow response can arrive without a context id).
+ */
+const isReply = computed(() =>
+	Boolean(props.message.context_message_id || props.message.reply_to)
+);
+
+const isFlowSend = computed(
+	() =>
+		props.message.direction === "Outgoing" &&
+		Boolean(props.message.flow) &&
+		!props.message.is_template
+);
+
+/** Drawn as the button the contact saw, through the same display-only row a template uses. */
+const flowSendButtons = computed<WhatsAppTemplateButton[]>(() => [
+	{ button_type: "Flow", button_text: props.message.flow_cta || "" },
+]);
 
 const contentType = computed(() => contentTypeFromMime(props.message.mime_type));
 
@@ -87,10 +117,21 @@ function nameFor(direction?: WhatsAppDirection) {
 					:footer="message.footer"
 					:buttons="message.buttons"
 				/>
-				<div
-					v-else-if="contentType == 'text'"
-					v-html="formatWhatsAppMessage(message.message)"
+				<FlowAnswers
+					v-else-if="message.flow_answers"
+					:answers="message.flow_answers"
+					:flow-name="message.flow_name"
+					:submitted-label="flowSubmittedLabel"
+					:sensitive-label="flowSensitiveLabel"
+					:yes-label="flowYesLabel"
+					:no-label="flowNoLabel"
+					:one-file-label="flowOneFileLabel"
+					:files-label="flowFilesLabel"
 				/>
+				<div v-else-if="contentType == 'text'" class="flex flex-col gap-2">
+					<div v-html="formatWhatsAppMessage(message.message)" />
+					<TemplateButtons v-if="isFlowSend" :buttons="flowSendButtons" />
+				</div>
 				<div v-else-if="contentType == 'image'">
 					<a :href="message.media_url" target="_blank" rel="noopener noreferrer">
 						<img
@@ -230,6 +271,16 @@ function nameFor(direction?: WhatsAppDirection) {
 					aria-hidden="true"
 				/>
 			</template>
+
+			<!-- agent-facing, so outside the body: the contact saw only the button -->
+			<span
+				v-if="isFlowSend && message.flow_name"
+				class="flex min-w-0 items-center gap-1"
+				:title="message.flow_name"
+			>
+				<span class="lucide-clipboard-list size-3 shrink-0" aria-hidden="true" />
+				<span class="truncate">{{ message.flow_name }}</span>
+			</span>
 
 			<!-- readable rather than hover-only: a send failure is the one thing worth reading -->
 			<span v-if="message.status == 'Failed'" class="min-w-0 break-words text-ink-red-6">

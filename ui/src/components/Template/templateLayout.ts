@@ -1,7 +1,9 @@
-import type { FieldNode, FormLayoutSchema } from "@framework/ui/components/FormLayout";
+import type { FieldNode, FormLayoutSchema, Section } from "@framework/ui/components/FormLayout";
+import FlowButtonEditor from "./FlowButtonEditor.vue";
 import TemplateBodyEditor from "./TemplateBodyEditor.vue";
 import TemplateVariablesField from "./TemplateVariablesField.vue";
-import type { TemplateController } from "./types";
+import { FLOW_BUTTON_CHROME, type FlowButtonChrome } from "./flowChrome";
+import type { TemplateButtonRow, TemplateController } from "./types";
 
 // Only documents a template can be sent from: child rows and singles have no record to bind to.
 const REFERENCE_FILTERS = { istable: 0, issingle: 0 };
@@ -12,7 +14,7 @@ const BUTTON_COLUMNS: FieldNode[] = [
     fieldname: "button_type",
     fieldtype: "Select",
     label: "Type",
-    options: "Quick Reply\nURL\nPhone Number\nVoice Call",
+    options: "Quick Reply\nURL\nPhone Number\nVoice Call\nFlow",
     reqd: true,
   },
   { fieldname: "button_text", fieldtype: "Data", label: "Text", reqd: true },
@@ -32,7 +34,10 @@ const BUTTON_COLUMNS: FieldNode[] = [
   },
 ];
 
-export function templateLayout(controller: TemplateController): FormLayoutSchema {
+export function templateLayout(
+  controller: TemplateController,
+  flowChrome: Partial<FlowButtonChrome> = {}
+): FormLayoutSchema {
   const { isNew, doc, editable } = controller;
   const schema: FormLayoutSchema = [
     {
@@ -186,10 +191,37 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
             },
           ],
         },
+        ...flowButtonSections(controller, flowChrome),
       ],
     },
   ];
   return editable ? schema : lockFields(schema);
+}
+
+// A Flow button's settings don't fit a grid row, so each gets a section of its own below the grid.
+function flowButtonSections(
+  controller: TemplateController,
+  chrome: Partial<FlowButtonChrome>
+): Section[] {
+  const untitled = chrome.untitledButton ?? FLOW_BUTTON_CHROME.untitledButton;
+  return controller.doc.buttons
+    .map((button, index) => ({ button, key: buttonKey(button, index) }))
+    .filter(({ button }) => button.button_type === "Flow")
+    .map(({ button, key }) => ({
+      name: `flow-button:${key}`,
+      label: button.button_text || untitled,
+      collapsible: false,
+      columns: [],
+      part: {
+        name: "flow-button",
+        component: FlowButtonEditor,
+        props: { controller, button, chrome, disabled: !controller.editable },
+      },
+    }));
+}
+
+function buttonKey(button: TemplateButtonRow, index: number): string {
+  return String(button.name ?? button.__row_id ?? index);
 }
 
 function lockFields(schema: FormLayoutSchema): FormLayoutSchema {
