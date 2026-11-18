@@ -30,6 +30,7 @@ class TestDisconnectOnExpiredToken(IntegrationTestCase):
 				doctype="WA Account",
 				account_name=f"_Test {self._testMethodName}",
 				status="Active",
+				access_token="token",
 				phone_id=frappe.generate_hash(length=10),
 			)
 			.insert()
@@ -72,6 +73,21 @@ class TestDisconnectOnExpiredToken(IntegrationTestCase):
 		self.assertEqual(self._status(account), "Disconnected")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.requests.request")
+	def test_error_190_on_a_token_replaced_by_a_reconnect_keeps_the_account_active(self, request):
+		"""A client built before a reconnect still holds the old token; its 190 must not undo the reconnect."""
+		request.return_value = meta_answers(EXPIRED_TOKEN)
+		account = self._account()
+		client = self._client(account)
+		doc = frappe.get_doc("WA Account", account)
+		doc.access_token = "new-token"
+		doc.save()
+
+		with self.assertRaises(requests.HTTPError):
+			client.send_message({"to": "15550100"})
+
+		self.assertEqual(self._status(account), "Active")
+
+	@patch("whatsapp.whatsapp.api.whatsapp.requests.request")
 	def test_other_errors_leave_the_status_alone(self, request):
 		account = self._account()
 		for body in (RATE_LIMITED, {"error": {"code": 131047}}, {"unexpected": "shape"}):
@@ -92,6 +108,7 @@ class TestDisconnectSurvivesRollback(IntegrationTestCase):
 				doctype="WA Account",
 				account_name=f"_Test rollback {frappe.generate_hash(length=6)}",
 				status="Active",
+				access_token="token",
 				phone_id=frappe.generate_hash(length=10),
 			)
 			.insert()

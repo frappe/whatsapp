@@ -77,7 +77,12 @@ class WhatsApp:
 			return
 
 		def mark():
-			frappe.db.set_value("WA Account", self.account_name, "status", "Disconnected")
+			# A reconnect may have saved a new token since this client was built; leave that one alone.
+			stored = frappe.utils.password.get_decrypted_password(
+				"WA Account", self.account_name, "access_token", raise_exception=False
+			)
+			if stored == self.access_token:
+				frappe.db.set_value("WA Account", self.account_name, "status", "Disconnected")
 
 		mark()
 		# The caller usually throws and the transaction rolls back, so mark it again after the rollback
