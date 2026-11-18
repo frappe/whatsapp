@@ -8,6 +8,7 @@ from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.utils import get_managed_doctypes, log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
+from whatsapp.whatsapp.oauth import disconnect
 
 # Which fieldtypes can hold the value an append action writes into each mapping slot.
 # Drives both the pickers in the grid and the check on save.
@@ -37,8 +38,11 @@ class WAAccount(Document):
 		append_actions: DF.Table[WAAccountAppend]
 		app_id: DF.Data | None
 		business_id: DF.Data | None
+		connected_with_meta: DF.Check
 		phone_id: DF.Data | None
 		status: DF.Literal["Active", "Inactive"]
+		two_step_pin: DF.Password | None
+		webhook_secret: DF.Password | None
 	# end: auto-generated types
 
 	def validate(self):
@@ -104,6 +108,9 @@ class WAAccount(Document):
 				indicator="orange",
 				alert=True,
 			)
+
+		if self.connected_with_meta:
+			disconnect(self.business_id)
 
 
 def _validate_mapped_field(action, slot: str, target_meta) -> None:
