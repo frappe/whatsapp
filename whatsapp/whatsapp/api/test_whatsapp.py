@@ -88,6 +88,20 @@ class TestDisconnectOnExpiredToken(IntegrationTestCase):
 		self.assertEqual(self._status(account), "Active")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.requests.request")
+	def test_error_190_still_raises_the_meta_error_when_marking_fails(self, request):
+		"""A reconnect racing the call makes the status write fail; the caller must still get the Meta error."""
+		request.return_value = meta_answers(EXPIRED_TOKEN)
+		account = self._account()
+
+		with (
+			patch.object(frappe.db, "set_value", side_effect=frappe.QueryDeadlockError("Record has changed")),
+			self.assertRaises(requests.HTTPError) as ctx,
+		):
+			self._client(account).send_message({"to": "15550100"})
+
+		self.assertEqual(str(ctx.exception), str(META_ERRORS[190]))
+
+	@patch("whatsapp.whatsapp.api.whatsapp.requests.request")
 	def test_other_errors_leave_the_status_alone(self, request):
 		account = self._account()
 		for body in (RATE_LIMITED, {"error": {"code": 131047}}, {"unexpected": "shape"}):

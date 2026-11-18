@@ -84,7 +84,12 @@ class WhatsApp:
 			if stored == self.access_token:
 				frappe.db.set_value("WA Account", self.account_name, "status", "Disconnected")
 
-		mark()
+		try:
+			mark()
+		except Exception:
+			# A reconnect committed during the call makes this write fail (1020); the caller must still
+			# get the Meta error, and the re-mark below runs in a fresh transaction.
+			frappe.logger("whatsapp").exception(f"Could not mark WA Account {self.account_name} Disconnected")
 		# The caller usually throws and the transaction rolls back, so mark it again after the rollback
 		# and commit it. Queued from inside the rollback callbacks, the commit runs after all of them.
 		frappe.db.after_rollback.add(
