@@ -33,6 +33,40 @@ def landed() -> dict:
 	return {"path": location.path} | {k: v[0] for k, v in parse_qs(location.query).items()}
 
 
+class TestCanConnectWithMeta(IntegrationTestCase):
+	def setUp(self):
+		oauth.get_active_providers.clear_cache()
+		self.addCleanup(oauth.get_active_providers.clear_cache)
+		self.pilot: MagicMock = self.enterContext(
+			patch.object(oauth.PilotClient, "post", return_value={"meta": None, "google": "gid"})
+		)
+
+	def test_a_v2_site_with_meta_turned_on_shows_the_button(self):
+		with patch.dict(frappe.conf, V2):
+			self.assertTrue(oauth.can_connect_with_meta())
+		self.assertEqual(self.pilot.call_args.args[0], pilot_path("get_active_providers"))
+
+	def test_meta_turned_off_or_central_down_hides_it(self):
+		self.pilot.return_value = {"google": "gid"}
+		with patch.dict(frappe.conf, V2):
+			self.assertFalse(oauth.can_connect_with_meta())
+			oauth.get_active_providers.clear_cache()
+			self.pilot.side_effect = frappe.ValidationError("down")
+			self.assertFalse(oauth.can_connect_with_meta())
+
+	def test_a_site_off_frappe_cloud_never_asks_central(self):
+		with patch.dict(frappe.conf, NOT_V2):
+			self.assertFalse(oauth.can_connect_with_meta())
+		self.pilot.assert_not_called()
+
+	def test_an_agent_does_not_see_it(self):
+		with (
+			patch.dict(frappe.conf, V2),
+			self.set_user(create_user("wa-oauth-agent@example.com", "Agent").name),
+		):
+			self.assertFalse(oauth.can_connect_with_meta())
+
+
 class TestInitiateConnect(IntegrationTestCase):
 	def setUp(self):
 		self.enterContext(patch.dict(frappe.conf, V2))
@@ -180,6 +214,33 @@ class TestCallback(IntegrationTestCase):
 
 		self.assertEqual(other.get_password("webhook_secret"), "route-secret")
 
+	def test_a_number_a_reconnect_moved_away_from_can_be_connected_again(self):
+		# named after phone_oauth_1, then reconnected to another number of the same WABA
+		moved = frappe.get_doc(
+			doctype="WA Account",
+			account_name="phone_oauth_1",
+			business_id="waba_oauth_1",
+			phone_id="phone_oauth_2",
+			access_token="old-token",
+			status="Active",
+		).insert()
+
+		oauth.callback(state=self.note(), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "connected")
+		self.assertEqual(frappe.db.get_value("WA Account", {"phone_id": "phone_oauth_1"}), "phone_oauth_1-1")
+		self.assertEqual(moved.get_password("webhook_secret"), "route-secret")
+
+	def test_a_failure_after_the_relay_keeps_the_new_secrets(self):
+		other = make_account("Second number", "waba_oauth_1")
+
+		# the account to reconnect was deleted after the sign-in started
+		oauth.callback(state=self.note("_Test OAuth Deleted"), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "failed")
+		self.assertEqual(other.get_password("webhook_secret"), "route-secret")
+		self.assertNotIn(pilot_path("disconnect"), [c.args[0] for c in self.pilot.call_args_list])
+
 	def test_sign_in_errors_land_with_their_result(self):
 		for error, result in (
 			("access_denied", "cancelled"),
@@ -194,7 +255,10 @@ class TestCallback(IntegrationTestCase):
 	def test_relay_errors_land_with_their_result(self):
 		for message, result in (
 			("invalid_grant", "expired"),
-			("WABA is connected to another site", "refused"),
+			("waba_in_use", "waba_in_use"),
+			("no_phone_number", "no_phone_number"),
+			("no_waba", "no_waba"),
+			("Meta refused the request: boom", "refused"),
 		):
 			with self.subTest(message):
 				self.pilot.side_effect = frappe.ValidationError(message)
@@ -234,7 +298,8 @@ class TestDeleteMetaAccount(IntegrationTestCase):
 		self.client: MagicMock = self.enterContext(
 			patch("whatsapp.whatsapp.doctype.wa_account.wa_account._get_whatsapp_client")
 		)
-		frappe.db.set_single_value("WA Settings", "default_account", "")
+		# another account is the default, so these accounts can be deleted when others exist on the site
+		frappe.db.set_single_value("WA Settings", "default_account", "_Test OAuth Default")
 
 	def test_delete_unsubscribes_and_tells_central(self):
 		account = make_account("Delete Meta", "waba_oauth_delete", connected_with_meta=1)

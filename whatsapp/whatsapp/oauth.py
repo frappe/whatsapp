@@ -11,6 +11,8 @@ from urllib.parse import urlencode, urlparse
 import frappe
 from frappe import _
 from frappe.integrations.frappe_providers.cloud_settings import PilotClient, is_v2_site
+from frappe.model.naming import append_number_if_name_exists
+from frappe.utils.caching import redis_cache
 from frappe.utils.data import escape_html, get_host_name_from_request
 from frappe.utils.password import set_encrypted_password
 from frappe.www.login import sanitize_redirect
@@ -22,6 +24,8 @@ PROVIDER = "meta"
 NOTE_TTL = 10 * 60
 CALLBACK_PATH = "/api/method/whatsapp.whatsapp.oauth.callback"
 DEFAULT_LANDING = "/desk/wa-account"
+# Central's codes for a refusal the user must act on; a retry alone cannot fix them
+CENTRAL_REFUSALS = ("waba_in_use", "no_phone_number", "no_waba")
 
 
 def _results() -> dict[str, tuple[str, str]]:
@@ -38,6 +42,22 @@ def _results() -> dict[str, tuple[str, str]]:
 			"red",
 		),
 		"refused": (_("Meta refused the connection. Please try again."), "red"),
+		"waba_in_use": (
+			_(
+				"This WhatsApp Business Account is connected to another Frappe Cloud site. Disconnect it on that site first, then try again."
+			),
+			"red",
+		),
+		"no_phone_number": (
+			_(
+				"This WhatsApp Business Account has no phone number. Add one in Meta's WhatsApp Manager, then try again."
+			),
+			"red",
+		),
+		"no_waba": (
+			_("Meta did not share a WhatsApp Business Account. Sign in again and pick one."),
+			"red",
+		),
 		"wrong_waba": (
 			_(
 				"You signed in to a different WhatsApp Business Account than the one {0} uses. Sign in to that account, or add the new one as a new WhatsApp account."
@@ -61,6 +81,26 @@ def get_connect_message(result: str, account: str | None = None) -> dict:
 	message, indicator = _results().get(result) or _results()["failed"]
 	# `account` comes from the URL, so it is escaped before it is shown as HTML
 	return {"message": message.format(frappe.bold(escape_html(account or ""))), "indicator": indicator}
+
+
+@frappe.whitelist()
+def can_connect_with_meta() -> bool:
+	"""Whether to show Connect with Meta: a v2 site whose Frappe Cloud has Meta's sign-in turned on.
+	Self-hosted and v1 sites never ask Central."""
+	if not is_v2_site() or "System Manager" not in frappe.get_roles():
+		return False
+	try:
+		return PROVIDER in get_active_providers()
+	except frappe.ValidationError:
+		frappe.clear_last_message()
+		frappe.log_error("Couldn't get the sign-in providers from Frappe Cloud")
+		return False
+
+
+@redis_cache(ttl=10 * 60)
+def get_active_providers() -> dict[str, str | None]:
+	"""The providers Frappe Cloud has turned on; Central is asked at most every 10 minutes."""
+	return call_central_method("get_active_providers")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -154,9 +194,21 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 		frappe.clear_last_message()
 		if str(e) == "invalid_grant":  # Central passes on Meta's error code as the message
 			return "expired", wa_account
+		if str(e) in CENTRAL_REFUSALS:
+			return str(e), wa_account
 		frappe.log_error("WhatsApp connect with Meta refused")
 		return "refused", wa_account
 
+	frappe.db.savepoint("wa_connect")
+	try:
+		return _save_account(token, wa_account)
+	except Exception:
+		frappe.db.rollback(save_point="wa_connect")
+		frappe.log_error("WhatsApp connect with Meta failed")
+		return _refuse("failed", wa_account, token)
+
+
+def _save_account(token: dict, wa_account: str | None) -> tuple[str, str]:
 	if wa_account:
 		account = frappe.get_doc("WA Account", wa_account)
 		if account.business_id and account.business_id != token["waba_id"]:
@@ -168,7 +220,9 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 	elif same_number := frappe.db.exists("WA Account", {"phone_id": token["phone_id"]}):
 		account = frappe.get_doc("WA Account", same_number)
 	else:
-		account = frappe.new_doc("WA Account", account_name=token["phone_id"])
+		# a reconnect can move an account to another number, so its name can be this number
+		name = append_number_if_name_exists("WA Account", token["phone_id"])
+		account = frappe.new_doc("WA Account", account_name=name)
 
 	account.update(
 		{
@@ -188,7 +242,8 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 
 
 def _refuse(result: str, wa_account: str, token: dict) -> tuple[str, str]:
-	"""Central changed the secrets of what was signed in to before this refusal; keep them in step."""
+	"""Central changed the secrets of what was signed in to before this refusal or failure; keep
+	them in step."""
 	_store_new_secrets(token)
 	_disconnect_unused(token["waba_id"])
 	return result, wa_account
