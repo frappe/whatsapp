@@ -36,7 +36,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Event Type",
-   "options": "\nWebhook\nTemplate\nMessage\nAPI\nSystem",
+   "options": "\nWebhook\nTemplate\nMessage\nAPI\nSystem\nFlow",
    "read_only": 1
   },
   {
@@ -113,7 +113,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-17 12:00:00.000000",
+ "modified": "2026-11-17 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Log",

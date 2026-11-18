@@ -171,7 +171,10 @@ before_uninstall = "whatsapp.install.teardown_notification_channel"
 # ---------------
 
 scheduler_events = {
-	"daily": ["whatsapp.whatsapp.doctype.wa_template.wa_template.sync_all"],
+	"daily": [
+		"whatsapp.whatsapp.doctype.wa_template.wa_template.sync_all",
+		"whatsapp.whatsapp.flows.sync.sync_active_accounts",
+	],
 }
 
 # Testing

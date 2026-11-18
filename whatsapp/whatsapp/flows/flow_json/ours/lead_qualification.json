@@ -1,0 +1,161 @@
+{
+	"version": "7.1",
+	"screens": [
+		{
+			"id": "QUALIFY",
+			"title": "Qualify",
+			"data": {
+				"lead_name": {
+					"type": "string",
+					"__example__": "Asha"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "RadioButtonsGroup",
+						"name": "interest",
+						"label": "Are you interested?",
+						"data-source": [
+							{
+								"id": "yes",
+								"title": "Yes"
+							},
+							{
+								"id": "no",
+								"title": "No"
+							}
+						]
+					},
+					{
+						"type": "If",
+						"condition": "${form.interest} == 'yes'",
+						"then": [
+							{
+								"type": "Footer",
+								"label": "Continue",
+								"on-click-action": {
+									"name": "navigate",
+									"next": {
+										"type": "screen",
+										"name": "INTERESTED"
+									},
+									"payload": {}
+								}
+							}
+						],
+						"else": [
+							{
+								"type": "Footer",
+								"label": "Continue",
+								"on-click-action": {
+									"name": "navigate",
+									"next": {
+										"type": "screen",
+										"name": "NOT_INTERESTED"
+									},
+									"payload": {}
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"id": "INTERESTED",
+			"title": "Interested",
+			"terminal": true,
+			"sensitive": [
+				"budget"
+			],
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Form",
+						"name": "details",
+						"children": [
+							{
+								"type": "TextInput",
+								"name": "email",
+								"label": "Email",
+								"input-type": "email"
+							},
+							{
+								"type": "TextInput",
+								"name": "company",
+								"label": "Company"
+							},
+							{
+								"type": "TextInput",
+								"name": "budget",
+								"label": "Budget",
+								"input-type": "number"
+							},
+							{
+								"type": "TextInput",
+								"name": "passcode",
+								"label": "Passcode",
+								"input-type": "password"
+							},
+							{
+								"type": "Footer",
+								"label": "Submit",
+								"on-click-action": {
+									"name": "complete",
+									"payload": {
+										"outcome": "interested",
+										"email": "${form.email}",
+										"company": "${form.company}",
+										"budget": "${form.budget}",
+										"passcode": "${form.passcode}",
+										"flow_token": "${data.flow_token}"
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"id": "NOT_INTERESTED",
+			"title": "Not_Interested",
+			"terminal": true,
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Dropdown",
+						"name": "reason",
+						"label": "Why not?",
+						"data-source": [
+							{
+								"id": "1",
+								"title": "One"
+							},
+							{
+								"id": "2",
+								"title": "Two"
+							}
+						]
+					},
+					{
+						"type": "Footer",
+						"label": "Submit",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"outcome": "not_interested",
+								"reason": "${form.reason}",
+								"summary": "`'Not interested: ' ${form.reason}`"
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}
