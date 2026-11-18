@@ -37,7 +37,8 @@ export interface WhatsAppAccount {
   /** docname; absent on an account that has not been created yet */
   name?: string;
   account_name?: string;
-  status?: "Active" | "Inactive";
+  status?: "Active" | "Inactive" | "Disconnected";
+  connected_with_meta?: 0 | 1;
   app_id?: string;
   business_id?: string;
   phone_id?: string;
