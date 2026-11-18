@@ -73,7 +73,7 @@ class TestCanConnectWithMeta(IntegrationTestCase):
 	def test_an_agent_does_not_see_it(self):
 		with (
 			patch.dict(frappe.conf, V2),
-			self.set_user(create_user("wa-oauth-agent@example.com", "Agent").name),
+			self.set_user(create_user("wa-oauth-agent@example.com", "Desk User").name),
 		):
 			self.assertFalse(oauth.can_connect_with_meta())
 
@@ -112,7 +112,7 @@ class TestInitiateConnect(IntegrationTestCase):
 		self.pilot.assert_not_called()
 
 	def test_only_a_system_manager_can_connect(self):
-		with self.set_user(create_user("wa-oauth-agent@example.com", "Agent").name):
+		with self.set_user(create_user("wa-oauth-agent@example.com", "Desk User").name):
 			self.assertRaises(frappe.PermissionError, oauth.initiate_connect)
 		self.pilot.assert_not_called()
 
