@@ -369,6 +369,12 @@ import { TemplateSelector } from "@whatsapp/ui";
 
 - **`reference-docname`** fills each card's mapped variables from that document on the server,
   as the sent message will be. Unmapped ones stay as `{{1}}`.
+- **`to`** is the recipient: a `WA Profile` name or a phone number. Pass the profile when you
+  have one, such as the sender of the conversation's last incoming message. A profile is one
+  contact on one business number, so it is used as is. A phone number is matched only against
+  the default account's profiles, and a new profile is created there when none matches, so with
+  more than one business number it can land on the wrong one. Send is disabled while `to` is
+  empty.
 - **`filters`** narrows the templates in the query. It cannot bring back what the reference
   doctype or the Approved status leave out.
 - The two controllers are independent, so a send does not refresh the conversation by itself.
