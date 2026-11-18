@@ -111,13 +111,15 @@ class WAAccount(Document):
 			_client_for(self).unsubscribe_app()
 		except requests.RequestException as e:
 			log("Warning", "API", f"Could not unsubscribe the app from WABA {self.business_id}: {e}")
-			frappe.msgprint(
-				_(
-					"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
-				).format(e),
-				indicator="orange",
-				alert=True,
-			)
+			# with Meta, Frappe Cloud stops relaying below, so the app in Business Manager must stay
+			if not self.connected_with_meta:
+				frappe.msgprint(
+					_(
+						"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
+					).format(e),
+					indicator="orange",
+					alert=True,
+				)
 
 		if self.connected_with_meta:
 			disconnect(self.business_id)
