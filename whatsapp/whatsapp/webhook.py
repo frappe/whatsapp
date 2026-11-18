@@ -11,6 +11,7 @@ from frappe import _
 from frappe.core.doctype.server_script.server_script_utils import (
 	run_server_script_for_doc_event,
 )
+from frappe.utils.password import get_decrypted_password
 from werkzeug.wrappers import Response
 
 from whatsapp.whatsapp.api.utils import log, normalize_template_status
@@ -24,6 +25,7 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 )
 
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
+CENTRAL_SIGNATURE_HEADER = "X-Frappe-Central-Signature"
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
@@ -61,9 +63,9 @@ def _receive() -> str:
 	"""Receive incoming webhook events from Meta. Always 200 + Content-Type: text/plain."""
 	payload = frappe.local.form_dict
 
-	settings = frappe.get_single("WA Settings")
-	secret = settings.get("webhook_secret")
-	if secret:
+	if frappe.get_request_header(CENTRAL_SIGNATURE_HEADER):
+		_verify_central_signature(payload)
+	elif secret := frappe.get_single("WA Settings").get("webhook_secret"):
 		try:
 			_verify_signature(secret)
 		except Exception:
@@ -96,6 +98,27 @@ def _verify_signature(secret: str) -> None:
 	digest = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
 	if not hmac.compare_digest(f"sha256={digest}", expected):
 		frappe.throw(_("HMAC signature mismatch"), frappe.AuthenticationError)
+
+
+def _verify_central_signature(payload: dict) -> None:
+	"""Check a webhook that Central relays for an account connected with Meta.
+
+	Central signs the body with the webhook secret of the WABA in entry[].id.
+	"""
+	signature = frappe.get_request_header(CENTRAL_SIGNATURE_HEADER, "").removeprefix("sha256=")
+	raw = frappe.local.request.get_data()
+	waba_ids = {entry.get("id") for entry in payload.get("entry") or [] if isinstance(entry, dict)}
+	if len(waba_ids) == 1 and (waba_id := waba_ids.pop()):
+		for account in frappe.get_all("WA Account", {"business_id": waba_id}, pluck="name"):
+			secret = get_decrypted_password("WA Account", account, "webhook_secret", raise_exception=False)
+			if not secret:
+				continue
+			digest = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+			if hmac.compare_digest(digest, signature):
+				return
+
+	log("Error", "Webhook", "Central signature verification failed")
+	frappe.throw(_("Invalid signature"), frappe.PermissionError)
 
 
 def _handle_messages(value: dict) -> None:
