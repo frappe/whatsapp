@@ -6,6 +6,7 @@ from frappe.core.doctype.user_permission.test_user_permission import create_user
 from frappe.tests import IntegrationTestCase
 from frappe.utils import set_request
 
+from whatsapp.install import disconnect_meta_accounts
 from whatsapp.whatsapp import oauth
 
 V2 = {"pilot_endpoint": "http://pilot.test", "pilot_auth_token": "pt"}
@@ -172,6 +173,47 @@ class TestCallback(IntegrationTestCase):
 			{"path": "/desk/wa-account", "whatsapp_connect": "connected", "whatsapp_account": account.name},
 		)
 
+	def test_a_new_account_is_named_after_the_business_and_number(self):
+		for extra, name in (
+			(
+				{"verified_name": "Acme Store", "display_phone_number": "+1 555-0100"},
+				"Acme Store (+1 555-0100)",
+			),
+			({"display_phone_number": "+1 555-0100"}, "+1 555-0100"),
+			({"verified_name": "Acme Store"}, "phone_oauth_1"),
+		):
+			with self.subTest(name):
+				frappe.db.delete("WA Account", {"business_id": "waba_oauth_1"})
+				self.pilot.return_value = relayed() | extra
+				oauth.callback(state=self.note(), code="the-code")
+				self.assertEqual(landed()["whatsapp_account"], name)
+				self.assertEqual(frappe.db.get_value("WA Account", {"phone_id": "phone_oauth_1"}), name)
+
+	def test_a_readable_name_another_account_has_gets_a_number(self):
+		frappe.get_doc(
+			doctype="WA Account", account_name="Acme Store (+1 555-0100)", business_id="waba_oauth_other"
+		).insert()
+		self.pilot.return_value = relayed() | {
+			"verified_name": "Acme Store",
+			"display_phone_number": "+1 555-0100",
+		}
+
+		oauth.callback(state=self.note(), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_account"], "Acme Store (+1 555-0100)-1")
+
+	def test_reconnect_keeps_the_account_name(self):
+		account = make_account("Keep name", "waba_oauth_1", phone_id="phone_oauth_1")
+		self.pilot.return_value = relayed() | {
+			"verified_name": "Acme Store",
+			"display_phone_number": "+1 555-0100",
+		}
+
+		oauth.callback(state=self.note(account.name), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "reconnected")
+		self.assertEqual(frappe.db.get_value("WA Account", {"phone_id": "phone_oauth_1"}), account.name)
+
 	def test_reconnect_updates_the_same_account(self):
 		account = make_account("Reconnect", "waba_oauth_1", status="Inactive")
 
@@ -268,6 +310,8 @@ class TestCallback(IntegrationTestCase):
 			("waba_in_use", "waba_in_use"),
 			("no_phone_number", "no_phone_number"),
 			("no_waba", "no_waba"),
+			("phone_number_unclear", "phone_number_unclear"),
+			("pin_changed", "pin_changed"),
 			("Meta refused the request: boom", "refused"),
 		):
 			with self.subTest(message):
@@ -294,6 +338,16 @@ class TestCallback(IntegrationTestCase):
 			oauth.callback(state="s", code="c")
 
 		self.assertTrue(frappe.local.response["location"].startswith("/login?redirect-to="))
+
+	def test_each_central_refusal_has_its_own_message(self):
+		self.assertEqual(
+			oauth.CENTRAL_REFUSALS,
+			("waba_in_use", "no_waba", "no_phone_number", "phone_number_unclear", "pin_changed"),
+		)
+		messages = {code: oauth.get_connect_message(code)["message"] for code in oauth.CENTRAL_REFUSALS}
+		self.assertEqual(len(set(messages.values())), len(messages))
+		for general in ("failed", "refused"):
+			self.assertNotIn(oauth.get_connect_message(general)["message"], messages.values())
 
 	def test_the_message_escapes_the_account_from_the_url(self):
 		message = oauth.get_connect_message("connected", "<img src=x onerror=alert(1)>")["message"]
@@ -344,3 +398,37 @@ def make_account(name: str, business_id: str, **values):
 		access_token="old-token",
 		**{"status": "Active", "phone_id": f"phone {name}"} | values,
 	).insert()
+
+
+class TestUninstall(IntegrationTestCase):
+	def setUp(self):
+		self.enterContext(patch.dict(frappe.conf, V2))
+		self.pilot: MagicMock = self.enterContext(patch.object(oauth.PilotClient, "post", return_value={}))
+		frappe.db.delete("WA Account", {"business_id": ("like", "waba_oauth%")})
+
+	def test_uninstall_disconnects_each_meta_waba_once(self):
+		make_account("Uninstall A", "waba_oauth_a", connected_with_meta=1)
+		make_account("Uninstall A2", "waba_oauth_a", connected_with_meta=1)
+		make_account("Uninstall B", "waba_oauth_b", connected_with_meta=1)
+		make_account("Uninstall manual", "waba_oauth_manual")
+
+		disconnect_meta_accounts()
+
+		disconnected = [c.args[1]["waba_id"] for c in self.pilot.call_args_list]
+		self.assertEqual(
+			sorted(w for w in disconnected if w.startswith("waba_oauth")), ["waba_oauth_a", "waba_oauth_b"]
+		)
+		self.assertEqual(len(disconnected), len(set(disconnected)))
+		self.assertEqual({c.args[0] for c in self.pilot.call_args_list}, {pilot_path("disconnect")})
+
+	def test_a_central_failure_is_logged_and_does_not_stop_the_uninstall(self):
+		make_account("Uninstall down", "waba_oauth_down", connected_with_meta=1)
+		self.pilot.side_effect = frappe.ValidationError("Could not reach your server")
+
+		with patch.object(frappe, "log_error") as log_error:
+			disconnect_meta_accounts()
+
+		self.assertIn(
+			"Couldn't stop Frappe Cloud relaying the webhooks of WABA waba_oauth_down",
+			[c.args[0] for c in log_error.call_args_list],
+		)

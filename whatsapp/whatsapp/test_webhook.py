@@ -12,6 +12,7 @@ from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.doctype.wa_profile.wa_profile import get_or_create_profile
 from whatsapp.whatsapp.webhook import (
+	WABANotHere,
 	_create_incoming_message,
 	_handle_template_status,
 	_update_message_status,
@@ -564,11 +565,18 @@ class TestWebhookSignature(IntegrationTestCase):
 			self._post(body, {"X-Frappe-Central-Signature": self._sign("other-secret", body)})
 		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
 
-	def test_relayed_signature_with_unknown_waba_is_rejected(self):
+	def test_relayed_webhook_for_a_waba_no_account_uses_is_gone(self):
 		body, message_id = self._body(f"waba_{frappe.generate_hash(length=8)}", "phone_x")
-		with self.assertRaises(frappe.PermissionError):
+		with self.assertRaises(WABANotHere) as gone:
 			self._post(body, {"X-Frappe-Central-Signature": self._sign("acc-secret", body)})
+		self.assertEqual(gone.exception.http_status_code, 410)
 		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_relayed_wrong_signature_is_forbidden_not_gone(self):
+		_account, _waba, body, _message_id = self._relayed("acc-secret")
+		with self.assertRaises(frappe.PermissionError) as forbidden:
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("not-the-secret", body)})
+		self.assertEqual(forbidden.exception.http_status_code, 403)
 
 	def test_relayed_signature_for_account_without_secret_is_rejected(self):
 		waba_id = f"waba_{frappe.generate_hash(length=8)}"

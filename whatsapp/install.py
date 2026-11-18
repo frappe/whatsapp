@@ -5,6 +5,7 @@ import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
+from whatsapp.whatsapp.oauth import call_central_method
 
 WHATSAPP_CHANNEL = "WhatsApp"
 
@@ -82,6 +83,19 @@ def teardown_notification_channel() -> None:
 			frappe.delete_doc("Custom Field", name, ignore_missing=True)
 
 	frappe.clear_cache(doctype="Notification")
+
+
+def disconnect_meta_accounts() -> None:
+	"""Ask Frappe Cloud to stop relaying the webhooks of each WABA connected with Meta here. A failure
+	goes to the Error Log, as WA Log is dropped with the app, and does not stop the uninstall."""
+	for waba_id in frappe.get_all(
+		"WA Account", {"connected_with_meta": 1}, pluck="business_id", distinct=True
+	):
+		try:
+			call_central_method("disconnect", waba_id=waba_id)
+		except frappe.ValidationError:
+			frappe.clear_last_message()
+			frappe.log_error(f"Couldn't stop Frappe Cloud relaying the webhooks of WABA {waba_id}")
 
 
 def _add_channel_option() -> None:

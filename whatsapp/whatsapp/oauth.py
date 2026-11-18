@@ -1,8 +1,8 @@
 """Connect a WhatsApp Business Account with Meta's sign-in, on Frappe Cloud v2 sites.
 
 Central (central.api.oauth) holds Meta's app and its secret; this site reaches it through its own
-Pilot. After the code exchange Central relays: access_token, app_id, waba_id, phone_id, pin and
-webhook_secret.
+Pilot. After the code exchange Central relays: access_token, app_id, waba_id, phone_id, pin,
+webhook_secret, display_phone_number and verified_name.
 """
 
 import secrets
@@ -25,7 +25,7 @@ NOTE_TTL = 10 * 60
 CALLBACK_PATH = "/api/method/whatsapp.whatsapp.oauth.callback"
 DEFAULT_LANDING = "/desk/wa-account"
 # Central's codes for a refusal the user must act on; a retry alone cannot fix them
-CENTRAL_REFUSALS = ("waba_in_use", "no_phone_number", "no_waba")
+CENTRAL_REFUSALS = ("waba_in_use", "no_waba", "no_phone_number", "phone_number_unclear", "pin_changed")
 PROVIDERS_DOWN_KEY = "whatsapp_meta_providers_down"
 
 
@@ -57,6 +57,18 @@ def _results() -> dict[str, tuple[str, str]]:
 		),
 		"no_waba": (
 			_("Meta did not share a WhatsApp Business Account. Sign in again and pick one."),
+			"red",
+		),
+		"phone_number_unclear": (
+			_(
+				"This WhatsApp Business Account has more than one new phone number, so it is not clear which one you added. Connect again and add one new number, or use an account with one number."
+			),
+			"red",
+		),
+		"pin_changed": (
+			_(
+				"The number's two-step verification PIN was changed, but the setup did not finish. Connect again: that sets a new PIN and finishes the setup."
+			),
 			"red",
 		),
 		"wrong_waba": (
@@ -226,7 +238,7 @@ def _save_account(token: dict, wa_account: str | None) -> tuple[str, str]:
 		account = frappe.get_doc("WA Account", same_number)
 	else:
 		# a reconnect can move an account to another number, so its name can be this number
-		name = append_number_if_name_exists("WA Account", token["phone_id"])
+		name = append_number_if_name_exists("WA Account", _readable_name(token))
 		account = frappe.new_doc("WA Account", account_name=name)
 
 	account.update(
@@ -244,6 +256,13 @@ def _save_account(token: dict, wa_account: str | None) -> tuple[str, str]:
 	account.save()
 	_store_new_secrets(token, skip=account.name)
 	return ("reconnected" if wa_account else "connected"), account.name
+
+
+def _readable_name(token: dict) -> str:
+	number = token.get("display_phone_number")
+	if number and token.get("verified_name"):
+		return f"{token['verified_name']} ({number})"
+	return number or token["phone_id"]
 
 
 def _refuse(result: str, wa_account: str, token: dict) -> tuple[str, str]:

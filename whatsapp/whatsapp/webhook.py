@@ -28,6 +28,11 @@ MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
 CENTRAL_SIGNATURE_HEADER = "X-Frappe-Central-Signature"
 
 
+class WABANotHere(frappe.ValidationError):
+	# Central deletes its route for this WABA and site when the site answers 410
+	http_status_code = 410
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def handler():
 	"""Dispatch Meta webhook requests: GET verifies, POST delivers events."""
@@ -113,7 +118,10 @@ def _verify_central_signature(payload: dict) -> None:
 	raw = frappe.local.request.get_data()
 	waba_ids = {entry.get("id") for entry in payload.get("entry") or [] if isinstance(entry, dict)}
 	if len(waba_ids) == 1 and (waba_id := waba_ids.pop()):
-		for account in frappe.get_all("WA Account", {"business_id": waba_id}, pluck="name"):
+		accounts = frappe.get_all("WA Account", {"business_id": waba_id}, pluck="name")
+		if not accounts:
+			frappe.throw(_("No WhatsApp account here uses this WhatsApp Business Account"), WABANotHere)
+		for account in accounts:
 			secret = get_decrypted_password("WA Account", account, "webhook_secret", raise_exception=False)
 			if not secret:
 				continue
