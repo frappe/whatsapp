@@ -44,6 +44,12 @@ def _results() -> dict[str, tuple[str, str]]:
 			),
 			"red",
 		),
+		"number_in_use": (
+			_(
+				"You picked a number that another WhatsApp account here already uses. Pick the number {0} uses, or reconnect that other account."
+			),
+			"red",
+		),
 		"unavailable": (_("Connect with Meta is only available on Frappe Cloud."), "red"),
 		"failed": (_("Couldn't connect the WhatsApp account. Please try again."), "red"),
 	}
@@ -154,8 +160,11 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 	if wa_account:
 		account = frappe.get_doc("WA Account", wa_account)
 		if account.business_id and account.business_id != token["waba_id"]:
-			_disconnect_unused(token["waba_id"])
-			return "wrong_waba", wa_account
+			return _refuse("wrong_waba", wa_account, token)
+		if account.phone_id != token["phone_id"] and frappe.db.exists(
+			"WA Account", {"phone_id": token["phone_id"]}
+		):
+			return _refuse("number_in_use", wa_account, token)
 	elif same_number := frappe.db.exists("WA Account", {"phone_id": token["phone_id"]}):
 		account = frappe.get_doc("WA Account", same_number)
 	else:
@@ -174,12 +183,26 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 		}
 	)
 	account.save()
-	# Central makes a new secret for the WABA on each sign-in; other numbers on it need it too
+	_store_new_secrets(token, skip=account.name)
+	return ("reconnected" if wa_account else "connected"), account.name
+
+
+def _refuse(result: str, wa_account: str, token: dict) -> tuple[str, str]:
+	"""Central changed the secrets of what was signed in to before this refusal; keep them in step."""
+	_store_new_secrets(token)
+	_disconnect_unused(token["waba_id"])
+	return result, wa_account
+
+
+def _store_new_secrets(token: dict, skip: str = "") -> None:
+	"""Each sign-in gives the WABA a new webhook secret and the number a new PIN; store them on the
+	other accounts that use them, or their relayed webhooks fail the signature check."""
 	for other in frappe.get_all(
-		"WA Account", {"business_id": token["waba_id"], "name": ("!=", account.name)}, pluck="name"
+		"WA Account", {"business_id": token["waba_id"], "name": ("!=", skip)}, pluck="name"
 	):
 		set_encrypted_password("WA Account", other, token["webhook_secret"], "webhook_secret")
-	return ("reconnected" if wa_account else "connected"), account.name
+	if number := frappe.db.get_value("WA Account", {"phone_id": token["phone_id"], "name": ("!=", skip)}):
+		set_encrypted_password("WA Account", number, token["pin"], "two_step_pin")
 
 
 def disconnect(waba_id: str) -> None:

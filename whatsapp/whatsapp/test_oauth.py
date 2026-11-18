@@ -150,6 +150,29 @@ class TestCallback(IntegrationTestCase):
 		path, data = self.pilot.call_args.args
 		self.assertEqual((path, data), (pilot_path("disconnect"), {"waba_id": "waba_oauth_1"}))
 
+	def test_a_refused_reconnect_keeps_the_new_secrets_of_the_waba_signed_in_to(self):
+		account = make_account("Other WABA", "waba_oauth_old")
+		other = make_account("Signed in", "waba_oauth_1", phone_id="phone_oauth_1")
+
+		oauth.callback(state=self.note(account.name), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "wrong_waba")
+		self.assertEqual(other.get_password("webhook_secret"), "route-secret")
+		self.assertEqual(other.get_password("two_step_pin"), "123456")
+		self.assertNotIn(pilot_path("disconnect"), [c.args[0] for c in self.pilot.call_args_list])
+
+	def test_reconnect_to_a_number_another_account_uses_is_refused(self):
+		account = make_account("Reconnect", "waba_oauth_1")
+		other = make_account("Same WABA", "waba_oauth_1", phone_id="phone_oauth_1")
+
+		oauth.callback(state=self.note(account.name), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "number_in_use")
+		account.reload()
+		self.assertEqual((account.phone_id, account.connected_with_meta), ("phone Reconnect", 0))
+		self.assertEqual(frappe.db.count("WA Account", {"phone_id": "phone_oauth_1"}), 1)
+		self.assertEqual(other.get_password("two_step_pin"), "123456")
+
 	def test_other_numbers_on_the_waba_get_the_new_webhook_secret(self):
 		other = make_account("Second number", "waba_oauth_1")
 
@@ -242,8 +265,7 @@ def make_account(name: str, business_id: str, **values):
 	return frappe.get_doc(
 		doctype="WA Account",
 		account_name=f"_Test OAuth {name}",
-		phone_id=f"phone {name}",
 		business_id=business_id,
 		access_token="old-token",
-		**{"status": "Active"} | values,
+		**{"status": "Active", "phone_id": f"phone {name}"} | values,
 	).insert()
