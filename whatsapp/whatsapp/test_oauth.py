@@ -37,6 +37,8 @@ class TestCanConnectWithMeta(IntegrationTestCase):
 	def setUp(self):
 		oauth.get_active_providers.clear_cache()
 		self.addCleanup(oauth.get_active_providers.clear_cache)
+		frappe.cache.delete_value(oauth.PROVIDERS_DOWN_KEY)
+		self.addCleanup(frappe.cache.delete_value, oauth.PROVIDERS_DOWN_KEY)
 		self.pilot: MagicMock = self.enterContext(
 			patch.object(oauth.PilotClient, "post", return_value={"meta": None, "google": "gid"})
 		)
@@ -53,6 +55,14 @@ class TestCanConnectWithMeta(IntegrationTestCase):
 			oauth.get_active_providers.clear_cache()
 			self.pilot.side_effect = frappe.ValidationError("down")
 			self.assertFalse(oauth.can_connect_with_meta())
+
+	def test_central_down_is_asked_once_a_minute_not_on_every_call(self):
+		self.pilot.side_effect = frappe.ValidationError("down")
+		with patch.dict(frappe.conf, V2), patch.object(frappe, "log_error") as log_error:
+			self.assertFalse(oauth.can_connect_with_meta())
+			self.assertFalse(oauth.can_connect_with_meta())
+		self.pilot.assert_called_once()
+		log_error.assert_called_once()
 
 	def test_a_site_off_frappe_cloud_never_asks_central(self):
 		with patch.dict(frappe.conf, NOT_V2):

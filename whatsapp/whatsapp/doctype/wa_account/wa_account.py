@@ -47,6 +47,16 @@ class WAAccount(Document):
 
 	def validate(self):
 		self.validate_append_actions()
+		self.reactivate_on_new_token()
+
+	def reactivate_on_new_token(self):
+		"""A Disconnected account is Active again once someone enters a new access token."""
+		if (
+			self.status == "Disconnected"
+			and self.access_token
+			and not self.is_dummy_password(self.access_token)
+		):
+			self.status = "Active"
 
 	def validate_append_actions(self):
 		"""Check every mapped fieldname against the doctype the action appends to.

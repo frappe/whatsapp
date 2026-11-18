@@ -26,6 +26,7 @@ CALLBACK_PATH = "/api/method/whatsapp.whatsapp.oauth.callback"
 DEFAULT_LANDING = "/desk/wa-account"
 # Central's codes for a refusal the user must act on; a retry alone cannot fix them
 CENTRAL_REFUSALS = ("waba_in_use", "no_phone_number", "no_waba")
+PROVIDERS_DOWN_KEY = "whatsapp_meta_providers_down"
 
 
 def _results() -> dict[str, tuple[str, str]]:
@@ -89,10 +90,14 @@ def can_connect_with_meta() -> bool:
 	Self-hosted and v1 sites never ask Central."""
 	if not is_v2_site() or "System Manager" not in frappe.get_roles():
 		return False
+	# a failed ask is remembered too, so a down Pilot holds a worker and logs an error once a minute
+	if frappe.cache.get_value(PROVIDERS_DOWN_KEY):
+		return False
 	try:
 		return PROVIDER in get_active_providers()
 	except frappe.ValidationError:
 		frappe.clear_last_message()
+		frappe.cache.set_value(PROVIDERS_DOWN_KEY, 1, expires_in_sec=60)
 		frappe.log_error("Couldn't get the sign-in providers from Frappe Cloud")
 		return False
 

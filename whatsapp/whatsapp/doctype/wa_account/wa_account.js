@@ -54,7 +54,18 @@ function add_connect_button(frm) {
 
 	frappe.xcall("whatsapp.whatsapp.oauth.can_connect_with_meta").then((can_connect) => {
 		// the form may have moved to another document while this was asked
-		if (!can_connect || frm.doc.name !== name) return;
+		if (frm.doc.name !== name) return;
+		if (account) {
+			frm.set_intro(
+				__("Meta no longer accepts this account's access token.") +
+					" " +
+					(can_connect
+						? __("Reconnect to send and receive messages again.")
+						: __("Enter a new access token below.")),
+				"red"
+			);
+		}
+		if (!can_connect) return;
 		frm.add_custom_button(account ? __("Reconnect") : __("Connect with Meta"), () =>
 			frappe
 				.xcall("whatsapp.whatsapp.oauth.initiate_connect", { wa_account: account })
