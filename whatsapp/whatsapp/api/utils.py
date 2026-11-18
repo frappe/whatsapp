@@ -5,6 +5,7 @@ from typing import TypedDict, cast
 import frappe
 
 from whatsapp.whatsapp.api.meta_errors import describe_meta_error
+from whatsapp.whatsapp.flows.template_button import flow_button_payload, flow_button_row
 
 MIME_CONTENT_TYPE_MAP = {
 	"image/": "image",
@@ -228,6 +229,9 @@ def build_create_template_payload(doc) -> CreateTemplatePayload:
 		for btn in doc.buttons:
 			if btn.button_type == "Copy Code":
 				continue
+			if btn.button_type == "Flow":
+				buttons_payload.append(flow_button_payload(btn))
+				continue
 			b = {"type": _to_meta(BUTTON_TYPES, btn.button_type), "text": btn.button_text}
 			if btn.button_type == "URL":
 				b["url"] = btn.url
@@ -305,6 +309,7 @@ BUTTON_TYPES = {
 	"URL": "URL",
 	"VOICE_CALL": "Voice Call",
 	"PHONE_NUMBER": "Phone Number",
+	"FLOW": "Flow",
 }
 
 MEDIA_HEADER_TYPES = ("Image", "Document", "Video", "GIF")
@@ -360,6 +365,9 @@ def parse_whatsapp_template_to_doc(data: dict) -> ParsedTemplateDoc:
 
 		elif comp_type == "BUTTONS":
 			for btn in comp.get("buttons", []):
+				if btn.get("type") == "FLOW":
+					buttons.append(flow_button_row(btn))
+					continue
 				btn_url = btn.get("url", "")
 				buttons.append(
 					{
@@ -408,6 +416,7 @@ def build_template_message_payload(
 	template_doc,
 	body_parameters: dict[str, str] | None = None,
 	header_parameters: str | dict | None = None,
+	button_components: list[dict] | None = None,
 ) -> TemplateMessagePayload:
 	payload = {
 		"messaging_product": "whatsapp",
@@ -467,6 +476,8 @@ def build_template_message_payload(
 				],
 			}
 		)
+
+	components += button_components or []
 
 	if components:
 		payload["template"]["components"] = components

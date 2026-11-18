@@ -1,6 +1,7 @@
 import { computed, reactive, ref, toValue, watch } from "vue";
 import { call } from "frappe-ui";
 import { variableNames } from "./variables";
+import { useFlowOptions } from "./useFlowOptions";
 import type {
   TemplateController,
   TemplateIndicator,
@@ -47,6 +48,8 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
   const saving = ref(false);
   const error = ref<unknown>(null);
   const fieldOptions = ref<VariableItem[]>([]);
+  const flowOptions = useFlowOptions();
+  const flows = computed(() => flowOptions.flowsFor(doc.value.whatsapp_account));
 
   const isNew = computed(() => !docName.value);
   const isDirty = computed(() => JSON.stringify(doc.value) !== loadedJson.value);
@@ -69,6 +72,7 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
   }
 
   async function reload() {
+    flowOptions.clear();
     if (!docName.value) {
       adopt(emptyTemplate());
       return;
@@ -182,5 +186,9 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
     fieldOptions,
     save,
     reload,
+    flows,
+    outline: flowOptions.outline,
+    inputSourceFields: flowOptions.inputSourceFields,
+    mappableFields: flowOptions.mappableFields,
   }) as TemplateController;
 }

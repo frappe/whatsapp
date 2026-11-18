@@ -1,0 +1,77 @@
+/** Every string a Flow button's editor shows, in English. A host passes its own through `chrome`. */
+export const FLOW_BUTTON_CHROME = {
+  untitledButton: "Flow button",
+
+  flowHeading: "Flow",
+  flowLabel: "Flow to open",
+  flowPlaceholder: "Choose a Flow",
+  noAccount: "Choose a WhatsApp account to list its Flows",
+  noFlows: "No Flows synced for this account",
+  flowsError: "Couldn't load Flows",
+  screenLabel: "Opens on screen",
+  screenPlaceholder: "No entry screens",
+  iconLabel: "Icon",
+  iconNone: "None",
+  iconDocument: "Document",
+  iconPromotion: "Promotion",
+  iconReview: "Review",
+  actionLabel: "Action",
+  actionNavigate: "Navigate",
+  actionDataExchange: "Data exchange",
+  previewLabel: "Preview",
+  emptyOutline:
+    "This Flow's JSON could not be read, so its inputs and answers can't be listed until the Flow syncs.",
+  outlineError: "Couldn't load this Flow's screens and answers",
+
+  inputsHeading: "Flow inputs",
+  inputsHint: "Filled from the reference document when the message is sent",
+  noFlowChosen: "Choose a Flow first",
+  noInputs: "This screen takes no inputs",
+  inputsUnlisted: "None listed until the Flow syncs",
+  noReference: "Set a Reference DocType above to fill inputs from a document",
+  fieldPlaceholder: "Choose a field",
+
+  actionsHeading: "Response actions",
+  actionsHint: "What happens with the answers when a customer submits the Flow",
+  noActions: "Nothing happens with the answers yet",
+  addAction: "Add action",
+  removeAction: "Remove action",
+  kindLabel: "Do",
+  updateReference: "Update reference document",
+  createDocument: "Create a document",
+  updateSummary: "Update {0}",
+  updateReferenceSummary: "Update the reference document",
+  createSummary: "Create {0}",
+  createSummaryNoDoctype: "Create a document",
+  oneField: "1 field",
+  manyFields: "{0} fields",
+  whenSummary: "when {0}",
+  doctypeLabel: "DocType",
+  conditionLabel: "Condition",
+  conditionHint: "Optional. A Python expression over response, doc and message",
+  sourceLabel: "From",
+  targetLabel: "To field",
+  sourcePlaceholder: "Answer or message detail",
+  addMapping: "Add field",
+  removeMapping: "Remove field",
+  answersGroup: "Answers",
+  messageGroup: "Message",
+  staleSource: "The current version of the Flow doesn't send this answer. Older versions may.",
+  hasStaleSource: "A mapped answer is no longer in the Flow",
+
+  sender_phone: "Sender phone",
+  sender_name: "Sender name",
+  reference_doctype: "Reference document type",
+  reference_name: "Reference document name",
+  received_at: "Received at",
+  whole_response: "Whole response",
+
+  loadError: "Couldn't load options",
+  retry: "Retry",
+};
+
+export type FlowButtonChrome = typeof FLOW_BUTTON_CHROME;
+
+export function format(template: string, ...values: (string | number)[]): string {
+  return values.reduce<string>((text, value, i) => text.replace(`{${i}}`, String(value)), template);
+}

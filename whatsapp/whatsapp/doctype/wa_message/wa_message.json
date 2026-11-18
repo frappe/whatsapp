@@ -26,6 +26,17 @@
   "interactive_buttons",
   "interactive_list_section",
   "interactive_list_items",
+  "flow_section",
+  "flow",
+  "flow_template",
+  "flow_button_index",
+  "flow_token",
+  "flow_cta",
+  "flow_mode",
+  "column_break_flow",
+  "flow_screen",
+  "flow_action_data",
+  "flow_response",
   "section_break_delivery",
   "status",
   "message_id",
@@ -166,6 +177,80 @@
     "options": "WA Message List Item"
    },
    {
+    "collapsible": 1,
+    "depends_on": "eval:doc.flow_token || doc.flow_response",
+    "fieldname": "flow_section",
+    "fieldtype": "Section Break",
+    "label": "Flow"
+   },
+   {
+    "fieldname": "flow",
+    "fieldtype": "Link",
+    "label": "Flow",
+    "options": "WA Flow",
+    "read_only": 1
+   },
+   {
+    "fieldname": "flow_template",
+    "fieldtype": "Link",
+    "label": "Flow Template",
+    "options": "WA Template",
+    "read_only": 1
+   },
+   {
+    "description": "The template button that opened the Flow, counted from 0 among all its buttons",
+    "fieldname": "flow_button_index",
+    "fieldtype": "Int",
+    "label": "Flow Button Index",
+    "read_only": 1
+   },
+   {
+    "fieldname": "flow_token",
+    "fieldtype": "Data",
+    "label": "Flow Token",
+    "no_copy": 1,
+    "read_only": 1,
+    "unique": 1
+   },
+   {
+    "fieldname": "flow_cta",
+    "fieldtype": "Data",
+    "label": "Flow CTA",
+    "read_only": 1
+   },
+   {
+    "default": "Published",
+    "depends_on": "eval:doc.direction == 'Outgoing' && doc.flow",
+    "fieldname": "flow_mode",
+    "fieldtype": "Select",
+    "label": "Flow Mode",
+    "options": "Published\nDraft",
+    "read_only": 1
+   },
+   {
+    "fieldname": "column_break_flow",
+    "fieldtype": "Column Break"
+   },
+   {
+    "fieldname": "flow_screen",
+    "fieldtype": "Data",
+    "label": "Flow Screen",
+    "read_only": 1
+   },
+   {
+    "fieldname": "flow_action_data",
+    "fieldtype": "JSON",
+    "label": "Flow Action Data",
+    "read_only": 1
+   },
+   {
+    "fieldname": "flow_response",
+    "fieldtype": "JSON",
+    "label": "Flow Response",
+    "permlevel": 1,
+    "read_only": 1
+   },
+   {
     "fieldname": "section_break_delivery",
     "fieldtype": "Section Break",
     "label": "Delivery Info"
@@ -293,7 +378,7 @@
    "link_fieldname": "reference_docname"
   }
  ],
- "modified": "2026-09-28 16:41:37.000000",
+ "modified": "2026-11-17 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Message",
@@ -314,6 +399,11 @@
    "share": 1,
    "submit": 1,
    "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "System Manager"
   }
  ],
  "row_format": "Dynamic",

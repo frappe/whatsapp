@@ -22,6 +22,8 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 	get_or_create_profile,
 	lock_profile,
 )
+from whatsapp.whatsapp.flows.receive import flow_response_fields
+from whatsapp.whatsapp.flows.webhook import handle_flow_event
 
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
 
@@ -81,6 +83,8 @@ def _receive() -> str:
 				_handle_messages(value)
 			elif field == "message_template_status_update":
 				_handle_template_status(value)
+			elif field == "flows":
+				handle_flow_event(entry.get("id"), value)
 
 	frappe.response.http_status_code = 200
 	frappe.response["content_type"] = "text/plain"
@@ -123,16 +127,22 @@ def _handle_messages(value: dict) -> None:
 		_update_message_status(status, account_name)
 
 
-def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict | None = None) -> None:
+def _is_duplicate_delivery(msg: dict, account_name: str) -> bool:
 	message_id = msg.get("id")
-	if message_id and frappe.db.exists("WA Message", {"message_id": message_id}):
-		log(
-			"Info",
-			"Webhook",
-			f"Duplicate webhook delivery for message_id={message_id} ignored",
-			account=account_name,
-			request_data=msg,
-		)
+	if not (message_id and frappe.db.exists("WA Message", {"message_id": message_id})):
+		return False
+	log(
+		"Info",
+		"Webhook",
+		f"Duplicate webhook delivery for message_id={message_id} ignored",
+		account=account_name,
+		request_data=msg,
+	)
+	return True
+
+
+def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict | None = None) -> None:
+	if _is_duplicate_delivery(msg, account_name):
 		return
 
 	wa_id = msg.get("from", "")
@@ -149,6 +159,8 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 	# Taken before anything is written, so a second delivery from the same sender
 	# waits here and then sees the record the first one attached to.
 	lock_profile(profile)
+	if _is_duplicate_delivery(msg, account_name):
+		return
 
 	msg_type = msg.get("type", "text")
 
@@ -196,11 +208,12 @@ def _create_incoming_message(msg: dict, account_name: str, contact_profile: dict
 			"whatsapp_account": account_name,
 			"direction": "Incoming",
 			"status": "Sent",
-			"message_id": message_id,
+			"message_id": msg.get("id"),
 			"timestamp": timestamp_val,
 			"reaction": reaction_emoji_val,
 			"context_message_id": context_id,
 			**media_fields,
+			**flow_response_fields(msg, profile, account_name),
 		}
 	)
 	# Submit incoming messages (don't leave them as drafts) so docstatus is consistent

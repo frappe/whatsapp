@@ -18,6 +18,7 @@ STANDARD_NOTIFICATIONS = (
 	"WhatsApp Message Status Updated",
 	"WhatsApp Template Approved",
 	"WhatsApp Template Rejected",
+	"WhatsApp Flow Alert",
 )
 
 

@@ -22,6 +22,7 @@ from whatsapp.whatsapp.api.messages import (
 	_validate_template_is_approved,
 	get_messages,
 	react_to_message,
+	send_flow,
 	send_message,
 	send_template,
 )
@@ -246,6 +247,7 @@ class TestAccessGuard(UnitTestCase):
 			(send_message, ("15550001111", "hello")),
 			(react_to_message, ("m1", "👍")),
 			(send_template, ("tpl", "15550001111")),
+			(send_flow, ("flow", "15550001111", "hello")),
 			(get_sendable_templates, ("ToDo",)),
 			(create_template_and_push, ({}, "_Test Account")),
 		]
@@ -898,6 +900,37 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 			],
 		)
 
+	def test_template_flow_button_carries_its_icon(self):
+		templates = {
+			"tpl_a": _template_doc(
+				buttons=[
+					frappe._dict(
+						button_type="Flow",
+						button_text="Rate us",
+						url="",
+						phone_number="",
+						flow="1290456178312045",
+						flow_icon="Review",
+					),
+				],
+			)
+		}
+		rows = [_message_row("m1", is_template=1, whatsapp_template="tpl_a")]
+		message = self._run(rows, templates=templates)[0]
+
+		self.assertEqual(
+			message["buttons"],
+			[
+				{
+					"button_type": "Flow",
+					"button_text": "Rate us",
+					"url": "",
+					"phone_number": "",
+					"flow_icon": "Review",
+				}
+			],
+		)
+
 	def test_template_with_no_stored_parameters_keeps_placeholders(self):
 		templates = {"tpl_a": _template_doc(template_name="tpl_a", message="Hi {{name}}")}
 		rows = [_message_row("m1", is_template=1, whatsapp_template="tpl_a")]
@@ -1512,6 +1545,7 @@ class IntegrationTestPermissionGates(WithoutHostAccessGuards, IntegrationTestCas
 			(get_logs, ()),
 			(send_message, ("15550001111", "hello")),
 			(send_template, ("tpl", "15550001111")),
+			(send_flow, ("flow", "15550001111", "hello")),
 			(get_active_accounts, ()),
 			(sync_from_account, ("_Test Account",)),
 			(sync_all, ()),
