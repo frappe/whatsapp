@@ -181,6 +181,15 @@ class TestCallback(IntegrationTestCase):
 			),
 			({"display_phone_number": "+1 555-0100"}, "+1 555-0100"),
 			({"verified_name": "Acme Store"}, "phone_oauth_1"),
+			(
+				{"verified_name": "Tom & Jerry <Shop>", "display_phone_number": "+1 555-0100"},
+				"Tom & Jerry Shop (+1 555-0100)",
+			),
+			({"verified_name": "<>", "display_phone_number": "+1 555-0100"}, "+1 555-0100"),
+			(
+				{"verified_name": "A" * 200, "display_phone_number": "+1 555-0100"},
+				"A" * 106 + " (+1 555-0100)",
+			),
 		):
 			with self.subTest(name):
 				frappe.db.delete("WA Account", {"business_id": "waba_oauth_1"})

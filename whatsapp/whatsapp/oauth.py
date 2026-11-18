@@ -260,8 +260,10 @@ def _save_account(token: dict, wa_account: str | None) -> tuple[str, str]:
 
 def _readable_name(token: dict) -> str:
 	number = token.get("display_phone_number")
-	if number and token.get("verified_name"):
-		return f"{token['verified_name']} ({number})"
+	# a name cannot hold "<" or ">", and 120 characters leave room for a "-N" suffix in the 140 of the column
+	business = (token.get("verified_name") or "").replace("<", "").replace(">", "").strip()
+	if number and business:
+		return f"{business[: 117 - len(number)].strip()} ({number})"
 	return number or token["phone_id"]
 
 
