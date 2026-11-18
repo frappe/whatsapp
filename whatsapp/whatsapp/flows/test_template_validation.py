@@ -7,8 +7,8 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.flows.flow_json_fixtures import CUSTOMER_PROFILE, ROUTED
+from whatsapp.whatsapp.flows.meta_fixtures import FlowMetaCase, make_account
 from whatsapp.whatsapp.flows.template_fixtures import flow_button, make_flow, template_doc
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, make_account
 from whatsapp.whatsapp.mapping import get_input_source_fields, get_mappable_fields
 
 
@@ -24,19 +24,9 @@ def create_document(doctype: str, *fields: tuple[str, str], **action) -> dict:
 	return {**update_reference(*fields, **action), "action": "Create Document", "doctype": doctype}
 
 
-class IntegrationTestFlowButtonValidation(IntegrationTestCase):
+class IntegrationTestFlowButtonValidation(FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		self.meta.client.create_template.side_effect = lambda payload: {
-			"id": frappe.generate_hash(length=10),
-			"status": "PENDING",
-		}
-		patcher = patch(CLIENT, return_value=self.meta.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
 		self.feedback = make_flow(self.account, frappe.generate_hash(length=8)).name
 		frappe.clear_messages()
 

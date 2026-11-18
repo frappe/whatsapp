@@ -40,9 +40,8 @@ def _carry_over(rows: list[dict], previous: list) -> None:
 	unmatched = list(previous)
 	matches = {}
 	for index, row in enumerate(rows):
-		if same_flow := next(
-			(button for button in unmatched if row["flow"] and button.flow == row["flow"]), None
-		):
+		same_flow = next((button for button in unmatched if row["flow"] and button.flow == row["flow"]), None)
+		if same_flow:
 			matches[index] = same_flow
 			unmatched.remove(same_flow)
 	for index in range(min(len(rows), len(previous))):

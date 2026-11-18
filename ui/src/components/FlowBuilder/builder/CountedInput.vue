@@ -14,12 +14,11 @@ const props = defineProps<{
 	label?: string;
 	/** Adds Meta's muted "· Optional" to the label. */
 	optional?: boolean;
-	description?: string;
 	error?: string;
 	multiline?: boolean;
 	placeholder?: string;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: string]; blur: [] }>();
+const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
 const { session, chrome } = useBuilder();
 
@@ -30,7 +29,6 @@ const over = computed(() => !!props.limit && props.modelValue.length > props.lim
 const counterWidth = computed(() => `${String(props.limit ?? "").length * 2 + 1}ch`);
 
 const area = ref<InstanceType<typeof Textarea>>();
-const input = ref<InstanceType<typeof TextInput>>();
 const counterTop = ref(0);
 
 /** The textarea's own label sits above it; the counter goes inside the box, below the label. */
@@ -44,11 +42,6 @@ watch(() => props.label, placeCounter);
 function update(value: unknown) {
 	emit("update:modelValue", String(value ?? ""));
 }
-
-defineExpose({
-	focus: () => (area.value ?? input.value)?.focus(),
-	select: () => (area.value?.inputElement ?? input.value?.inputElement)?.select(),
-});
 </script>
 
 <template>
@@ -56,7 +49,6 @@ defineExpose({
 		<Textarea
 			ref="area"
 			:label="label"
-			:description="description"
 			:error="error"
 			:model-value="modelValue"
 			:placeholder="placeholder"
@@ -64,7 +56,6 @@ defineExpose({
 			:rows="3"
 			:disabled="session.readOnly"
 			@update:model-value="update"
-			@blur="emit('blur')"
 		>
 			<template v-if="optional" #label>
 				{{ label }} <span class="text-ink-gray-5">· {{ chrome.optional }}</span>
@@ -82,18 +73,15 @@ defineExpose({
 	</div>
 	<TextInput
 		v-else
-		ref="input"
 		class="fb-counted"
 		:style="{ '--fb-counter': counterWidth }"
 		:label="label"
-		:description="description"
 		:error="error"
 		:model-value="modelValue"
 		:placeholder="placeholder"
 		:maxlength="limit"
 		:disabled="session.readOnly"
 		@update:model-value="update"
-		@blur="emit('blur')"
 	>
 		<template v-if="optional" #label>
 			{{ label }} <span class="text-ink-gray-5">· {{ chrome.optional }}</span>

@@ -78,13 +78,15 @@ const menu = computed(() =>
 	}))
 );
 
-function add(type: string) {
+function starterText(type: string): string {
 	const kind = BLOCK_KINDS[type];
-	const text = kind.question
-		? chrome.value.labelLabel
-		: kind.textKey === "text"
-		? chrome.value.textLabel
-		: "";
+	if (kind.question) return chrome.value.labelLabel;
+	if (kind.textKey === "text") return chrome.value.textLabel;
+	return "";
+}
+
+function add(type: string) {
+	const text = starterText(type);
 	let uid = "";
 	edit((model) => {
 		const added = addBlock(model, props.screen.uid, type, { text });

@@ -20,7 +20,7 @@ from whatsapp.whatsapp.api.utils import (
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.wa_account.wa_account import WAAccount
 from whatsapp.whatsapp.doctype.wa_settings.wa_settings import WASettings
-from whatsapp.whatsapp.flows.template_button import SENDABLE_FIELDS, add_flow_details
+from whatsapp.whatsapp.flows.template_button import button_view
 from whatsapp.whatsapp.flows.template_sync import prepare_flow_buttons
 from whatsapp.whatsapp.flows.template_validation import validate_flow_buttons
 
@@ -738,19 +738,10 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 	for row in frappe.get_all(
 		"WA Template Button",
 		filters={"parent": ["in", [t.name for t in sendable]], "parenttype": "WA Template"},
-		fields=["parent", "button_type", "button_text", "url", "phone_number", *SENDABLE_FIELDS],
+		fields=["parent", "button_type", "button_text", "url", "phone_number", "flow_icon"],
 		order_by="idx asc",
 	):
-		buttons_by_template.setdefault(row.parent, []).append(
-			{
-				"button_type": row.button_type,
-				"button_text": row.button_text,
-				"url": row.url,
-				"phone_number": row.phone_number,
-				**{field: row[field] for field in SENDABLE_FIELDS},
-			}
-		)
-	add_flow_details([button for buttons in buttons_by_template.values() for button in buttons])
+		buttons_by_template.setdefault(row.parent, []).append(button_view(row))
 
 	for template in sendable:
 		template["template_variables"] = variables_by_template.get(template.name, [])

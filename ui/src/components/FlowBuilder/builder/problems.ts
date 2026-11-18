@@ -32,10 +32,12 @@ export function fieldError(
 /** The problem nearest the top of the builder: by screen, then Screen title, components, Button. */
 export function firstProblem(model: FlowModel, problems: Problem[]): Problem | undefined {
   const place = (problem: Problem) => {
-    const screen = model.screens.findIndex((each) => each.uid === problem.screenId);
-    const rows = model.screens[screen]?.blocks.map((block) => block.uid) ?? [];
-    const row = problem.blockId ? rows.indexOf(problem.blockId) : -1;
-    return [screen < 0 ? model.screens.length : screen, problem.blockId && row < 0 ? rows.length : row];
+    const screenIndex = model.screens.findIndex((each) => each.uid === problem.screenId);
+    const rows = model.screens[screenIndex]?.blocks.map((block) => block.uid) ?? [];
+    const rowIndex = problem.blockId ? rows.indexOf(problem.blockId) : -1;
+    const screen = screenIndex < 0 ? model.screens.length : screenIndex;
+    const row = problem.blockId && rowIndex < 0 ? rows.length : rowIndex;
+    return [screen, row];
   };
   return [...problems].sort((a, b) => {
     const [screenA, rowA] = place(a);

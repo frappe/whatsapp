@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 
 from whatsapp.whatsapp.api.utils import log
-from whatsapp.whatsapp.flows.answers import FlowAnswers, template_outline
+from whatsapp.whatsapp.flows.answers import FlowAnswers, response_outline
 from whatsapp.whatsapp.flows.send import template_flow_buttons
 from whatsapp.whatsapp.flows.token import FlowToken
 
@@ -107,11 +107,7 @@ class FlowResponse:
 
 	def _summary(self, fields: dict) -> str:
 		flow = fields.get("flow")
-		outline = (
-			frappe.get_doc("WA Flow", flow).get_outline()
-			if flow
-			else template_outline(fields.get("flow_template"))
-		)
+		outline = response_outline(flow and frappe.get_doc("WA Flow", flow), fields.get("flow_template"))
 		return FlowAnswers(self.answers, outline).summary() or self.reply.get("body") or ""
 
 	def _warn(self, message: str) -> None:

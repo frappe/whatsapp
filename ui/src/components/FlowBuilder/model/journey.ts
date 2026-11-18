@@ -1,6 +1,6 @@
 import { addBlock } from "./blocks";
 import { blockOf, edit, objects, screenOf } from "./edit";
-import { footerTarget, isEnding } from "./endings";
+import { footerTarget, isEnding, navigateTarget } from "./endings";
 import { addScreen, setFooter } from "./screens";
 import { screenItems } from "./serialize";
 import type { Added, FlowModel, JsonObject, Screen } from "./types";
@@ -141,7 +141,7 @@ function readMoreLinks(model: FlowModel): ReadMoreLink[] {
     parent.blocks.flatMap((block) => {
       const action = block.component["on-click-action"] as JsonObject | undefined;
       if (block.component.type !== "OptIn" || action?.name !== "navigate") return [];
-      const target = (action.next as JsonObject | undefined)?.name;
+      const target = navigateTarget(action);
       const screen = model.screens.find((each) => each.props.id === target && each !== parent);
       return screen ? [{ parent, optIn: block.uid, screen }] : [];
     })

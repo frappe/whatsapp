@@ -53,15 +53,7 @@ def _update_status(doc, value: dict) -> None:
 	if new_status in ALERT_STATUSES:
 		doc.run_notifications("on_flow_alert")
 	run_server_script_for_doc_event(doc, "on_update")
-	log(
-		"Info",
-		"Flow",
-		f"Flow {doc.flow_name} status changed: {old_status} -> {new_status}",
-		account=doc.whatsapp_account,
-		reference_doctype="WA Flow",
-		reference_docname=doc.name,
-		response_data=value,
-	)
+	doc.log("Info", f"Flow {doc.flow_name} status changed: {old_status} -> {new_status}", response_data=value)
 
 
 def _handle_alert(business_id: str, value: dict) -> None:
@@ -71,13 +63,9 @@ def _handle_alert(business_id: str, value: dict) -> None:
 
 	activated = value.get("alert_state") == "ACTIVATED"
 	value = {**value, "errors": [_normalise_error(error) for error in value.get("errors", [])]}
-	log(
+	doc.log(
 		"Warning" if activated else "Info",
-		"Flow",
 		f"Flow {doc.flow_name}: {value['event']} {value.get('alert_state')}. {value.get('message', '')}",
-		account=doc.whatsapp_account,
-		reference_doctype="WA Flow",
-		reference_docname=doc.name,
 		response_data=value,
 	)
 	if activated:
@@ -89,15 +77,7 @@ def _handle_expiry_warning(business_id: str, value: dict) -> None:
 	if not doc:
 		return
 
-	log(
-		"Warning",
-		"Flow",
-		f"Flow {doc.flow_name}: {value.get('warning')}",
-		account=doc.whatsapp_account,
-		reference_doctype="WA Flow",
-		reference_docname=doc.name,
-		response_data=value,
-	)
+	doc.log("Warning", f"Flow {doc.flow_name}: {value.get('warning')}", response_data=value)
 	doc.run_notifications("on_flow_alert")
 
 

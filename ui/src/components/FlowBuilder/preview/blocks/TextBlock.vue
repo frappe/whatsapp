@@ -30,19 +30,18 @@ const lines = computed(() => {
 	const all = (Array.isArray(text) ? text.map(String) : String(text ?? "").split("\n")).map(
 		(line) => phone.text(line)
 	);
-	return all
-		.filter((line) => line.trim())
-		.map((line) => {
-			const plain = line.replace(/\*\*|__|~~|`/g, "");
-			if (/^#\s/.test(plain))
-				return { kind: "TextHeading", text: plain.replace(/^#\s+/, "") };
-			if (/^#{2,}\s/.test(plain))
-				return { kind: "TextSubheading", text: plain.replace(/^#+\s+/, "") };
-			if (/^\s*([-*+]|\d+\.)\s/.test(plain))
-				return { kind: "bullet", text: plain.replace(/^\s*([-*+]|\d+\.)\s+/, "") };
-			return { kind: "TextBody", text: plain };
-		});
+	return all.filter((line) => line.trim()).map(richLine);
 });
+
+function richLine(line: string): { kind: string; text: string } {
+	const plain = line.replace(/\*\*|__|~~|`/g, "");
+	if (/^#\s/.test(plain)) return { kind: "TextHeading", text: plain.replace(/^#\s+/, "") };
+	if (/^#{2,}\s/.test(plain))
+		return { kind: "TextSubheading", text: plain.replace(/^#+\s+/, "") };
+	if (/^\s*([-*+]|\d+\.)\s/.test(plain))
+		return { kind: "bullet", text: plain.replace(/^\s*([-*+]|\d+\.)\s+/, "") };
+	return { kind: "TextBody", text: plain };
+}
 </script>
 
 <template>

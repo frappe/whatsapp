@@ -30,16 +30,18 @@ watch(
 	async (uid) => {
 		if (!uid || interactive.value) return;
 		await nextTick();
-		const element = body.value?.querySelector<HTMLElement>(
-			`[data-block="${CSS.escape(uid)}"]`
-		);
-		if (!element || !body.value) return;
-		const box = element.getBoundingClientRect();
-		const view = body.value.getBoundingClientRect();
-		if (box.top < view.top || box.bottom > view.bottom)
-			body.value.scrollBy({ top: box.top - view.top - 16, behavior: "smooth" });
+		scrollToBlock(uid);
 	}
 );
+
+function scrollToBlock(uid: string) {
+	const element = body.value?.querySelector<HTMLElement>(`[data-block="${CSS.escape(uid)}"]`);
+	if (!element || !body.value) return;
+	const box = element.getBoundingClientRect();
+	const view = body.value.getBoundingClientRect();
+	if (box.top < view.top || box.bottom > view.bottom)
+		body.value.scrollBy({ top: box.top - view.top - 16, behavior: "smooth" });
+}
 </script>
 
 <template>

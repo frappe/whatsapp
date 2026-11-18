@@ -574,7 +574,7 @@ Flow messages carry these extra fields:
 | `flow`, `flow_name` | A message with a Flow: an interactive Flow send, or a matched response | The WA Flow name (Meta's Flow ID) and the Flow's display name. |
 | `flow_cta` | An interactive Flow send | The button text the contact saw. |
 | `flow_answers` | Every Flow response | `[{key, label, value, masked}]`, in the Flow's order. A masked `value` is `null`. Other values are the raw JSON values. |
-| `buttons[]` `flow`, `flow_icon`, `flow_name` | A template's Flow button | The button's Flow, icon and Flow name. |
+| `buttons[]` `flow_icon` | A template's Flow button | The button's icon. |
 
 `flow_response` itself is never returned, so a sensitive value never reaches the client.
 
@@ -647,8 +647,7 @@ whatsapp.whatsapp.doctype.wa_template.wa_template.get_sendable_templates(referen
 
 Returns the approved templates that can be sent from that DocType, with their buttons and
 variable mappings. A template qualifies when it is bound to the DocType, or when it is unbound
-and has no variables. A Flow button also carries `flow`, `flow_screen`, `flow_icon`,
-`flow_action`, `flow_name` and `flow_status`.
+and has no variables. A Flow button also carries its `flow_icon`.
 
 ### `create_template_and_push`
 

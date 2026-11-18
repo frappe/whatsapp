@@ -20,11 +20,11 @@ const problemLabel = computed(() =>
 );
 
 const publishReason = computed(() => {
-	const blocker = session.publishBlocker;
-	if (!blocker) return "";
-	return blocker.count === 1
+	const count = session.errorCount;
+	if (!count) return "";
+	return count === 1
 		? chrome.value.publishBlockedError
-		: format(chrome.value.publishBlockedErrors, blocker.count);
+		: format(chrome.value.publishBlockedErrors, count);
 });
 </script>
 

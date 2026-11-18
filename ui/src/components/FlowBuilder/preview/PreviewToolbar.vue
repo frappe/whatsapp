@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from "vue";
 import { Button, Dropdown, toast, type DropdownOptions } from "frappe-ui";
-import { serialize } from "../model";
 import { useBuilder } from "../context";
 import type { PreviewSettings } from "../types";
 
@@ -13,19 +12,14 @@ const { session, chrome } = useBuilder();
 const check = () =>
 	h("span", { class: "lucide-check size-4 text-ink-gray-7", "aria-hidden": "true" });
 
-function choice<K extends "theme">(
-	key: K,
-	value: PreviewSettings[K],
-	label: string,
-	icon: string
-) {
-	const selected = session.preview[key] === value;
+function themeOption(theme: PreviewSettings["theme"], label: string, icon: string) {
+	const selected = session.preview.theme === theme;
 	return {
 		label,
 		icon,
 		selected,
 		slots: selected ? { suffix: check } : undefined,
-		onClick: () => session.setPreview({ [key]: value }),
+		onClick: () => session.setPreview({ theme }),
 	};
 }
 
@@ -45,8 +39,8 @@ const options = computed<DropdownOptions>(() => [
 	{
 		group: chrome.value.theme,
 		options: [
-			choice("theme", "light", chrome.value.light, "lucide-sun"),
-			choice("theme", "dark", chrome.value.dark, "lucide-moon"),
+			themeOption("light", chrome.value.light, "lucide-sun"),
+			themeOption("dark", chrome.value.dark, "lucide-moon"),
 		],
 	},
 	{
@@ -64,7 +58,7 @@ const options = computed<DropdownOptions>(() => [
 
 async function copy() {
 	try {
-		await navigator.clipboard.writeText(JSON.stringify(serialize(session.model!), null, 2));
+		await navigator.clipboard.writeText(session.printed!);
 		toast.success(chrome.value.jsonCopied);
 	} catch {
 		toast.error(chrome.value.copyFailed);

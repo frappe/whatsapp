@@ -3,12 +3,10 @@
 
 """A template's Flow button as Meta spells it, in both directions.
 
-The live probe has not run (SPEC.md, "Gate"), so each unverified choice is its own constant or function.
+No live Meta account has confirmed these shapes yet, so each unverified choice is its own constant or function.
 """
 
 import frappe
-
-SENDABLE_FIELDS = ("flow", "flow_screen", "flow_icon", "flow_action")
 
 FLOW_ACTIONS = {"navigate": "Navigate", "data_exchange": "Data Exchange"}
 
@@ -40,23 +38,17 @@ def flow_button_row(meta_button: dict) -> dict:
 	}
 
 
-def add_flow_details(buttons: list[dict]) -> None:
-	"""Add the name and status of each button's Flow, for a picker that sends templates."""
-	names = list({button["flow"] for button in buttons if button.get("flow")})
-	flows = (
-		{
-			flow.name: flow
-			for flow in frappe.get_all(
-				"WA Flow", filters={"name": ["in", names]}, fields=["name", "flow_name", "status"]
-			)
-		}
-		if names
-		else {}
-	)
-	for button in buttons:
-		flow = flows.get(button.get("flow")) or {}
-		button["flow_name"] = flow.get("flow_name")
-		button["flow_status"] = flow.get("status")
+def button_view(button) -> dict:
+	"""What a template's button shows in a chat or a template picker."""
+	view = {
+		"button_type": button.button_type,
+		"button_text": button.button_text,
+		"url": button.url,
+		"phone_number": button.phone_number,
+	}
+	if button.button_type == "Flow":
+		view["flow_icon"] = button.flow_icon
+	return view
 
 
 def _navigate_screen(button) -> dict:

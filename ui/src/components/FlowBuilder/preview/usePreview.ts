@@ -1,4 +1,5 @@
 import { markRaw, onScopeDispose, reactive, shallowRef, watch } from "vue";
+import { debounce } from "frappe-ui";
 import type { FlowModel } from "../model";
 import type { BuilderSession } from "../session";
 import type { ContentRows } from "../builder/rows";
@@ -16,22 +17,16 @@ export function usePreview(session: BuilderSession, rows: ContentRows) {
   const shown = shallowRef<FlowModel>(session.model!);
   // The run holds the model; markRaw keeps Vue from wrapping every screen of it in a proxy.
   const run = reactive(new PreviewRun(markRaw(session.model!))) as PreviewRun;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const settleLater = debounce(settle, SETTLE_MS);
 
   function settle() {
-    clearTimeout(timer);
+    settleLater.cancel();
     if (!session.model || shown.value === session.model) return;
     shown.value = session.model;
     run.sync(markRaw(session.model));
   }
 
-  watch(
-    () => session.model,
-    () => {
-      clearTimeout(timer);
-      timer = setTimeout(settle, SETTLE_MS);
-    }
-  );
+  watch(() => session.model, settleLater);
 
   watch(
     () => session.selection.screen,
@@ -56,10 +51,11 @@ export function usePreview(session: BuilderSession, rows: ContentRows) {
     () => run.screen?.uid,
     (uid) => {
       const screen = shown.value.screens.find((each) => each.uid === uid);
-      if (session.preview.interactive && screen && uid !== session.selection.screen) rows.openRow(screen, titleRow(screen.uid));
+      if (!session.preview.interactive || !screen || uid === session.selection.screen) return;
+      rows.openRow(screen, titleRow(screen.uid));
     }
   );
 
-  onScopeDispose(() => clearTimeout(timer));
+  onScopeDispose(settleLater.cancel);
   return { shown, run };
 }

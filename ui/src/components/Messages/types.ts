@@ -62,10 +62,6 @@ export interface WhatsAppTemplateButton {
   /** picks the button's icon; empty draws a generic form icon */
   flow_icon?: "" | "Document" | "Promotion" | "Review";
   flow_action?: "Navigate" | "Data Exchange";
-  /** server-derived from the `WA Flow`: by `get_sendable_templates`, and by `get_messages` on a sent template */
-  flow_name?: string;
-  /** server-derived, by `get_sendable_templates` only */
-  flow_status?: WhatsAppFlowStatus;
 }
 
 /**

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef, watch } from "vue";
+import { ref, shallowRef, watch } from "vue";
 import { CodeEditor, CodeEditorContent, CodeKit, loadLanguage } from "frappe-ui/code-editor";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -7,11 +7,9 @@ import { format } from "../chrome";
 import { useBuilder } from "../context";
 import type { JsonError } from "../jsonText";
 
-const props = defineProps<{ path?: string }>();
 const { session, chrome } = useBuilder();
 
-const printed = session.printed!;
-const text = ref(printed.text);
+const text = ref(session.printed!);
 const error = ref<JsonError | null>(null);
 const editor = ref<{ editor: EditorView | null }>();
 
@@ -19,15 +17,12 @@ const kit = CodeKit.configure({ lineNumbers: {}, autocompletion: false });
 const extensions = shallowRef<Extension[]>([kit]);
 // JSON highlighting is an optional peer of frappe-ui; without it the text is plain.
 loadLanguage("json")
-	.then((json) => json && (extensions.value = [kit, json]))
+	.then((json) => {
+		if (json) extensions.value = [kit, json];
+	})
 	.catch(() => {});
 
 watch(text, () => (error.value = null));
-
-onMounted(() => {
-	const line = props.path ? printed.lines.get(props.path) : undefined;
-	if (line) requestAnimationFrame(() => goToLine(line));
-});
 
 function goToLine(line: number) {
 	const view = editor.value?.editor;
@@ -37,9 +32,8 @@ function goToLine(line: number) {
 	view.focus();
 }
 
-/** False when the text is not valid JSON; the builder then stays on this tab. */
+/** False when the text is not valid JSON. */
 function apply(): boolean {
-	if (session.readOnly) return true;
 	error.value = session.applyJson(text.value);
 	if (error.value) goToLine(error.value.line);
 	return !error.value;

@@ -42,7 +42,14 @@ class FlowAnswers:
 		}
 
 
-def template_outline(flow_template: str | None) -> FlowOutline | None:
+def response_outline(flow, flow_template: str | None) -> FlowOutline | None:
+	"""`flow` is a WA Flow document or row with its outline, or None when the response's button is unknown."""
+	if flow:
+		return FlowOutline.from_dict(frappe.parse_json(flow.outline))
+	return _template_outline(flow_template)
+
+
+def _template_outline(flow_template: str | None) -> FlowOutline | None:
 	"""For a response whose button is unknown: masks every key that any Flow button of the template marks sensitive."""
 	if not flow_template:
 		return None

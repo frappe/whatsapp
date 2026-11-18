@@ -22,9 +22,7 @@ export function screenItems(screen: Screen): (Block | Footer)[] {
   const items: (Block | Footer)[] = [...screen.blocks];
   const footer = screen.footer;
   if (!footer) return items;
-  const after = items.findIndex((block) => block.uid === footer.after);
-  const index = footer.after === null ? 0 : after >= 0 ? after + 1 : items.length;
-  items.splice(index, 0, footer);
+  items.splice(footerIndex(screen.blocks, footer), 0, footer);
   return items;
 }
 
@@ -74,4 +72,10 @@ class Serializer {
     const payload = endingAnswers(this.model, screen.uid);
     return { ...footer.component, "on-click-action": { ...action, payload } };
   }
+}
+
+function footerIndex(blocks: Block[], footer: Footer): number {
+  if (footer.after === null) return 0;
+  const after = blocks.findIndex((block) => block.uid === footer.after);
+  return after >= 0 ? after + 1 : blocks.length;
 }

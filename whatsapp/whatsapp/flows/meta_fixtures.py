@@ -5,6 +5,14 @@
 
 import json
 import secrets
+from unittest.mock import MagicMock, patch
+
+import frappe
+from frappe.tests import IntegrationTestCase
+
+from whatsapp.whatsapp.flows.flow_json_fixtures import DEAL_FEEDBACK
+
+CLIENT = "whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp"
 
 
 def flow_row(flow_id: str, name: str, status: str = "DRAFT") -> dict:
@@ -151,3 +159,66 @@ def validation_error(message: str, line: int = 12, column: int = 4, path: str = 
 
 def flow_json_upload(*errors: dict) -> dict:
 	return {"success": True, "validation_errors": list(errors)}
+
+
+class FakeMeta:
+	"""Flows one business account holds on Meta, served through a mocked Graph client."""
+
+	def __init__(self):
+		self.flows = {}
+		self.flow_json = {}
+		self.client = MagicMock()
+		self.client.get_flows.side_effect = lambda: [
+			flow_row(flow_id, details["name"], details["status"]) for flow_id, details in self.flows.items()
+		]
+		self.client.get_flow.side_effect = lambda flow_id: self.flows[flow_id]
+		self.client.get_flow_assets.side_effect = lambda flow_id: flow_assets(
+			f"https://cdn.example/{flow_id}"
+		)
+		self.client.download_flow_json.side_effect = lambda url: self.flow_json[url.rsplit("/", 1)[-1]]
+		self.client.create_template.side_effect = lambda payload: {
+			"id": frappe.generate_hash(length=10),
+			"status": "PENDING",
+		}
+
+	def add(self, flow_id: str, name: str, flow_json: dict | str = DEAL_FEEDBACK, **details) -> None:
+		self.flows[flow_id] = flow_details(flow_id, name, **details)
+		self.flow_json[flow_id] = flow_json if isinstance(flow_json, str) else json.dumps(flow_json)
+
+
+def make_account(business_id: str | None = None, status: str = "Active") -> str:
+	uid = frappe.generate_hash(length=6)
+	return (
+		frappe.get_doc(
+			doctype="WA Account",
+			account_name=f"_Test Flow Acc {uid}",
+			status=status,
+			phone_id=f"phone_{uid}",
+			business_id=business_id or f"biz_{uid}",
+			app_id="test_app",
+			access_token="test_token",
+		)
+		.insert()
+		.name
+	)
+
+
+def business_id(account_name: str) -> str:
+	return frappe.db.get_value("WA Account", account_name, "business_id")
+
+
+class FlowMetaCase(IntegrationTestCase):
+	"""An Administrator with a fresh WA Account whose Graph client is `self.meta`."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		self.account = make_account()
+		self.meta = FakeMeta()
+		self.client = self.meta.client
+		self.start_patch(CLIENT, return_value=self.client)
+
+	def start_patch(self, target: str, **kwargs) -> MagicMock:
+		patcher = patch(target, **kwargs)
+		self.addCleanup(patcher.stop)
+		return patcher.start()

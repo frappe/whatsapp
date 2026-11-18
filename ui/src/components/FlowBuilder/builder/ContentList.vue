@@ -38,7 +38,7 @@ const footer = computed(() => props.screen.footer);
 
 const sortable = useSortable({
 	ids: () => props.screen.blocks.map((block) => block.uid),
-	move: (uid, index) => edit((current) => moveBlock(current, uid, props.screen.uid, index)),
+	move: (uid, index) => edit((current) => moveBlock(current, uid, index)),
 	disabled: () => session.readOnly,
 });
 
@@ -67,15 +67,17 @@ function actions(block: Block, index: number) {
 	];
 }
 
-/**
- * A new component arrives open, its main text selected, so typing replaces Meta's "Label". The
- * menu hands focus back to its trigger as it closes, so the field takes it back once.
- */
+/** A new component arrives open, its main text selected, so typing replaces Meta's "Label". */
 async function opened(uid: string) {
 	rows.openRow(props.screen, uid);
 	await nextTick();
 	const row = list.value?.querySelector(`[data-row="${uid}"]`);
 	row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+	selectMainField(row);
+}
+
+/** The menu hands focus back to its trigger as it closes, so the field takes it back once. */
+function selectMainField(row: Element | null | undefined) {
 	const field = row?.querySelector<HTMLElement>("[data-main-field]");
 	const input = (
 		field?.matches("input, textarea") ? field : field?.querySelector("textarea, input")
@@ -86,7 +88,9 @@ async function opened(uid: string) {
 		input.select();
 	};
 	take();
-	const retake = (event: FocusEvent) => event.target !== input && take();
+	const retake = (event: FocusEvent) => {
+		if (event.target !== input) take();
+	};
 	document.addEventListener("focusin", retake, { once: true });
 	setTimeout(() => document.removeEventListener("focusin", retake), 500);
 }

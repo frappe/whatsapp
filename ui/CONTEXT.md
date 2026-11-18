@@ -202,8 +202,7 @@ Response action acts on one Flow response).
 ### Flow builder
 
 The visual editor for a Flow's JSON. Its core is a pure model in
-`components/FlowBuilder/model` (`parse`, `serialize`, operations, `problems`), tested with
-vitest (`yarn test`).
+`components/FlowBuilder/model` (`parse`, `serialize`, operations, `problems`).
 
 **Screen**:
 One page of a Flow, as the contact sees it: a title, Blocks, and one footer button. The first

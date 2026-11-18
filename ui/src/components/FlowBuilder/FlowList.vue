@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Badge, Button, Skeleton, dayjsLocal } from "frappe-ui";
+import { Badge, Button, Skeleton, dayjsLocal, dialog, toast } from "frappe-ui";
 import {
 	List,
 	ListCell,
@@ -21,6 +21,7 @@ const emit = defineEmits<{ open: [name: string]; new: [] }>();
 
 const chrome = useChrome(() => props.chrome);
 const COLUMNS = ["minmax(0,1fr)", "7rem", "minmax(0,14rem)", "8rem", "8rem"];
+const columns = computed(() => (props.canWrite ? [...COLUMNS, "2.5rem"] : COLUMNS));
 const SKELETON_ROWS = 4;
 
 const direction = ref<"asc" | "desc">("desc");
@@ -39,6 +40,23 @@ function usedBy(row: FlowListRow) {
 
 function categories(row: FlowListRow) {
 	return row.categories.map((category) => chrome.value[category] ?? category).join(", ");
+}
+
+/** A refusal, such as templates still using the Flow, closes the dialog and shows as a toast. */
+function confirmDelete(row: FlowListRow) {
+	dialog.danger({
+		title: format(chrome.value.deleteFlowTitle, row.flow_name),
+		message: chrome.value.deleteFlowMessage,
+		confirmLabel: chrome.value.delete,
+		cancelLabel: chrome.value.cancel,
+		async onConfirm() {
+			try {
+				await props.controller.remove(row.name);
+			} catch (e) {
+				toast.error(serverErrorMessage(e));
+			}
+		},
+	});
 }
 </script>
 
@@ -93,7 +111,7 @@ function categories(row: FlowListRow) {
 			/>
 		</div>
 
-		<List v-else :columns="COLUMNS" :row-height="44" class="list-row-px-3">
+		<List v-else :columns="columns" :row-height="44" class="list-row-px-3">
 			<ListHeader>
 				<ListHeaderCell>{{ chrome.columnName }}</ListHeaderCell>
 				<ListHeaderCell>{{ chrome.columnStatus }}</ListHeaderCell>
@@ -105,6 +123,7 @@ function categories(row: FlowListRow) {
 				>
 					{{ chrome.columnUpdated }}
 				</ListHeaderCellSort>
+				<ListHeaderCell v-if="canWrite" />
 			</ListHeader>
 			<ListRows
 				v-if="firstLoad"
@@ -117,6 +136,7 @@ function categories(row: FlowListRow) {
 						<ListCell><Skeleton class="h-4 w-28 rounded-4" /></ListCell>
 						<ListCell><Skeleton class="h-4 w-20 rounded-4" /></ListCell>
 						<ListCell><Skeleton class="h-4 w-16 rounded-4" /></ListCell>
+						<ListCell v-if="canWrite" />
 					</ListRow>
 				</template>
 			</ListRows>
@@ -152,6 +172,15 @@ function categories(row: FlowListRow) {
 							<span class="text-base text-ink-gray-5">{{
 								dayjsLocal(item.modified).fromNow()
 							}}</span>
+						</ListCell>
+						<ListCell v-if="canWrite">
+							<Button
+								v-if="item.status === 'Draft'"
+								variant="ghost"
+								icon="lucide-trash-2"
+								:aria-label="chrome.deleteFlow"
+								@click.stop="confirmDelete(item as FlowListRow)"
+							/>
 						</ListCell>
 					</ListRow>
 				</template>

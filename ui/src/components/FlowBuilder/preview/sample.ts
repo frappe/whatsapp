@@ -1,4 +1,12 @@
-import { isQuestion, type Block, type FlowModel, type Json, type JsonObject, type Screen } from "../model";
+import {
+  isQuestion,
+  optionsOf,
+  type Block,
+  type FlowModel,
+  type Json,
+  type JsonObject,
+  type Screen,
+} from "../model";
 
 export type Value = string | string[] | boolean;
 
@@ -27,12 +35,18 @@ export function sampleText(text: unknown, model: FlowModel, screen: Screen, fill
     if (!on) return `[${key}]`;
     const value = resolve(on, scope as "form" | "data", key, filled);
     if (value !== undefined && value !== "") return value;
-    return `[${scope === "form" ? (labelOf(on, key) ?? key) : key}]`;
+    const placeholder = scope === "form" ? (labelOf(on, key) ?? key) : key;
+    return `[${placeholder}]`;
   });
 }
 
 /** The value a reference holds, or undefined when the preview has none. Raw: option ids stay ids. */
-export function referenceValue(reference: string, model: FlowModel, screen: Screen, filled?: Filled): Json | undefined {
+export function referenceValue(
+  reference: string,
+  model: FlowModel,
+  screen: Screen,
+  filled?: Filled
+): Json | undefined {
   const match = WHOLE_REFERENCE.exec(reference);
   if (!match) return undefined;
   const [, screenId, scope, key] = match;
@@ -44,7 +58,8 @@ export function referenceValue(reference: string, model: FlowModel, screen: Scre
 
 /** A typed or chosen answer as the contact reads it: option titles, not ids. */
 export function answerText(block: Block | undefined, value: Value | undefined): string {
-  if (value === undefined || typeof value === "boolean") return value === undefined ? "" : String(value);
+  if (value === undefined) return "";
+  if (typeof value === "boolean") return String(value);
   const titles = optionTitles(block);
   const each = (id: string) => titles.get(id) ?? id;
   return Array.isArray(value) ? value.map(each).join(", ") : each(value);
@@ -75,11 +90,8 @@ function labelOf(screen: Screen, key: string): string | undefined {
 }
 
 function optionTitles(block: Block | undefined): Map<string, string> {
-  const options = block?.component["data-source"];
-  if (!Array.isArray(options)) return new Map();
-  return new Map(
-    (options as JsonObject[]).map((option) => [String(option.id), String(option.title ?? option.id)])
-  );
+  const options = block ? optionsOf(block.component) : [];
+  return new Map(options.map((option) => [String(option.id), String(option.title ?? option.id)]));
 }
 
 function printable(value: Json): string {

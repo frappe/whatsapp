@@ -17,7 +17,8 @@ const types = computed(() =>
 );
 const text = computed(() => {
 	const value = component.value.text;
-	return Array.isArray(value) ? value.join("\n") : typeof value === "string" ? value : "";
+	if (Array.isArray(value)) return value.join("\n");
+	return typeof value === "string" ? value : "";
 });
 </script>
 

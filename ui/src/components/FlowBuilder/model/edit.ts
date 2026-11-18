@@ -47,7 +47,6 @@ export function landsInForm(screen: Screen, items: (Block | Footer)[], index: nu
   return Boolean(items[index - 1]?.inForm || items[index]?.inForm);
 }
 
-/** Visit every string in a JSON value, replacing it with what `change` returns. */
 export function mapStrings(value: Json, change: (text: string) => string): Json {
   if (typeof value === "string") return change(value);
   if (Array.isArray(value)) return value.map((item) => mapStrings(item, change));

@@ -3,20 +3,13 @@ import { computed } from "vue";
 import type { Block } from "../../model";
 import { useBuilder } from "../../context";
 import { answerText } from "../sample";
-import { usePhone } from "../phone";
+import { usePhoneBlock } from "../phone";
 import PhoneField from "./PhoneField.vue";
 
 /** A field that opens the full-screen option list; ⊗ clears the choice. */
 const props = defineProps<{ block: Block }>();
 const { chrome } = useBuilder();
-const phone = usePhone();
-
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
-const value = computed(() => {
-	const answer = phone.run.value(name.value);
-	return typeof answer === "string" ? answer : "";
-});
+const { phone, component, name, text: value } = usePhoneBlock(props);
 const label = computed(() => phone.text(component.value.label));
 </script>
 

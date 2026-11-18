@@ -1,6 +1,7 @@
 import { prefillKey } from "./answers";
 import { RESERVED_SCREEN_IDS, isQuestion } from "./catalogue";
 import { objects } from "./edit";
+import { navigateTarget } from "./endings";
 import { readMoreParent } from "./journey";
 import { limitProblems } from "./limits";
 import { jsonPaths, screenItems } from "./serialize";
@@ -125,7 +126,7 @@ class Rules {
     if (!first) return;
     for (const screen of this.model.screens) {
       for (const { item, action } of this.actions(screen)) {
-        if (action.name !== "navigate" || (action.next as JsonObject | undefined)?.name !== this.id(first))
+        if (action.name !== "navigate" || navigateTarget(action) !== this.id(first))
           continue;
         this.report.add(
           "warning",
@@ -141,7 +142,7 @@ class Rules {
   private targets() {
     for (const screen of this.model.screens) {
       for (const { item, action } of this.actions(screen)) {
-        const target = String((action.next as JsonObject | undefined)?.name ?? "");
+        const target = String(navigateTarget(action) ?? "");
         if (action.name !== "navigate" || this.byId.has(target)) continue;
         this.report.add(
           "error",
@@ -241,7 +242,7 @@ class Rules {
     const keys = new Set<string>();
     for (const each of this.model.screens) {
       for (const { action } of this.actions(each)) {
-        if (action.name === "navigate" && (action.next as JsonObject | undefined)?.name === this.id(screen)) {
+        if (action.name === "navigate" && navigateTarget(action) === this.id(screen)) {
           Object.keys((action.payload as JsonObject | undefined) ?? {}).forEach((key) => keys.add(key));
         }
       }
@@ -253,7 +254,7 @@ class Rules {
     const routes = (this.model.flow.routing_model as JsonObject | undefined)?.[this.id(screen)];
     const navigations = this.actions(screen)
       .filter(({ action }) => action.name === "navigate")
-      .map(({ action }) => String((action.next as JsonObject | undefined)?.name ?? ""));
+      .map(({ action }) => String(navigateTarget(action) ?? ""));
     return [...navigations, ...(Array.isArray(routes) ? routes.map(String) : [])];
   }
 

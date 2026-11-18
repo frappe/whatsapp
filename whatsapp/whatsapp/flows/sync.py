@@ -44,14 +44,9 @@ def known_status(meta_status: str | None, flow) -> str:
 	"""The Select value for Meta's status. An unknown one keeps the Flow's current status, with a Warning."""
 	if status := FLOW_STATUSES.get(meta_status):
 		return status
-	saved = not flow.is_new()
-	log(
+	flow.log(
 		"Warning",
-		"Flow",
 		f"Meta sent an unknown status {meta_status} for Flow {flow.flow_id}; it keeps {flow.status}",
-		account=flow.whatsapp_account,
-		reference_doctype="WA Flow" if saved else None,
-		reference_docname=flow.name if saved else None,
 	)
 	return flow.status
 
@@ -94,13 +89,10 @@ class FlowSync:
 		doc.flags.ignore_permissions = True
 		doc.flags.from_sync = True
 		doc.save()
-		log(
+		doc.log(
 			"Info",
-			"Flow",
 			f"{'Created' if is_new else 'Updated'} Flow {doc.flow_name} from sync (status={doc.status})",
 			account=self.account_name,
-			reference_doctype="WA Flow",
-			reference_docname=doc.name,
 		)
 		return is_new
 

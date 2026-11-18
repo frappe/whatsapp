@@ -30,7 +30,6 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 </template>
 
 <style scoped>
-/* A Flow button's section fades in; it is the last section, so nothing below it moves. */
 :deep([data-part="flow-button"]) {
 	animation: flow-button-in 150ms ease-out;
 }

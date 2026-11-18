@@ -49,7 +49,6 @@ export const FLOW_BUTTON_CHROME = {
   doctypeLabel: "DocType",
   conditionLabel: "Condition",
   conditionHint: "Optional. A Python expression over response, doc and message",
-  fieldMapLabel: "Fields",
   sourceLabel: "From",
   targetLabel: "To field",
   sourcePlaceholder: "Answer or message detail",

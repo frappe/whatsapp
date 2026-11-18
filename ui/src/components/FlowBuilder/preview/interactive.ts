@@ -1,4 +1,14 @@
-import { isQuestion, journeyScreens, readMoreOf, type FlowModel, type Json, type JsonObject, type Screen } from "../model";
+import {
+  footerAction,
+  isQuestion,
+  journeyScreens,
+  navigateTarget,
+  readMoreOf,
+  type FlowModel,
+  type Json,
+  type JsonObject,
+  type Screen,
+} from "../model";
 import { isReference, referenceValue, sampleText, type Filled, type Value } from "./sample";
 
 /**
@@ -58,10 +68,6 @@ export class PreviewRun {
     this.forms[this.current] = { ...this.forms[this.current], [name]: value };
   }
 
-  data(uid: string): Record<string, Json> | undefined {
-    return this.passed[uid];
-  }
-
   start() {
     this.forms = {};
     this.passed = {};
@@ -84,12 +90,8 @@ export class PreviewRun {
   continue() {
     const screen = this.screen;
     if (!screen || !this.canContinue) return;
-    const action = screen.footer?.component["on-click-action"] as JsonObject | undefined;
-    if (action?.name === "complete") {
-      this.sent = true;
-      return;
-    }
-    const next = action?.name === "navigate" ? this.target(action) : this.journeyAfter(screen);
+    const action = footerAction(screen);
+    const next = this.nextScreen(screen, action);
     if (!next) {
       this.sent = true;
       return;
@@ -117,7 +119,7 @@ export class PreviewRun {
     for (const uid of Object.keys(this.forms)) {
       const screen = this.screenAt(uid);
       if (!screen) delete this.forms[uid];
-      else this.forms[uid] = keep(this.forms[uid], new Set(questions(screen).map((each) => String(each.name))));
+      else this.forms[uid] = keep(this.forms[uid], questionNames(screen));
     }
     this.trail = this.trail.filter((uid) => this.screenAt(uid));
     if (this.screenAt(this.current)) this.enter(this.current);
@@ -147,7 +149,10 @@ export class PreviewRun {
   private payload(action: JsonObject | undefined, screen: Screen): Record<string, Json> {
     const payload = (action?.payload ?? {}) as JsonObject;
     return Object.fromEntries(
-      Object.entries(payload).map(([key, value]) => [key, typeof value === "string" ? this.read(value, screen) : value])
+      Object.entries(payload).map(([key, value]) => [
+        key,
+        typeof value === "string" ? this.read(value, screen) : value,
+      ])
     );
   }
 
@@ -158,8 +163,14 @@ export class PreviewRun {
     return referenceValue(text, this.model, screen, this.filled) ?? "";
   }
 
+  private nextScreen(screen: Screen, action: JsonObject | undefined): Screen | undefined {
+    if (action?.name === "complete") return undefined;
+    if (action?.name === "navigate") return this.target(action);
+    return this.journeyAfter(screen);
+  }
+
   private target(action: JsonObject): Screen | undefined {
-    const id = (action.next as JsonObject | undefined)?.name;
+    const id = navigateTarget(action);
     return this.model.screens.find((screen) => screen.props.id === id);
   }
 
@@ -177,6 +188,10 @@ function questions(screen: Screen): JsonObject[] {
   return screen.blocks.filter(isQuestion).map((block) => block.component);
 }
 
+function questionNames(screen: Screen): Set<string> {
+  return new Set(questions(screen).map((component) => String(component.name)));
+}
+
 function isEmpty(value: Value | undefined): boolean {
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === "string") return !value.trim();
@@ -184,7 +199,8 @@ function isEmpty(value: Value | undefined): boolean {
 }
 
 function isValue(value: Json): value is Value {
-  return typeof value === "string" || typeof value === "boolean" || (Array.isArray(value) && value.every((each) => typeof each === "string"));
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  return Array.isArray(value) && value.every((each) => typeof each === "string");
 }
 
 function keep(values: Record<string, Value>, names: Set<string>): Record<string, Value> {

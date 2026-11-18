@@ -21,6 +21,9 @@ export const FLOW_BUILDER_CHROME = {
   emptyDescription: "Create a Flow to ask customers questions inside WhatsApp.",
   listError: "Couldn't load Flows",
   retry: "Retry",
+  deleteFlow: "Delete Flow",
+  deleteFlowTitle: "Delete {0}?",
+  deleteFlowMessage: "This deletes the Flow here and in WhatsApp Manager. You can't undo this.",
 
   newFlowTitle: "New flow",
   nameLabel: "Name",

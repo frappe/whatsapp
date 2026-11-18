@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
-import { Button, TextInput } from "frappe-ui";
+import { computed, ref } from "vue";
+import { Button, TextInput, vFocus } from "frappe-ui";
 import { addScreenInJourney } from "../model";
 import { useBuilder } from "../context";
 import { collapse } from "./collapse";
@@ -11,15 +11,7 @@ const { chrome, edit } = useBuilder();
 
 const open = ref(false);
 const name = ref("");
-const input = ref<InstanceType<typeof TextInput>>();
 const ready = computed(() => !!name.value.trim());
-
-async function toggle() {
-	open.value = !open.value;
-	if (!open.value) return;
-	await nextTick();
-	input.value?.focus();
-}
 
 function add() {
 	if (!ready.value) return;
@@ -43,18 +35,18 @@ function add() {
 				icon-left="lucide-plus"
 				:label="chrome.addNew"
 				:aria-expanded="open"
-				@click="toggle"
+				@click="open = !open"
 			/>
 		</div>
 		<Transition :css="false" @enter="collapse.onEnter" @leave="collapse.onLeave">
 			<div v-if="open">
 				<form
+					v-focus
 					class="flex items-start gap-2 px-1 pt-1"
 					@submit.prevent="add"
 					@keydown.esc="open = false"
 				>
 					<TextInput
-						ref="input"
 						v-model="name"
 						class="min-w-0 flex-1"
 						:aria-label="chrome.screenName"

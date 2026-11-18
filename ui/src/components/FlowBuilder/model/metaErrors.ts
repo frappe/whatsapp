@@ -24,11 +24,6 @@ export function metaProblems(model: FlowModel, errors: MetaValidationError[]): P
   });
 }
 
-/** The screen and block a JSON path such as `screens[0].layout.children[1].label` is inside. */
-export function locate(model: FlowModel, path: string): Location | undefined {
-  return closest(jsonPaths(model), path);
-}
-
 function closest(paths: Map<string, Location>, path: string): Location | undefined {
   for (let prefix = path; prefix; prefix = parent(prefix)) {
     const location = paths.get(prefix);

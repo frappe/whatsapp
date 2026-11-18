@@ -1,16 +1,23 @@
 import { isQuestion } from "./catalogue";
-import type { FlowModel, JsonObject, Screen } from "./types";
+import type { FlowModel, Json, JsonObject, Screen } from "./types";
 
 /** A screen whose footer finishes the form. */
 export function isEnding(screen: Screen): boolean {
   return footerAction(screen)?.name === "complete";
 }
 
-/** The screen id the footer goes to, or undefined when it does not navigate. */
 export function footerTarget(screen: Screen): string | undefined {
   const action = footerAction(screen);
   if (action?.name !== "navigate") return undefined;
-  return String((action.next as JsonObject | undefined)?.name ?? "");
+  return String(navigateTarget(action) ?? "");
+}
+
+export function navigateTarget(action: JsonObject): Json | undefined {
+  return (action.next as JsonObject | undefined)?.name;
+}
+
+export function footerAction(screen: Screen): JsonObject | undefined {
+  return screen.footer?.component["on-click-action"] as JsonObject | undefined;
 }
 
 /**
@@ -79,8 +86,4 @@ class FooterGraph {
     }
     return found;
   }
-}
-
-function footerAction(screen: Screen): JsonObject | undefined {
-  return screen.footer?.component["on-click-action"] as JsonObject | undefined;
 }

@@ -3,23 +3,12 @@ import { computed, reactive, ref, watch } from "vue";
 import { Button, Dialog, ErrorMessage, MultiSelect, Select, TextInput } from "frappe-ui";
 import { useChrome } from "./context";
 import { fieldOfError } from "./session";
-import type { FlowCategory, NewFlowDialogProps } from "./types";
+import { FLOW_CATEGORIES, type FlowCategory, type NewFlowDialogProps } from "./types";
 import { serverErrorMessage } from "../../utils/serverError";
 
 const props = defineProps<NewFlowDialogProps>();
 const emit = defineEmits<{ created: [name: string] }>();
 const open = defineModel<boolean>("open", { default: false });
-
-const CATEGORIES: FlowCategory[] = [
-	"LEAD_GENERATION",
-	"SIGN_UP",
-	"SIGN_IN",
-	"APPOINTMENT_BOOKING",
-	"CONTACT_US",
-	"CUSTOMER_SUPPORT",
-	"SURVEY",
-	"OTHER",
-];
 
 const chrome = useChrome(() => props.chrome);
 const form = reactive({ flow_name: "", categories: [] as FlowCategory[], source: "" });
@@ -27,7 +16,7 @@ const errors = reactive({ flow_name: "", categories: "", other: "" });
 const creating = ref(false);
 
 const categoryOptions = computed(() =>
-	CATEGORIES.map((value) => ({ value, label: chrome.value[value] }))
+	FLOW_CATEGORIES.map((value) => ({ value, label: chrome.value[value] }))
 );
 const sourceOptions = computed(() => [
 	{ value: "", label: chrome.value.startBlank },

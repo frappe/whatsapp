@@ -224,13 +224,10 @@ class IntegrationTestResponseActions(FlowResponseCase):
 		return tuple(values[field] for field in fields)
 
 	def role_profile(self) -> str:
-		return (
-			frappe.get_doc(
-				doctype="Role Profile", role_profile=f"_Test Flow RP {frappe.generate_hash(length=6)}"
-			)
-			.insert()
-			.name
-		)
+		profile = frappe.get_doc(
+			doctype="Role Profile", role_profile=f"_Test Flow RP {frappe.generate_hash(length=6)}"
+		).insert()
+		return profile.name
 
 	def message_logs(self, response, level: str) -> list[str]:
 		return frappe.get_all(

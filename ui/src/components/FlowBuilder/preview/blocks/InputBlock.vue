@@ -3,14 +3,14 @@ import { computed } from "vue";
 import type { Block } from "../../model";
 import { format } from "../../chrome";
 import { useBuilder } from "../../context";
-import { usePhone } from "../phone";
+import { usePhoneBlock } from "../phone";
 import PhoneField from "./PhoneField.vue";
 
 /** Short answer (TextInput) and Paragraph (TextArea). */
 const props = defineProps<{ block: Block }>();
 
 const { chrome } = useBuilder();
-const phone = usePhone();
+const { phone, component, name, text: value } = usePhoneBlock(props);
 
 const TEXTAREA_MAX = 600;
 const INPUT_TYPES: Record<string, { type: string; inputmode?: "numeric" | "email" | "tel" }> = {
@@ -21,13 +21,7 @@ const INPUT_TYPES: Record<string, { type: string; inputmode?: "numeric" | "email
 	phone: { type: "tel", inputmode: "tel" },
 };
 
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
 const multiline = computed(() => component.value.type === "TextArea");
-const value = computed(() => {
-	const answer = phone.run.value(name.value);
-	return typeof answer === "string" ? answer : "";
-});
 const input = computed(
 	() => INPUT_TYPES[String(component.value["input-type"] ?? "")] ?? { type: "text" }
 );

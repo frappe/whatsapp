@@ -27,7 +27,9 @@ export function useSortable({ ids, move, disabled = () => false }: SortableOptio
 
   function handle(id: string) {
     return {
-      onPointerdown: () => !disabled() && (armed.value = id),
+      onPointerdown: () => {
+        if (!disabled()) armed.value = id;
+      },
       onPointerup: () => (armed.value = null),
       onKeydown: (event: KeyboardEvent) => {
         if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
@@ -85,7 +87,8 @@ export function useSortable({ ids, move, disabled = () => false }: SortableOptio
   }
 
   function reset() {
-    armed.value = dragging.value = null;
+    armed.value = null;
+    dragging.value = null;
     target.value = null;
   }
 

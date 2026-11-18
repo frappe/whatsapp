@@ -23,9 +23,10 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 	get_or_create_profile,
 	resolve_profile_by_phone,
 )
-from whatsapp.whatsapp.flows.answers import FlowAnswers, template_outline
+from whatsapp.whatsapp.flows.answers import FlowAnswers, response_outline
 from whatsapp.whatsapp.flows.outline import FlowOutline
 from whatsapp.whatsapp.flows.send import interactive_flow_screen, parse_flow_data
+from whatsapp.whatsapp.flows.template_button import button_view
 
 MESSAGE_FIELDS = [
 	"name",
@@ -358,20 +359,14 @@ def _fold_reactions(messages: list[dict]) -> list[dict]:
 
 def _render_templates(messages: list[dict]) -> None:
 	"""Resolve each template message's header, body, footer and buttons for display."""
-	templates = {}
 	for message in messages:
 		template_name = message.get("whatsapp_template")
 		if not message.get("is_template") or not template_name:
 			continue
-		if template_name not in templates and frappe.db.exists("WA Template", template_name):
-			templates[template_name] = frappe.get_cached_doc("WA Template", template_name)
-
-	flow_names = _flow_names(templates.values())
-	for message in messages:
-		template = templates.get(message.get("whatsapp_template"))
-		if not message.get("is_template") or not template:
+		if not frappe.db.exists("WA Template", template_name):
 			continue
 
+		template = frappe.get_cached_doc("WA Template", template_name)
 		message["template_name"] = template.template_name
 		message["template"] = parse_template_parameters(
 			template.message, _parsed_parameters(message.get("template_body_parameters"))
@@ -380,29 +375,7 @@ def _render_templates(messages: list[dict]) -> None:
 			template.header_text, _parsed_parameters(message.get("template_header_parameters"))
 		)
 		message["footer"] = template.footer
-		message["buttons"] = [_button_view(button, flow_names) for button in (template.buttons or [])]
-
-
-def _button_view(button, flow_names: dict) -> dict:
-	view = {
-		"button_type": button.button_type,
-		"button_text": button.button_text,
-		"url": button.url,
-		"phone_number": button.phone_number,
-	}
-	if button.button_type == "Flow":
-		view.update(flow=button.flow, flow_icon=button.flow_icon, flow_name=flow_names.get(button.flow))
-	return view
-
-
-def _flow_names(templates) -> dict:
-	names = {
-		button.flow
-		for template in templates
-		for button in (template.buttons or [])
-		if button.button_type == "Flow" and button.flow
-	}
-	return {flow.name: flow.flow_name for flow in _flows_by_name(names).values()}
+		message["buttons"] = [button_view(button) for button in (template.buttons or [])]
 
 
 def _describe_flows(messages: list[dict]) -> None:
@@ -418,11 +391,7 @@ def _describe_flows(messages: list[dict]) -> None:
 		response = message.pop("flow_response", None)
 		flow_template = message.pop("flow_template", None)
 		if response is not None:
-			outline = (
-				FlowOutline.from_dict(frappe.parse_json(flow.outline))
-				if flow
-				else template_outline(flow_template)
-			)
+			outline = response_outline(flow, flow_template)
 			message["flow_answers"] = FlowAnswers(frappe.parse_json(response) or {}, outline).rows()
 
 

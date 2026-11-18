@@ -1,36 +1,33 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Block, JsonObject } from "../../model";
+import { optionsOf, type Block, type JsonObject } from "../../model";
 import { format } from "../../chrome";
 import { useBuilder } from "../../context";
-import { usePhone } from "../phone";
+import { usePhoneBlock } from "../phone";
+import type { Value } from "../sample";
 import PhoneCheck from "./PhoneCheck.vue";
 
 /** Single choice (RadioButtonsGroup) and Multiple choice (CheckboxGroup). */
 const props = defineProps<{ block: Block }>();
 
 const { chrome } = useBuilder();
-const phone = usePhone();
+const { phone, component, name, answer } = usePhoneBlock(props);
 
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
 const multiple = computed(() => component.value.type === "CheckboxGroup");
-const options = computed(() => {
-	const source = component.value["data-source"];
-	return Array.isArray(source) ? (source as JsonObject[]) : [];
-});
-const chosen = computed(() => {
-	const value = phone.run.value(name.value);
-	return new Set(
-		Array.isArray(value) ? value : typeof value === "string" && value ? [value] : []
-	);
-});
+const options = computed(() => optionsOf(component.value));
+const chosen = computed(() => new Set(chosenIds(answer.value)));
 const label = computed(() => {
 	const text = phone.text(component.value.label);
 	return component.value.required === true || !text
 		? text
 		: format(chrome.value.phoneOptional, text);
 });
+
+function chosenIds(value: Value | undefined): string[] {
+	if (Array.isArray(value)) return value;
+	if (typeof value === "string" && value) return [value];
+	return [];
+}
 
 function choose(option: JsonObject) {
 	if (option.enabled === false) return;

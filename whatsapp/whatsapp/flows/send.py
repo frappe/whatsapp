@@ -3,7 +3,7 @@
 
 """The Flow parts of an outgoing message: its token, a template's Flow button components and the interactive Flow message.
 
-The live probe has not run (SPEC.md, "Gate"), so each unverified choice is its own constant or function.
+No live Meta account has confirmed these shapes yet, so each unverified choice is its own constant or function.
 """
 
 import json
@@ -28,9 +28,10 @@ def assign_flow_token(message) -> None:
 
 def validate_sendable_flows(message) -> None:
 	"""Throw before Meta is called when a Flow the message opens is Blocked or Deprecated."""
-	flows = (
-		[button.flow for _index, button in _flow_buttons(message)] if message.is_template else [message.flow]
-	)
+	if message.is_template:
+		flows = [button.flow for _index, button in _flow_buttons(message)]
+	else:
+		flows = [message.flow]
 	for flow in filter(None, flows):
 		_refuse_unsendable(frappe.db.get_value("WA Flow", flow, ["flow_name", "status"], as_dict=True))
 

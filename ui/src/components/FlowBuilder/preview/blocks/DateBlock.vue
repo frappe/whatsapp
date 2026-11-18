@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Block } from "../../model";
-import { usePhone } from "../phone";
+import { usePhoneBlock } from "../phone";
 import PhoneField from "./PhoneField.vue";
 
 /** Date picker and Calendar: a field that opens the device's date picker. */
 const props = defineProps<{ block: Block }>();
-const phone = usePhone();
-
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
-const value = computed(() => {
-	const answer = phone.run.value(name.value);
-	return typeof answer === "string" ? answer : "";
-});
+const { phone, component, name, text: value } = usePhoneBlock(props);
 const shown = computed(() => {
 	const date = new Date(`${value.value}T00:00:00`);
 	return Number.isNaN(date.getTime())

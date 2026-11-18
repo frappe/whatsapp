@@ -1,5 +1,4 @@
 import {
-  attachAnswer,
   detachAnswer,
   putFormValues,
   slug,
@@ -58,26 +57,21 @@ export function changeTextType(model: FlowModel, uid: string, type: string): Flo
   });
 }
 
-/**
- * Within a screen or to another one; `index` counts the destination's blocks without the moved one.
- * A question takes its sensitive mark and prefill along.
- */
-export function moveBlock(model: FlowModel, uid: string, screenUid: string, index: number): FlowModel {
+/** Within its screen; `index` counts the screen's blocks without the moved one. */
+export function moveBlock(model: FlowModel, uid: string, index: number): FlowModel {
   return edit(model, (draft) => {
-    const { screen: from, block, index: at } = blockOf(draft, uid);
-    const to = screenOf(draft, screenUid);
-    if (from === to) {
-      const values = takeFormValues(from, block);
-      removeBlock(from, at);
-      insertBlock(to, block, index);
-      putFormValues(to, block, values);
-    } else {
-      const answer = detachAnswer(draft, from, block);
-      removeBlock(from, at);
-      insertBlock(to, block, index);
-      attachAnswer(to, block, answer);
-    }
+    const { screen, block, index: at } = blockOf(draft, uid);
+    const values = takeFormValues(screen, block);
+    removeBlock(screen, at);
+    insertBlock(screen, block, index);
+    putFormValues(screen, block, values);
   });
+}
+
+/** A choice block's `data-source`, or none when it is a `${…}` reference. */
+export function optionsOf(component: JsonObject): JsonObject[] {
+  const source = component["data-source"];
+  return Array.isArray(source) ? (source as JsonObject[]) : [];
 }
 
 export function deleteBlock(model: FlowModel, uid: string): FlowModel {
@@ -108,10 +102,6 @@ export function updateOption(
   patch: Record<string, Json | undefined>
 ): FlowModel {
   return editOptions(model, uid, (options) => assign(options[index], patch));
-}
-
-export function moveOption(model: FlowModel, uid: string, from: number, to: number): FlowModel {
-  return editOptions(model, uid, (options) => options.splice(to, 0, ...options.splice(from, 1)));
 }
 
 export function removeOption(model: FlowModel, uid: string, index: number): FlowModel {

@@ -50,7 +50,6 @@ const isFlowSend = computed(
 		!props.message.is_template
 );
 
-/** Drawn as the button the contact saw, through the same display-only row a template uses. */
 const flowSendButtons = computed<WhatsAppTemplateButton[]>(() => [
 	{ button_type: "Flow", button_text: props.message.flow_cta || "" },
 ]);

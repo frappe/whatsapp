@@ -382,11 +382,11 @@ controller to point them elsewhere.
 <script setup>
 import { FlowList, NewFlowDialog, FlowBuilder, useFlowList, useFlowBuilder } from "@whatsapp/ui"
 
-const flows = useFlowList({ account: "Sales Line" })   // get_flow_list, create_flow, sync_flows
+const flows = useFlowList({ account: "Sales Line" })   // get_flow_list, create_flow, delete_flow, sync_flows
 const builder = useFlowBuilder({ name: flowName })      // get_flow_for_builder, save_flow, publish_flow, copy_flow
 </script>
 
-<FlowList :controller="flows" @new="creating = true" @open="openBuilder" />
+<FlowList :controller="flows" can-write @new="creating = true" @open="openBuilder" />
 <NewFlowDialog v-model:open="creating" :controller="flows" account="Sales Line" @created="openBuilder" />
 
 <Dialog size="6xl" bare :dismissible="false">
@@ -398,7 +398,9 @@ const builder = useFlowBuilder({ name: flowName })      // get_flow_for_builder,
 
 - **`FlowList`** draws the title, New flow, Sync from WhatsApp (when the controller has an
   account), the table, its skeleton, its empty state and a load error with Retry. It emits
-  `open(name)` and `new`.
+  `open(name)` and `new`. With `can-write`, each Draft row has Delete: it asks with
+  `dialog.danger`, calls `delete_flow` and reloads the list. A refusal, such as templates still
+  using the Flow, shows as a toast. The host decides `can-write`; the server checks it again.
 - **`NewFlowDialog`** asks for the name, the categories and a starting point (Blank, or a copy
   of a listed Flow, which is `create_flow` with `clone_from`). `FlowNameError` and
   `FlowCategoriesError` show on their field; other errors under the form. It emits
@@ -422,7 +424,7 @@ says otherwise (jumps, more than one ending, navigation in Advanced blocks or a
 **The controller owns the state.** `useFlowBuilder` returns a `BuilderSession`: `model`,
 `dirty`, `saveState` (`saved`, `saving`, `failed`, `conflict`), `problems` (the model's rules,
 run 300 ms after an edit stops, plus Meta's `validation_errors` located on the blocks),
-`publishBlocker`, `selection` and `readOnly` (any status but Draft).
+`errorCount` (Publish waits for it to be 0), `selection` and `readOnly` (any status but Draft).
 
 **It saves by itself.** 1500 ms after the last edit the session calls `save_flow`, which stores
 the Flow and uploads it to Meta. One save runs at a time; edits made during it are saved once

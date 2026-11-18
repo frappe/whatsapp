@@ -11,49 +11,16 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import convert_utc_to_system_timezone
 
 from whatsapp.whatsapp.flows.flow_json_fixtures import DEAL_FEEDBACK, LEAD_QUALIFICATION
-from whatsapp.whatsapp.flows.meta_fixtures import flow_assets, flow_details, flow_row
+from whatsapp.whatsapp.flows.meta_fixtures import (
+	CLIENT,
+	FakeMeta,
+	FlowMetaCase,
+	business_id,
+	flow_details,
+	make_account,
+)
 from whatsapp.whatsapp.flows.sync import sync_active_accounts, sync_flows
 from whatsapp.whatsapp.flows.template_fixtures import flow_button, template_doc
-
-CLIENT = "whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp"
-
-
-class FakeMeta:
-	"""Flows one business account holds on Meta, served through a mocked Graph client."""
-
-	def __init__(self):
-		self.flows = {}
-		self.flow_json = {}
-		self.client = MagicMock()
-		self.client.get_flows.side_effect = lambda: [
-			flow_row(flow_id, details["name"], details["status"]) for flow_id, details in self.flows.items()
-		]
-		self.client.get_flow.side_effect = lambda flow_id: self.flows[flow_id]
-		self.client.get_flow_assets.side_effect = lambda flow_id: flow_assets(
-			f"https://cdn.example/{flow_id}"
-		)
-		self.client.download_flow_json.side_effect = lambda url: self.flow_json[url.rsplit("/", 1)[-1]]
-
-	def add(self, flow_id: str, name: str, flow_json: dict | str = DEAL_FEEDBACK, **details) -> None:
-		self.flows[flow_id] = flow_details(flow_id, name, **details)
-		self.flow_json[flow_id] = flow_json if isinstance(flow_json, str) else json.dumps(flow_json)
-
-
-def make_account(business_id: str | None = None, status: str = "Active") -> str:
-	uid = frappe.generate_hash(length=6)
-	return (
-		frappe.get_doc(
-			doctype="WA Account",
-			account_name=f"_Test Flow Acc {uid}",
-			status=status,
-			phone_id=f"phone_{uid}",
-			business_id=business_id or f"biz_{uid}",
-			app_id="test_app",
-			access_token="test_token",
-		)
-		.insert()
-		.name
-	)
 
 
 def logs_for(flow_name: str, level: str) -> list[str]:
@@ -64,16 +31,7 @@ def logs_for(flow_name: str, level: str) -> list[str]:
 	)
 
 
-class IntegrationTestFlowSync(IntegrationTestCase):
-	def setUp(self):
-		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		patcher = patch(CLIENT, return_value=self.meta.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
-
+class IntegrationTestFlowSync(FlowMetaCase):
 	def test_sync_creates_a_flow_with_every_field_from_meta(self):
 		self.meta.add("1001", "Deal feedback", status="PUBLISHED")
 
@@ -274,7 +232,3 @@ class IntegrationTestDailyFlowSync(IntegrationTestCase):
 		sync_active_accounts()
 
 		self.assertFalse(frappe.db.exists("WA Flow", "2004"))
-
-
-def business_id(account_name: str) -> str:
-	return frappe.db.get_value("WA Account", account_name, "business_id")

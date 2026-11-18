@@ -10,6 +10,7 @@ from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.doctype.wa_template.wa_template import _upsert_template
 from whatsapp.whatsapp.flows.flow_json_fixtures import LEAD_QUALIFICATION
+from whatsapp.whatsapp.flows.meta_fixtures import FlowMetaCase
 from whatsapp.whatsapp.flows.template_fixtures import (
 	flow_button,
 	make_flow,
@@ -17,26 +18,12 @@ from whatsapp.whatsapp.flows.template_fixtures import (
 	meta_template,
 	template_doc,
 )
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, make_account
 
 INPUTS = [{"key": "customer_name", "source_field": "first_name"}]
 ACTIONS = [{"action": "Update Reference", "fields": [{"source": "comment", "target_field": "designation"}]}]
 
 
-class IntegrationTestFlowButtonOnMeta(IntegrationTestCase):
-	def setUp(self):
-		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		self.meta.client.create_template.side_effect = lambda payload: {
-			"id": frappe.generate_hash(length=10),
-			"status": "PENDING",
-		}
-		patcher = patch(CLIENT, return_value=self.meta.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
-
+class IntegrationTestFlowButtonOnMeta(FlowMetaCase):
 	def test_a_flow_button_is_created_on_meta_with_its_screen_and_icon(self):
 		make_flow(self.account, "3001")
 		template_doc(
@@ -75,16 +62,7 @@ class IntegrationTestFlowButtonOnMeta(IntegrationTestCase):
 		return next(c["buttons"] for c in payload["components"] if c["type"] == "BUTTONS")
 
 
-class IntegrationTestFlowButtonSync(IntegrationTestCase):
-	def setUp(self):
-		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		patcher = patch(CLIENT, return_value=self.meta.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
-
+class IntegrationTestFlowButtonSync(FlowMetaCase):
 	def test_a_meta_flow_button_syncs_with_its_flow_screen_action_and_icon(self):
 		make_flow(self.account, "4001")
 		buttons = [

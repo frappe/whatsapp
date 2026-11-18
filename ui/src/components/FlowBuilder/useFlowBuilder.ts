@@ -1,4 +1,5 @@
 import { onScopeDispose, shallowReactive, watch } from "vue";
+import { debounce } from "frappe-ui";
 import { frappeFlowApi } from "./api";
 import { FlowListSession } from "./listSession";
 import { BuilderSession } from "./session";
@@ -12,17 +13,13 @@ const RULES_DELAY_MS = 300;
  */
 export function useFlowBuilder({ name, api = frappeFlowApi }: { name: string; api?: FlowBuilderApi }) {
   const session = shallowReactive(new BuilderSession(api, name)) as BuilderSession;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const checkRules = debounce(() => session.checkRules(), RULES_DELAY_MS);
   watch(
     () => session.model,
-    (_model, previous) => {
-      if (!previous) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => session.checkRules(), RULES_DELAY_MS);
-    }
+    (_model, previous) => previous && checkRules()
   );
   onScopeDispose(() => {
-    clearTimeout(timer);
+    checkRules.cancel();
     session.dispose();
   });
   session.load();

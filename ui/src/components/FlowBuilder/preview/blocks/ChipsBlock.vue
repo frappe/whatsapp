@@ -1,32 +1,22 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Block, JsonObject } from "../../model";
-import { usePhone } from "../phone";
+import { optionsOf, type Block, type JsonObject } from "../../model";
+import { usePhoneBlock } from "../phone";
 
 /** Chips (ChipsSelector): pick several from pills. */
 const props = defineProps<{ block: Block }>();
-const phone = usePhone();
+const { phone, component, name, answer } = usePhoneBlock(props);
 
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
-const options = computed(() => {
-	const source = component.value["data-source"];
-	return Array.isArray(source) ? (source as JsonObject[]) : [];
-});
-const chosen = computed(() => {
-	const value = phone.run.value(name.value);
-	return Array.isArray(value) ? value : [];
-});
+const options = computed(() => optionsOf(component.value));
+const chosen = computed(() => (Array.isArray(answer.value) ? answer.value : []));
 
 function toggle(option: JsonObject) {
 	if (option.enabled === false) return;
 	const id = String(option.id);
-	phone.run.set(
-		name.value,
-		chosen.value.includes(id)
-			? chosen.value.filter((each) => each !== id)
-			: [...chosen.value, id]
-	);
+	const next = chosen.value.includes(id)
+		? chosen.value.filter((each) => each !== id)
+		: [...chosen.value, id];
+	phone.run.set(name.value, next);
 }
 </script>
 

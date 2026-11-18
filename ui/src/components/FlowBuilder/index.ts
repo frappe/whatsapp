@@ -18,7 +18,6 @@ export type {
   FlowState,
   NewFlowDialogProps,
   PreviewSettings,
-  PublishBlocker,
   SaveState,
   Selection,
   TemplateRef,

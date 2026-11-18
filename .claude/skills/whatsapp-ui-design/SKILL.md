@@ -5,7 +5,7 @@ description: UI and UX patterns for screens in `@whatsapp/ui` (and the hosts tha
 
 # WhatsApp UI design patterns
 
-These patterns come from review rounds on the template editor and the Flow builder. Each pattern is a rule, then the reason. Product decisions about Flows themselves are in `DESIGN_DECISIONS.md`, not here.
+These patterns come from review rounds on the template editor and the Flow builder. Each pattern is a rule, then the reason. Product decisions about Flows themselves are in the Flows section of the README, not here.
 
 ## Start from the reference
 
@@ -52,7 +52,7 @@ These patterns come from review rounds on the template editor and the Flow build
 - **Show errors on the thing that is wrong:** the field gets the error state, and its row and screen get a warning icon. A count in the header jumps to the first problem.
 - **Stop input at the limit, and show the limit.** Use the counter inside the input and `maxlength`. A control disabled by a limit has a tooltip that says why.
 - **Treat the server's validation result as data, not a failure.** Place each error on its row.
-- **Don't ask before a deletion you can undo.** Delete at once and offer Undo in a toast. Confirm only what can't be undone, such as Publish.
+- **Prefer undo over confirm for a reversible delete.** When a delete can be undone, do it at once and offer Undo in a toast, as deleting a screen does. Confirm only what can't be undone, such as Publish or deleting a Flow.
 
 ## Saving
 

@@ -1,19 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Block, JsonObject } from "../model";
-import { usePhone } from "./phone";
+import { optionsOf, type Block, type JsonObject } from "../model";
+import { usePhoneBlock } from "./phone";
 import PhoneHeader from "./PhoneHeader.vue";
 
 /** A Dropdown's options, full screen over the sheet as WhatsApp shows them. */
 const props = defineProps<{ block: Block }>();
 const emit = defineEmits<{ close: [] }>();
-const phone = usePhone();
+const { phone, component, name } = usePhoneBlock(props);
 
-const name = computed(() => String(props.block.component.name ?? ""));
-const options = computed(() => {
-	const source = props.block.component["data-source"];
-	return Array.isArray(source) ? (source as JsonObject[]) : [];
-});
+const options = computed(() => optionsOf(component.value));
 
 function choose(option: JsonObject) {
 	if (option.enabled === false) return;

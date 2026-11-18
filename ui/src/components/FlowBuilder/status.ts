@@ -1,6 +1,9 @@
 import type { WhatsAppFlowStatus } from "../Messages/types";
 
-/** Meta's Flows list in WhatsApp Manager, where a Flow's health explains a block or throttle. Unverified: no public reference documents this URL. */
+/**
+ * Meta's Flows list in WhatsApp Manager, where a Flow's health explains a block or throttle.
+ * Unverified: no public reference documents this URL.
+ */
 export function whatsappManagerFlowsUrl(businessId: string): string {
   return `https://business.facebook.com/wa/manage/flows/?waba_id=${encodeURIComponent(businessId)}`;
 }

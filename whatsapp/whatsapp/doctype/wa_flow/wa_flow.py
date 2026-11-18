@@ -42,17 +42,24 @@ class WAFlow(Document):
 
 	def on_update(self) -> None:
 		if self.flags.outline_error:
-			log(
-				"Warning",
-				"Flow",
-				f"Flow {self.flow_name or self.name} has no outline: {self.flags.outline_error}",
-				account=self.whatsapp_account,
-				reference_doctype="WA Flow",
-				reference_docname=self.name,
+			self.log(
+				"Warning", f"Flow {self.flow_name or self.name} has no outline: {self.flags.outline_error}"
 			)
 
 	def on_trash(self) -> None:
 		frappe.db.delete("WA Log", {"reference_doctype": "WA Flow", "reference_docname": self.name})
+
+	def log(self, level: str, message: str, **data) -> None:
+		saved = not self.is_new()
+		data.setdefault("account", self.whatsapp_account)
+		log(
+			level,
+			"Flow",
+			message,
+			reference_doctype="WA Flow" if saved else None,
+			reference_docname=self.name if saved else None,
+			**data,
+		)
 
 	def get_outline(self) -> FlowOutline:
 		return FlowOutline.from_dict(frappe.parse_json(self.outline))

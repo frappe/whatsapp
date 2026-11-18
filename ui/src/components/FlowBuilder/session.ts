@@ -8,13 +8,12 @@ import {
   type JsonObject,
   type Problem,
 } from "./model";
-import { printJson, readJson, type JsonError, type PrintedJson } from "./jsonText";
+import { readJson, type JsonError } from "./jsonText";
 import type {
   BuilderFlow,
   FlowBuilderApi,
   FlowState,
   PreviewSettings,
-  PublishBlocker,
   SaveState,
   Selection,
   TemplateRef,
@@ -28,7 +27,7 @@ export const AUTOSAVE_MS = 1500;
 /**
  * One open Flow: the model, what was last saved, and Meta's answer to it. Plain TypeScript, so it
  * runs in tests; `useFlowBuilder` makes it reactive. Every edit replaces `model`, never changes it,
- * and is saved once the edits pause for `autosaveMs`.
+ * and is saved once the edits pause for `AUTOSAVE_MS`.
  */
 export class BuilderSession {
   loading = false;
@@ -53,8 +52,7 @@ export class BuilderSession {
 
   constructor(
     private api: FlowBuilderApi,
-    readonly name: string,
-    private autosaveMs = AUTOSAVE_MS
+    readonly name: string
   ) {}
 
   get readOnly(): boolean {
@@ -76,12 +74,8 @@ export class BuilderSession {
     return this.problems.filter((problem) => problem.severity === "error").length;
   }
 
-  get publishBlocker(): PublishBlocker {
-    return this.errorCount ? { reason: "errors", count: this.errorCount } : null;
-  }
-
-  get printed(): PrintedJson | null {
-    return this.model ? printJson(serialize(this.model)) : null;
+  get printed(): string | null {
+    return this.model ? JSON.stringify(serialize(this.model), null, 2) : null;
   }
 
   async load() {
@@ -169,10 +163,6 @@ export class BuilderSession {
     this.preview = { ...this.preview, ...change };
   }
 
-  selectProblem(problem: Problem) {
-    if (problem.screenId) this.select(problem.screenId, problem.blockId ?? null);
-  }
-
   usedKey(key: string): TemplateRef[] {
     return this.flow?.used_keys[key] ?? [];
   }
@@ -187,7 +177,7 @@ export class BuilderSession {
 
   private scheduleSave() {
     clearTimeout(this.timer);
-    if (this.canSave) this.timer = setTimeout(() => this.save(), this.autosaveMs);
+    if (this.canSave) this.timer = setTimeout(() => this.save(), AUTOSAVE_MS);
   }
 
   private async saveUntilDone() {

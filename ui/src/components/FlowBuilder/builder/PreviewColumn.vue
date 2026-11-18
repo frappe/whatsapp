@@ -4,11 +4,7 @@ import { useBuilder } from "../context";
 import PhoneFrame from "../preview/PhoneFrame.vue";
 import { usePreview } from "../preview/usePreview";
 
-/**
- * The right column: the WhatsApp-like phone. It draws the selected screen, rings `highlight` (the
- * block whose row is open), and emits `pick` when a component is clicked outside Interactive mode.
- * In Interactive mode it runs through the Flow and the left column follows it.
- */
+/** In Interactive mode the preview runs through the Flow and the left column follows it. */
 const props = defineProps<{ highlight: string | null }>();
 const emit = defineEmits<{ pick: [blockUid: string] }>();
 

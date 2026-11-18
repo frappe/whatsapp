@@ -11,8 +11,7 @@ export class FlowListSession {
 
   constructor(
     private api: FlowBuilderApi,
-    readonly account?: string,
-    private now: () => number = Date.now
+    readonly account?: string
   ) {}
 
   async load() {
@@ -35,9 +34,10 @@ export class FlowListSession {
     return name;
   }
 
+  /** Throws the server's refusal, for example while templates use the Flow. */
   async remove(name: string) {
     await this.api.remove(name);
-    this.rows = this.rows.filter((row) => row.name !== name);
+    await this.load();
   }
 
   async sync() {
@@ -45,7 +45,7 @@ export class FlowListSession {
     this.syncing = true;
     try {
       await this.api.sync(this.account);
-      this.syncedAt = this.now();
+      this.syncedAt = Date.now();
       await this.load();
     } finally {
       this.syncing = false;

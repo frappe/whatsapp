@@ -352,11 +352,10 @@ class TestGetMessagesReferenceGuard(WithoutHostAccessGuards, UnitTestCase):
 class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 	"""Shape of the wire model returned to a conversation view."""
 
-	def _run(self, rows, references=None, templates=None, files=None, flows=None):
+	def _run(self, rows, references=None, templates=None, files=None):
 		references = references if references is not None else [["ToDo", "TODO-0001"]]
 		templates = templates or {}
 		files = files or []
-		flows = flows or []
 
 		def _exists(doctype, name=None, *args, **kwargs):
 			if doctype == "WA Template":
@@ -367,8 +366,6 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 			if doctype == "File":
 				return [frappe._dict(f) for f in files]
 			filters = kwargs.get("filters") or {}
-			if doctype == "WA Flow":
-				return [frappe._dict(f) for f in flows if f["name"] in filters["name"][1]]
 			return [
 				frappe._dict(row)
 				for row in rows
@@ -903,7 +900,7 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 			],
 		)
 
-	def test_template_flow_button_carries_its_icon_and_flow_name(self):
+	def test_template_flow_button_carries_its_icon(self):
 		templates = {
 			"tpl_a": _template_doc(
 				buttons=[
@@ -918,9 +915,8 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 				],
 			)
 		}
-		flows = [{"name": "1290456178312045", "flow_name": "Deal feedback"}]
 		rows = [_message_row("m1", is_template=1, whatsapp_template="tpl_a")]
-		message = self._run(rows, templates=templates, flows=flows)[0]
+		message = self._run(rows, templates=templates)[0]
 
 		self.assertEqual(
 			message["buttons"],
@@ -930,9 +926,7 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 					"button_text": "Rate us",
 					"url": "",
 					"phone_number": "",
-					"flow": "1290456178312045",
 					"flow_icon": "Review",
-					"flow_name": "Deal feedback",
 				}
 			],
 		)

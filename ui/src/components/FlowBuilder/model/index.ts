@@ -2,14 +2,11 @@ export * from "./types";
 export * from "./catalogue";
 export { parse } from "./parse";
 export { serialize, jsonPaths, screenItems, type Location } from "./serialize";
-export { endingAnswers, isEnding, footerTarget, screensInto } from "./endings";
+export { endingAnswers, isEnding, footerAction, footerTarget, navigateTarget, screensInto } from "./endings";
 export {
   createFlow,
   addScreen,
   renameScreen,
-  setScreenId,
-  moveScreen,
-  deleteScreen,
   setFooter,
 } from "./screens";
 export {
@@ -18,9 +15,9 @@ export {
   changeTextType,
   moveBlock,
   deleteBlock,
+  optionsOf,
   addOption,
   updateOption,
-  moveOption,
   removeOption,
 } from "./blocks";
 export {
@@ -34,7 +31,7 @@ export {
   prefillKey,
 } from "./answers";
 export { problems } from "./rules";
-export { locate, metaProblems, type MetaValidationError } from "./metaErrors";
+export { metaProblems, type MetaValidationError } from "./metaErrors";
 export {
   followsListOrder,
   journeyScreens,

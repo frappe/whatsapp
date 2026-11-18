@@ -23,9 +23,14 @@ const message = computed(() => refused.value || error("src"));
 async function take(file: File | undefined) {
 	over.value = false;
 	if (!file) return;
-	if (!IMAGE_FILE.types.includes(file.type))
-		return (refused.value = chrome.value.imageWrongType);
-	if (file.size > IMAGE_FILE.maxBytes) return (refused.value = chrome.value.imageTooLarge);
+	if (!IMAGE_FILE.types.includes(file.type)) {
+		refused.value = chrome.value.imageWrongType;
+		return;
+	}
+	if (file.size > IMAGE_FILE.maxBytes) {
+		refused.value = chrome.value.imageTooLarge;
+		return;
+	}
 	refused.value = "";
 	set("src", await base64(file));
 }

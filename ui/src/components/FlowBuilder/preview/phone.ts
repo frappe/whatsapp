@@ -1,4 +1,4 @@
-import { inject, provide, type InjectionKey } from "vue";
+import { computed, inject, provide, type InjectionKey } from "vue";
 import type { Block, FlowModel, Screen } from "../model";
 import type { PreviewSettings } from "../types";
 import type { PreviewRun } from "./interactive";
@@ -30,6 +30,16 @@ export function providePhone(phone: Omit<Phone, "text">) {
   );
   provide(KEY, full);
   return full;
+}
+
+/** What a question renderer reads: its component, its answer key and the answer so far. */
+export function usePhoneBlock(props: { block: Block }) {
+  const phone = usePhone();
+  const component = computed(() => props.block.component);
+  const name = computed(() => String(component.value.name ?? ""));
+  const answer = computed(() => phone.run.value(name.value));
+  const text = computed(() => (typeof answer.value === "string" ? answer.value : ""));
+  return { phone, component, name, answer, text };
 }
 
 export function usePhone(): Phone {

@@ -15,8 +15,8 @@ from whatsapp.whatsapp.api.utils import humanize_error_message
 from whatsapp.whatsapp.doctype.wa_profile.wa_profile import get_or_create_profile
 from whatsapp.whatsapp.doctype.wa_template.wa_template import get_sendable_templates
 from whatsapp.whatsapp.flows.flow_json_fixtures import PREFILLED
+from whatsapp.whatsapp.flows.meta_fixtures import FlowMetaCase
 from whatsapp.whatsapp.flows.template_fixtures import flow_button, make_flow, template_doc
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, make_account
 
 MESSAGE_CLIENT = "whatsapp.whatsapp.doctype.wa_message.wa_message.WhatsApp"
 PROFILE_INPUTS = [
@@ -27,18 +27,10 @@ PROFILE_INPUTS = [
 ]
 
 
-class FlowSendCase(WithoutHostAccessGuards, IntegrationTestCase):
+class FlowSendCase(WithoutHostAccessGuards, FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
 		frappe.db.set_single_value("WA Settings", "default_account", self.account)
-		meta = FakeMeta()
-		meta.client.create_template.side_effect = lambda payload: {
-			"id": frappe.generate_hash(length=10),
-			"status": "PENDING",
-		}
-		self.start_patch(CLIENT, return_value=meta.client)
 		self.client = MagicMock()
 		self.client.send_message.return_value = {"messages": [{"id": "wamid.sent"}]}
 		self.start_patch(MESSAGE_CLIENT, return_value=self.client)
@@ -50,11 +42,6 @@ class FlowSendCase(WithoutHostAccessGuards, IntegrationTestCase):
 			simultaneous_sessions=3,
 			send_welcome_email=0,
 		).insert()
-
-	def start_patch(self, target: str, **kwargs) -> MagicMock:
-		patcher = patch(target, **kwargs)
-		self.addCleanup(patcher.stop)
-		return patcher.start()
 
 	def make_flow(self, **fields) -> str:
 		return make_flow(self.account, frappe.generate_hash(length=8), **fields).name
@@ -179,28 +166,12 @@ class IntegrationTestFlowTemplateSend(FlowSendCase):
 		error = frappe.db.get_value("WA Message", name, "error_message")
 		self.assertIn("10 messages an hour", humanize_error_message(error))
 
-	def test_sendable_templates_carry_each_flow_buttons_flow(self):
-		flow = self.make_flow()
-		template = self._approved_template(
-			[flow_button(flow, flow_icon="Review", flow_inputs=PROFILE_INPUTS[:0])]
-		)
+	def test_sendable_templates_carry_each_flow_buttons_icon(self):
+		template = self._approved_template([flow_button(self.make_flow(), flow_icon="Review")])
 
 		button = next(t for t in get_sendable_templates("User") if t.name == template)["buttons"][0]
 
-		self.assertEqual(
-			{
-				key: button[key]
-				for key in ("flow", "flow_screen", "flow_icon", "flow_action", "flow_name", "flow_status")
-			},
-			{
-				"flow": flow,
-				"flow_screen": "WELCOME",
-				"flow_icon": "Review",
-				"flow_action": "Navigate",
-				"flow_name": f"Flow {flow}",
-				"flow_status": "Published",
-			},
-		)
+		self.assertEqual(button["flow_icon"], "Review")
 		self.assertNotIn("flow_inputs", button)
 
 	def _approved_template(self, buttons: list[dict]) -> str:

@@ -2,15 +2,19 @@ import type { WhatsAppFlowStatus } from "../Messages/types";
 import type { MetaValidationError } from "./model";
 import type { FlowBuilderChrome } from "./chrome";
 
-export type FlowCategory =
-  | "SIGN_UP"
-  | "SIGN_IN"
-  | "APPOINTMENT_BOOKING"
-  | "LEAD_GENERATION"
-  | "CONTACT_US"
-  | "CUSTOMER_SUPPORT"
-  | "SURVEY"
-  | "OTHER";
+/** In the order the New flow dialog lists them. */
+export const FLOW_CATEGORIES = [
+  "LEAD_GENERATION",
+  "SIGN_UP",
+  "SIGN_IN",
+  "APPOINTMENT_BOOKING",
+  "CONTACT_US",
+  "CUSTOMER_SUPPORT",
+  "SURVEY",
+  "OTHER",
+] as const;
+
+export type FlowCategory = (typeof FLOW_CATEGORIES)[number];
 
 /** One row of `get_flow_list`. */
 export interface FlowListRow {
@@ -34,10 +38,7 @@ export interface BuilderFlow {
   flow_name: string;
   flow_json: string | Record<string, unknown> | null;
   status: WhatsAppFlowStatus;
-  whatsapp_account: string;
   business_id: string;
-  categories: FlowCategory[];
-  preview_url: string | null;
   modified: string;
   validation_errors: MetaValidationError[];
   /** Answer key → templates whose Response actions map it. */
@@ -60,7 +61,7 @@ export interface CreateFlowArgs {
   clone_from?: string;
 }
 
-/** The phase 2 methods. A host or a story can pass its own. */
+/** The server methods the builder calls. A host or a story can pass its own. */
 export interface FlowBuilderApi {
   list(account?: string): Promise<FlowListRow[]>;
   get(name: string): Promise<BuilderFlow>;
@@ -85,8 +86,6 @@ export interface PreviewSettings {
 
 export type SaveState = "saved" | "saving" | "failed" | "conflict";
 
-export type PublishBlocker = { reason: "errors"; count: number } | null;
-
 export interface FlowBuilderProps {
   controller: import("./session").BuilderSession;
   chrome?: Partial<FlowBuilderChrome>;
@@ -94,6 +93,8 @@ export interface FlowBuilderProps {
 
 export interface FlowListProps {
   controller: import("./listSession").FlowListSession;
+  /** Offers Delete on Draft Flows. The server checks the permission again. */
+  canWrite?: boolean;
   chrome?: Partial<FlowBuilderChrome>;
 }
 

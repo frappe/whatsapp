@@ -10,26 +10,18 @@ from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.flows.flow_json_fixtures import DEAL_FEEDBACK, LEAD_QUALIFICATION
 from whatsapp.whatsapp.flows.manage import deprecate_flow, publish_flow, refresh_flow
-from whatsapp.whatsapp.flows.meta_fixtures import flow_json_upload, validation_error
+from whatsapp.whatsapp.flows.meta_fixtures import FlowMetaCase, flow_json_upload, validation_error
 from whatsapp.whatsapp.flows.sync import sync_flows
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, make_account
 
 FLOW_ID = "7001"
 
 
-class IntegrationTestManageFlows(IntegrationTestCase):
+class IntegrationTestManageFlows(FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		self.client = self.meta.client
 		self.client.update_flow_json.return_value = flow_json_upload()
 		self.client.publish_flow.return_value = {"success": True}
 		self.client.deprecate_flow.return_value = {"success": True}
-		patcher = patch(CLIENT, return_value=self.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
 
 	def synced_flow(self, status: str = "DRAFT", **details):
 		self.meta.add(FLOW_ID, "Deal feedback", status=status, **details)

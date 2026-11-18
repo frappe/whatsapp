@@ -8,10 +8,10 @@ const props = defineProps<{
 	controller: TemplateController;
 	chrome: FlowButtonChrome;
 	inputs: FlowInput[];
-	/** the entry screen's declared keys and types; null while unknown */
+	/** The entry screen's declared keys and types; null while unknown. */
 	declared: Record<string, string> | null;
 	hasFlow: boolean;
-	/** the outline is still loading, so the lines are the saved ones and stay disabled */
+	/** The outline is still loading, so the lines are the saved ones and stay disabled. */
 	pending: boolean;
 	disabled: boolean;
 }>();
@@ -22,10 +22,10 @@ const referenceDoctype = computed(() => props.controller.doc.reference_doctype);
 
 // Until the outline says what the screen declares, the saved keys hold the lines' places.
 const lines = computed(() => {
-	const saved = new Map(props.inputs.map((input) => [input.key, input.source_field]));
 	if (!props.declared) {
 		return props.inputs.map((input) => ({ ...input, type: props.pending ? "" : "unknown" }));
 	}
+	const saved = new Map(props.inputs.map((input) => [input.key, input.source_field]));
 	return Object.entries(props.declared).map(([key, type]) => ({
 		key,
 		type,

@@ -5,6 +5,8 @@ import type { Block, FlowModel, Json, JsonObject, Screen } from "./types";
 
 const DATA_REFERENCE = /^\$\{data\.(\w+)\}$/;
 
+type Rename = [from: string, to: string];
+
 /** "Full name" → `full_name`. */
 export function answerKey(text: string): string {
   return slug(text, "answer");
@@ -24,16 +26,7 @@ export function renameAnswerKey(model: FlowModel, uid: string, key: string): Flo
     if (Array.isArray(sensitive))
       screen.props.sensitive = sensitive.map((name) => (name === old ? key : name));
     if (screen.form) renameFormKey(screen.form, old, key);
-    for (const each of draft.screens) {
-      const references = each === screen ? [`\${form.${old}}`, `\${form.${key}}`] : [];
-      references.push(
-        `\${screen.${screen.props.id}.form.${old}}`,
-        `\${screen.${screen.props.id}.form.${key}}`
-      );
-      for (const item of screenItems(each)) {
-        item.component = mapStrings(item.component, (text) => replacePairs(text, references)) as JsonObject;
-      }
-    }
+    renameReferences(draft, screen, old, key);
   });
 }
 
@@ -94,34 +87,14 @@ export interface FormValues {
   errorMessage?: Json;
 }
 
-export interface DetachedAnswer extends FormValues {
-  sensitive: boolean;
-  data?: [string, Json];
-}
-
-/** Take a question's screen-level settings off its screen, before it moves away or is deleted. */
-export function detachAnswer(model: FlowModel, screen: Screen, block: Block): DetachedAnswer {
-  const name = String(block.component.name ?? "");
-  if (!name || isAdvanced(block)) return { sensitive: false };
-  const key = prefillKey(screen, block);
-  const detached: DetachedAnswer = {
-    sensitive: isSensitive(screen, block),
-    ...takeFormValues(screen, block),
-  };
-  if (key) {
-    detached.data = [key, (screen.props.data as JsonObject)[key]];
-    dropUnusedData(model, screen, key, block);
-  }
-  removeSensitive(screen, name);
-  return detached;
-}
-
-export function attachAnswer(screen: Screen, block: Block, detached: DetachedAnswer) {
+/** Take a question's screen-level settings off its screen before it is deleted. */
+export function detachAnswer(model: FlowModel, screen: Screen, block: Block) {
   const name = String(block.component.name ?? "");
   if (!name || isAdvanced(block)) return;
-  if (detached.sensitive) addSensitive(screen, name);
-  if (detached.data) ((screen.props.data ??= {}) as JsonObject)[detached.data[0]] = detached.data[1];
-  putFormValues(screen, block, detached);
+  const key = prefillKey(screen, block);
+  takeFormValues(screen, block);
+  if (key) dropUnusedData(model, screen, key, block);
+  removeSensitive(screen, name);
 }
 
 /** A Form keeps its questions' start values and errors in `init-values` and `error-messages`. */
@@ -265,7 +238,21 @@ function declaredType(component: JsonObject): JsonObject {
   }
 }
 
-function replacePairs(text: string, references: string[]): string {
-  for (let i = 0; i < references.length; i += 2) text = text.replaceAll(references[i], references[i + 1]);
+function renameReferences(model: FlowModel, screen: Screen, old: string, key: string) {
+  const own: Rename = [`\${form.${old}}`, `\${form.${key}}`];
+  const global: Rename = [
+    `\${screen.${screen.props.id}.form.${old}}`,
+    `\${screen.${screen.props.id}.form.${key}}`,
+  ];
+  for (const each of model.screens) {
+    const renames = each === screen ? [own, global] : [global];
+    for (const item of screenItems(each)) {
+      item.component = mapStrings(item.component, (text) => renameAll(text, renames)) as JsonObject;
+    }
+  }
+}
+
+function renameAll(text: string, renames: Rename[]): string {
+  for (const [from, to] of renames) text = text.replaceAll(from, to);
   return text;
 }

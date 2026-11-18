@@ -1,7 +1,7 @@
 import { FLOW_JSON_VERSION } from "./catalogue";
-import { assign, edit, landsInForm, mapStrings, newUid, objects, screenOf } from "./edit";
+import { assign, edit, landsInForm, newUid, screenOf } from "./edit";
 import { screenItems } from "./serialize";
-import type { Added, FlowModel, FooterAction, Json, JsonObject, Screen } from "./types";
+import type { Added, FlowModel, Footer, FooterAction, JsonObject, Screen } from "./types";
 
 export function createFlow(title = "Welcome"): FlowModel {
   const model: FlowModel = { flow: { version: FLOW_JSON_VERSION, screens: null }, screens: [], nextUid: 1 };
@@ -20,16 +20,7 @@ export function addScreen(model: FlowModel, { title, index }: { title: string; i
       layout: { type: "SingleColumnLayout", children: null },
       form: null,
       blocks: [],
-      footer: {
-        uid: newUid(draft, "f"),
-        component: {
-          type: "Footer",
-          label: "Continue",
-          "on-click-action": { name: "complete", payload: {} },
-        },
-        inForm: false,
-        customAnswers: false,
-      },
+      footer: newFooter(draft, "Continue", false),
     };
     draft.screens.splice(index ?? draft.screens.length, 0, screen);
   });
@@ -40,35 +31,6 @@ export function renameScreen(model: FlowModel, uid: string, title: string): Flow
   return edit(model, (draft) => assign(screenOf(draft, uid).props, { title }));
 }
 
-/** Navigations, routing and `${screen.<id>.…}` references follow the new id. */
-export function setScreenId(model: FlowModel, uid: string, id: string): FlowModel {
-  return edit(model, (draft) => {
-    const screen = screenOf(draft, uid);
-    const old = String(screen.props.id);
-    screen.props.id = id;
-    for (const each of draft.screens) {
-      for (const item of screenItems(each)) item.component = renameReferences(item.component, old, id);
-    }
-    if (draft.flow.routing_model)
-      draft.flow.routing_model = renameRoutes(draft.flow.routing_model as JsonObject, old, id);
-  });
-}
-
-export function moveScreen(model: FlowModel, uid: string, index: number): FlowModel {
-  return edit(model, (draft) => {
-    const screen = screenOf(draft, uid);
-    draft.screens.splice(draft.screens.indexOf(screen), 1);
-    draft.screens.splice(index, 0, screen);
-  });
-}
-
-/** Footers that went to the deleted screen keep their target; the rules report them. */
-export function deleteScreen(model: FlowModel, uid: string): FlowModel {
-  return edit(model, (draft) => {
-    draft.screens.splice(draft.screens.indexOf(screenOf(draft, uid)), 1);
-  });
-}
-
 /** Setting the action, "finish" included, makes the builder write the ending's answers again. */
 export function setFooter(
   model: FlowModel,
@@ -77,16 +39,11 @@ export function setFooter(
 ): FlowModel {
   return edit(model, (draft) => {
     const screen = screenOf(draft, uid);
-    const footer = (screen.footer ??= {
-      uid: newUid(draft, "f"),
-      component: {
-        type: "Footer",
-        label: label ?? "Continue",
-        "on-click-action": { name: "complete", payload: {} },
-      },
-      inForm: landsInForm(screen, screenItems(screen), screen.blocks.length),
-      customAnswers: false,
-    });
+    const footer = (screen.footer ??= newFooter(
+      draft,
+      label ?? "Continue",
+      landsInForm(screen, screenItems(screen), screen.blocks.length)
+    ));
     if (label !== undefined) footer.component.label = label;
     if (action === undefined) return;
     footer.component["on-click-action"] = footerAction(
@@ -99,6 +56,15 @@ export function setFooter(
     if (!("layout" in screen.props)) screen.props.layout = null;
     screen.layout ??= { type: "SingleColumnLayout", children: null };
   });
+}
+
+function newFooter(model: FlowModel, label: string, inForm: boolean): Footer {
+  return {
+    uid: newUid(model, "f"),
+    component: { type: "Footer", label, "on-click-action": { name: "complete", payload: {} } },
+    inForm,
+    customAnswers: false,
+  };
 }
 
 function footerAction(current: JsonObject | undefined, action: FooterAction): JsonObject {
@@ -122,24 +88,4 @@ function uniqueScreenId(model: FlowModel, title: string): string {
 /** 1 → B, 25 → Z, 26 → BA: screen ids stay letters only. */
 function letters(n: number): string {
   return (n >= 26 ? letters(Math.floor(n / 26)) : "") + String.fromCharCode(65 + (n % 26));
-}
-
-function renameReferences(component: JsonObject, old: string, id: string): JsonObject {
-  const renamed = mapStrings(component, (text) =>
-    text.replaceAll(`\${screen.${old}.`, `\${screen.${id}.`)
-  ) as JsonObject;
-  for (const object of objects(renamed)) {
-    const next = object.next as JsonObject | undefined;
-    if (object.name === "navigate" && next?.name === old) next.name = id;
-  }
-  return renamed;
-}
-
-function renameRoutes(routes: JsonObject, old: string, id: string): Json {
-  return Object.fromEntries(
-    Object.entries(routes).map(([from, targets]) => [
-      from === old ? id : from,
-      Array.isArray(targets) ? targets.map((target) => (target === old ? id : target)) : targets,
-    ])
-  );
 }

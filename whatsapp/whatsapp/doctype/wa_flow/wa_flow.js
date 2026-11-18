@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
 
-const FLOW_ACTIONS = "whatsapp.whatsapp.flows.manage";
+const MANAGE_MODULE = "whatsapp.whatsapp.flows.manage";
 const DEPRECATABLE_STATUSES = ["Published", "Throttled", "Blocked"];
 
 frappe.ui.form.on("WA Flow", {
@@ -56,7 +56,7 @@ function run_flow_action(frm, method, freeze_message) {
 		return;
 	}
 	frappe.call({
-		method: `${FLOW_ACTIONS}.${method}`,
+		method: `${MANAGE_MODULE}.${method}`,
 		args: { name: frm.doc.name },
 		freeze: true,
 		freeze_message: freeze_message,

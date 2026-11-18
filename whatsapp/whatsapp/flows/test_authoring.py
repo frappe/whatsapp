@@ -18,29 +18,25 @@ from whatsapp.whatsapp.flows.authoring import (
 	save_flow,
 )
 from whatsapp.whatsapp.flows.builder_reads import get_flow_for_builder, get_flow_list
-from whatsapp.whatsapp.flows.flow_json_fixtures import LEAD_QUALIFICATION
+from whatsapp.whatsapp.flows.flow_json_fixtures import LEAD_QUALIFICATION, load
 from whatsapp.whatsapp.flows.manage import publish_flow
-from whatsapp.whatsapp.flows.meta_fixtures import flow_json_upload, validation_error
+from whatsapp.whatsapp.flows.meta_fixtures import (
+	FlowMetaCase,
+	flow_json_upload,
+	make_account,
+	validation_error,
+)
 from whatsapp.whatsapp.flows.template_fixtures import flow_button, template_doc
-from whatsapp.whatsapp.flows.test_builder_flows import load
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, make_account
 
 FLOW_IDS = count(8000)
 
 
-class AuthoringCase(IntegrationTestCase):
+class AuthoringCase(FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.set_user("Administrator")
-		self.account = make_account()
-		self.meta = FakeMeta()
-		self.client = self.meta.client
 		self.client.create_flow.side_effect = self.meta_creates
 		self.client.update_flow_json.return_value = flow_json_upload()
 		self.client.delete_flow.return_value = {"success": True}
-		patcher = patch(CLIENT, return_value=self.client)
-		patcher.start()
-		self.addCleanup(patcher.stop)
 
 	def meta_creates(self, name, categories, flow_json=None, clone_flow_id=None):
 		flow_id = str(next(FLOW_IDS))

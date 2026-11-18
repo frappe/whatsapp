@@ -9,6 +9,8 @@ from datetime import UTC, date, datetime
 import frappe
 from frappe.utils import convert_utc_to_system_timezone
 
+from whatsapp.whatsapp.mapping import SOURCE_FIELD_TYPES, STRING
+
 
 class UnconvertibleValue(Exception):
 	pass
@@ -86,18 +88,7 @@ def _json(df, value):
 	return json.dumps(value) if isinstance(value, dict | list) else value
 
 
-ATTACH = ("Attach", "Attach Image")
-TEXT = (
-	"Data",
-	"Small Text",
-	"Text",
-	"Long Text",
-	"Text Editor",
-	"Markdown Editor",
-	"Select",
-	"Link",
-	"Phone",
-)
+ATTACH = SOURCE_FIELD_TYPES["media"]
 CONVERTERS = {
 	"Check": _check,
 	"Int": _int,
@@ -105,6 +96,6 @@ CONVERTERS = {
 	"Date": _date,
 	"Datetime": _datetime,
 	"Table MultiSelect": _table_multiselect,
-	**dict.fromkeys(TEXT, _text),
+	**dict.fromkeys(STRING, _text),
 	**dict.fromkeys(("JSON", "Code"), _json),
 }

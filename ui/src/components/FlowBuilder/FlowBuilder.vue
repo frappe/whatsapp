@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { useElementSize, useEventListener } from "@vueuse/core";
 import { Alert, Button, dialog } from "frappe-ui";
 import BuilderHeader from "./builder/BuilderHeader.vue";
 import BuilderSkeleton from "./builder/BuilderSkeleton.vue";
@@ -35,18 +36,11 @@ provideBuilder({
 /** Below this width the preview leaves the columns and opens over them. */
 const NARROW_PX = 720;
 const root = ref<HTMLElement>();
-const narrow = ref(false);
+const { width } = useElementSize(root, { width: NARROW_PX, height: 0 });
+const narrow = computed(() => width.value < NARROW_PX);
 const previewOpen = ref(false);
 const editingJson = ref(false);
 const publishing = ref(false);
-const resize = new ResizeObserver(
-	([entry]) => (narrow.value = entry.contentRect.width < NARROW_PX)
-);
-watch(root, (element, previous) => {
-	if (previous) resize.unobserve(previous);
-	if (element) resize.observe(element);
-});
-onBeforeUnmount(() => resize.disconnect());
 
 const screen = computed(
 	() => session.model?.screens.find((each) => each.uid === session.selection.screen) ?? null
@@ -110,8 +104,7 @@ function overlayAbove(): boolean {
 	return [...overlays].some((overlay) => !root.value || !overlay.contains(root.value));
 }
 
-onMounted(() => window.addEventListener("keydown", closeOnEscape));
-onBeforeUnmount(() => window.removeEventListener("keydown", closeOnEscape));
+useEventListener(window, "keydown", closeOnEscape);
 
 async function publish() {
 	publishing.value = true;

@@ -5,9 +5,9 @@ import frappe
 
 from whatsapp.whatsapp.flows.authoring import create_flow
 from whatsapp.whatsapp.flows.builder_reads import get_flow_for_builder, get_flow_list
+from whatsapp.whatsapp.flows.meta_fixtures import make_account
 from whatsapp.whatsapp.flows.template_fixtures import flow_button
 from whatsapp.whatsapp.flows.test_authoring import AuthoringCase
-from whatsapp.whatsapp.flows.test_sync import make_account
 
 
 class IntegrationTestBuilderReads(AuthoringCase):

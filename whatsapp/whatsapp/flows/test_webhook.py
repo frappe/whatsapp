@@ -8,32 +8,24 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.flows.meta_fixtures import (
+	FlowMetaCase,
+	business_id,
 	endpoint_error_rate,
 	status_change,
 	version_expiry_warning,
 	webhook_payload,
 )
-from whatsapp.whatsapp.flows.test_sync import CLIENT, FakeMeta, business_id, make_account
 from whatsapp.whatsapp.webhook import handler
 
 NOTIFY = "whatsapp.whatsapp.doctype.wa_flow.wa_flow.WAFlow.run_notifications"
 
 
-class IntegrationTestFlowWebhook(IntegrationTestCase):
+class IntegrationTestFlowWebhook(FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.set_user("Administrator")
 		frappe.db.set_single_value("WA Settings", "webhook_secret", "")
-		self.account = make_account()
 		self.business_id = business_id(self.account)
-		self.meta = FakeMeta()
 		self.notify = self.start_patch(NOTIFY)
-		self.start_patch(CLIENT, return_value=self.meta.client)
-
-	def start_patch(self, target: str, **kwargs) -> MagicMock:
-		patcher = patch(target, **kwargs)
-		self.addCleanup(patcher.stop)
-		return patcher.start()
 
 	def deliver(self, value: dict, business_id: str | None = None) -> str:
 		frappe.local.form_dict = frappe._dict(webhook_payload(business_id or self.business_id, value))
@@ -79,7 +71,8 @@ class IntegrationTestFlowWebhook(IntegrationTestCase):
 	def test_a_failing_event_leaves_no_partial_flow(self):
 		self.meta.add("3010", "Created on Meta", status="DRAFT")
 		fail_after_the_flow_is_saved = patch(
-			"whatsapp.whatsapp.flows.sync.log", side_effect=frappe.ValidationError("log failed")
+			"whatsapp.whatsapp.doctype.wa_flow.wa_flow.WAFlow.log",
+			side_effect=frappe.ValidationError("log failed"),
 		)
 
 		with fail_after_the_flow_is_saved:

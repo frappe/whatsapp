@@ -2,18 +2,16 @@
 import { computed } from "vue";
 import type { Block, JsonObject } from "../../model";
 import { useBuilder } from "../../context";
-import { usePhone } from "../phone";
+import { usePhoneBlock } from "../phone";
 import PhoneCheck from "./PhoneCheck.vue";
 
 /** Opt-in: a checkbox and its text, with "Read more" when it opens a screen or a link. */
 const props = defineProps<{ block: Block }>();
 
 const { chrome } = useBuilder();
-const phone = usePhone();
+const { phone, component, name, answer } = usePhoneBlock(props);
 
-const component = computed(() => props.block.component);
-const name = computed(() => String(component.value.name ?? ""));
-const on = computed(() => phone.run.value(name.value) === true);
+const on = computed(() => answer.value === true);
 const link = computed(() => component.value["on-click-action"] as JsonObject | undefined);
 
 function readMore() {

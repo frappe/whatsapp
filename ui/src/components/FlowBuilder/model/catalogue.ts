@@ -2,11 +2,9 @@ import type { Block, Json, JsonObject } from "./types";
 
 export const FLOW_JSON_VERSION = "7.3";
 
-export type BlockGroup = "Text" | "Questions" | "Files" | "Other";
-
 export interface BlockKind {
+  /** As the editor's Add content names it, so rule messages use the same words. */
   name: string;
-  group: BlockGroup;
   /** The property that holds what the admin reads on the block. */
   textKey: "text" | "label" | "alt-text";
   /** A question writes an answer under its `name`. */
@@ -21,40 +19,36 @@ const OPTIONS: Json = [
 ];
 
 function text(name: string): BlockKind {
-  return { name, group: "Text", textKey: "text", question: false, choices: false, defaults: {} };
+  return { name, textKey: "text", question: false, choices: false, defaults: {} };
 }
 
-function question(name: string, group: BlockGroup = "Questions", choices = false): BlockKind {
-  return {
-    name,
-    group,
-    textKey: "label",
-    question: true,
-    choices,
-    defaults: choices ? { "data-source": OPTIONS } : {},
-  };
+function question(name: string): BlockKind {
+  return { name, textKey: "label", question: true, choices: false, defaults: {} };
+}
+
+function choice(name: string): BlockKind {
+  return { name, textKey: "label", question: true, choices: true, defaults: { "data-source": OPTIONS } };
 }
 
 export const BLOCK_KINDS: Record<string, BlockKind> = {
-  TextHeading: text("Heading"),
-  TextSubheading: text("Subheading"),
-  TextBody: text("Text"),
-  TextCaption: text("Small text"),
+  TextHeading: text("Large heading"),
+  TextSubheading: text("Small heading"),
+  TextBody: text("Body"),
+  TextCaption: text("Caption"),
   RichText: text("Rich text"),
   TextInput: question("Short answer"),
   TextArea: question("Paragraph"),
-  Dropdown: question("Dropdown", "Questions", true),
-  RadioButtonsGroup: question("Single choice", "Questions", true),
-  CheckboxGroup: question("Multiple choice", "Questions", true),
-  ChipsSelector: question("Chips", "Questions", true),
-  DatePicker: question("Date"),
+  Dropdown: choice("Dropdown"),
+  RadioButtonsGroup: choice("Single choice"),
+  CheckboxGroup: choice("Multiple choice"),
+  ChipsSelector: choice("Chips"),
+  DatePicker: question("Date picker"),
   CalendarPicker: question("Calendar"),
-  OptIn: question("Agreement"),
-  PhotoPicker: question("Photo", "Files"),
-  DocumentPicker: question("Document", "Files"),
+  OptIn: question("Opt-in"),
+  PhotoPicker: question("Photo"),
+  DocumentPicker: question("Document"),
   Image: {
     name: "Image",
-    group: "Other",
     textKey: "alt-text",
     question: false,
     choices: false,
@@ -62,7 +56,6 @@ export const BLOCK_KINDS: Record<string, BlockKind> = {
   },
   EmbeddedLink: {
     name: "Link",
-    group: "Other",
     textKey: "text",
     question: false,
     choices: false,

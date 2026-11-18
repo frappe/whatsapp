@@ -1,20 +1,12 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
-import json
-from pathlib import Path
-
 from frappe.tests import UnitTestCase
 
-from whatsapp.whatsapp.flows import flow_json_fixtures
+from whatsapp.whatsapp.flows.flow_json_fixtures import load
 from whatsapp.whatsapp.flows.outline import FlowOutline
 
-# Written by the Flow builder's model in @whatsapp/ui (ui/tests/flowBuilder/builderFlows.test.ts).
-FLOW_JSON = Path(__file__).parent / "flow_json"
-
-
-def load(group: str, name: str) -> dict:
-	return json.loads((FLOW_JSON / group / f"{name}.json").read_text())
+# The builder/ fixtures are Flow JSON as written by the Flow builder in @whatsapp/ui.
 
 
 def answer(key: str, label: str, component: str, answer_type: str = "string") -> dict:
@@ -60,15 +52,3 @@ class TestBuilderFlowsOutline(UnitTestCase):
 		self.assertEqual(outline["answers"][1], answer("tour_type", "Tour type", "RadioButtonsGroup"))
 		self.assertEqual(outline["answers"][-1], answer("your_email", "Your email", "TextInput"))
 		self.assertEqual(outline["sensitive"], [])
-
-	def test_the_json_copies_of_the_outline_fixtures_match_them(self):
-		for name in (
-			"deal_feedback",
-			"lead_qualification",
-			"customer_profile",
-			"cyclic",
-			"routed",
-			"prefilled",
-		):
-			with self.subTest(name=name):
-				self.assertEqual(load("ours", name), getattr(flow_json_fixtures, name.upper()))

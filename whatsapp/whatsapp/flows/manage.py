@@ -63,13 +63,9 @@ def upload_flow_json(flow: "WAFlow") -> None:
 	# Editing a Published Flow can move it back to Draft on Meta.
 	details = on_meta(flow, _("Could not refresh the Flow"), lambda: client.get_flow(flow.flow_id))
 	flow.status = known_status(details.get("status"), flow)
-	log(
+	flow.log(
 		"Info",
-		"Flow",
 		f"Uploaded the Flow JSON of {flow.flow_name}: {len(errors)} validation errors, status={flow.status}",
-		account=flow.whatsapp_account,
-		reference_doctype="WA Flow",
-		reference_docname=flow.name,
 		response_data=upload,
 	)
 
@@ -99,23 +95,9 @@ def on_meta(flow: "WAFlow", failure: str, call: Callable):
 	try:
 		return call()
 	except requests.RequestException as e:
-		log(
-			"Error",
-			"Flow",
-			f"{failure} {flow.flow_name} ({flow.flow_id}): {e}",
-			account=flow.whatsapp_account,
-			reference_doctype="WA Flow",
-			reference_docname=flow.name,
-		)
+		flow.log("Error", f"{failure} {flow.flow_name} ({flow.flow_id}): {e}")
 		frappe.throw(f"{failure}: {e}")
 
 
 def _log_action(flow: "WAFlow", action: str) -> None:
-	log(
-		"Info",
-		"Flow",
-		f"{action} Flow {flow.flow_name} on Meta",
-		account=flow.whatsapp_account,
-		reference_doctype="WA Flow",
-		reference_docname=flow.name,
-	)
+	flow.log("Info", f"{action} Flow {flow.flow_name} on Meta")
