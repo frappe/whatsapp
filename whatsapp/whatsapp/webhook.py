@@ -65,6 +65,10 @@ def _receive() -> str:
 
 	if frappe.get_request_header(CENTRAL_SIGNATURE_HEADER):
 		_verify_central_signature(payload)
+	elif _names_meta_connected_account(payload):
+		# These accounts get their webhooks only through Central, signed per account.
+		log("Error", "Webhook", "Unsigned webhook for an account connected with Meta")
+		frappe.throw(_("Invalid signature"), frappe.PermissionError)
 	elif secret := frappe.get_single("WA Settings").get("webhook_secret"):
 		try:
 			_verify_signature(secret)
@@ -119,6 +123,42 @@ def _verify_central_signature(payload: dict) -> None:
 
 	log("Error", "Webhook", "Central signature verification failed")
 	frappe.throw(_("Invalid signature"), frappe.PermissionError)
+
+
+def _names_meta_connected_account(payload: dict) -> bool:
+	"""True when the payload would reach an account connected with Meta.
+
+	_handle_messages finds the account by phone_number_id, else the default account,
+	so check those as well as the WABA id in entry[].id.
+	"""
+	entries = [entry for entry in payload.get("entry") or [] if isinstance(entry, dict)]
+	waba_ids = {entry.get("id") for entry in entries} - {None, ""}
+	phone_ids = {
+		((change.get("value") or {}).get("metadata") or {}).get("phone_number_id")
+		for entry in entries
+		for change in entry.get("changes") or []
+		if isinstance(change, dict) and change.get("field") == "messages"
+	} - {None, ""}
+
+	or_filters = {}
+	if waba_ids:
+		or_filters["business_id"] = ("in", list(waba_ids))
+	if phone_ids:
+		or_filters["phone_id"] = ("in", list(phone_ids))
+	accounts = (
+		frappe.get_all("WA Account", or_filters=or_filters, fields=["phone_id", "connected_with_meta"])
+		if or_filters
+		else []
+	)
+	if any(account.connected_with_meta for account in accounts):
+		return True
+
+	if phone_ids - {account.phone_id for account in accounts}:
+		default_account = frappe.db.get_single_value("WA Settings", "default_account")
+		return bool(
+			default_account and frappe.db.get_value("WA Account", default_account, "connected_with_meta")
+		)
+	return False
 
 
 def _handle_messages(value: dict) -> None:

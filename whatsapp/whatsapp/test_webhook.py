@@ -594,6 +594,29 @@ class TestWebhookSignature(IntegrationTestCase):
 		self._post(body, {"X-Hub-Signature-256": f"sha256={self._sign('manual-secret', body)}"})
 		self.assertTrue(frappe.db.exists("WA Message", {"message_id": message_id}))
 
+	def test_unsigned_webhook_for_meta_connected_account_is_rejected(self):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		phone_id = frappe.db.get_value("WA Account", account, "phone_id")
+
+		# Named by its WABA id, and by its phone number under another WABA id.
+		for entry_id in (waba_id, f"waba_{frappe.generate_hash(length=8)}"):
+			body, message_id = self._body(entry_id, phone_id)
+			with self.assertRaises(frappe.PermissionError):
+				self._post(body, {})
+			self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_unsigned_webhook_routed_to_meta_connected_default_account_is_rejected(self):
+		account = self._make_account(f"waba_{frappe.generate_hash(length=8)}", "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		frappe.db.set_single_value("WA Settings", "default_account", account)
+
+		body, message_id = self._body(f"waba_{frappe.generate_hash(length=8)}", "phone_unknown")
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
 	def test_manual_path_without_settings_secret_accepts_unsigned(self):
 		waba_id = f"waba_{frappe.generate_hash(length=8)}"
 		account = self._make_account(waba_id, None)
