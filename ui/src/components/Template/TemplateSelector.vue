@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref, watch } from "vue";
+import { computed, h, onMounted, ref, useTemplateRef, watch } from "vue";
 import { Badge, Button, Dropdown, ErrorMessage, LoadingIndicator, TextInput } from "frappe-ui";
 import TemplateContent from "../Messages/TemplateContent.vue";
 import { useTemplates } from "../Messages/useTemplates";
@@ -11,6 +11,12 @@ const CATEGORIES: TemplateType[] = ["Marketing", "Utility", "Authentication"];
 
 const props = defineProps<TemplateSelectorProps>();
 const emit = defineEmits<{ sent: [messageName: string] }>();
+defineSlots<{
+	/** sits right of the search and the category filter */
+	actions?: () => unknown;
+	/** replaces the state shown when no template is approved yet */
+	empty?: () => unknown;
+}>();
 
 const templates = useTemplates({
 	referenceDoctype: () => props.referenceDoctype,
@@ -24,6 +30,8 @@ const category = ref("");
 const selected = ref("");
 const sending = ref(false);
 const sendError = ref("");
+const searchInput = useTemplateRef<{ focus: () => void }>("searchInput");
+const recipientHint = computed(() => (props.to ? "" : "Add a phone number to send a template."));
 
 const searched = computed(() => {
 	const query = search.value.toLowerCase();
@@ -70,12 +78,15 @@ async function send() {
 }
 
 watch(selected, () => (sendError.value = ""));
+
+onMounted(() => searchInput.value?.focus());
 </script>
 
 <template>
 	<div class="flex min-h-0 flex-col gap-4">
 		<div class="flex items-center gap-2">
 			<TextInput
+				ref="searchInput"
 				v-model="search"
 				class="flex-1"
 				type="text"
@@ -97,16 +108,16 @@ watch(selected, () => (sendError.value = ""));
 		>
 			<LoadingIndicator class="size-5 text-ink-gray-4" />
 		</div>
-		<div
-			v-else-if="!visible.length"
-			class="flex h-56 flex-col items-center justify-center gap-1 text-center"
-		>
-			<p class="text-base text-ink-gray-7">
-				{{ search || category ? "No matching templates" : "No approved templates" }}
-			</p>
-			<p class="text-p-sm text-ink-gray-5">
-				Templates approved by Meta for this number show up here.
-			</p>
+		<slot v-else-if="!templates.templates.length" name="empty">
+			<div class="flex h-56 flex-col items-center justify-center gap-1 text-center">
+				<p class="text-base text-ink-gray-7">No approved templates</p>
+				<p class="text-p-sm text-ink-gray-5">
+					Templates approved by Meta for this number show up here.
+				</p>
+			</div>
+		</slot>
+		<div v-else-if="!visible.length" class="grid h-56 place-items-center">
+			<p class="text-base text-ink-gray-7">No matching templates</p>
 		</div>
 		<div
 			v-else
@@ -147,7 +158,7 @@ watch(selected, () => (sendError.value = ""));
 			</button>
 		</div>
 		<div class="flex items-center justify-between gap-4">
-			<ErrorMessage :message="sendError" />
+			<ErrorMessage :message="sendError || recipientHint" />
 			<Button
 				class="ms-auto"
 				variant="solid"

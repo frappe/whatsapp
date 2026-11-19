@@ -361,6 +361,7 @@ import { TemplateSelector } from "@whatsapp/ui";
         @sent="show = false; messages.reload()"
       >
         <template #actions><!-- sits right of the search and filter --></template>
+        <template #empty><!-- replaces "No approved templates" --></template>
       </TemplateSelector>
     </template>
   </Dialog>
@@ -373,8 +374,12 @@ import { TemplateSelector } from "@whatsapp/ui";
   have one, such as the sender of the conversation's last incoming message. A profile is one
   contact on one business number, so it is used as is. A phone number is matched only against
   the default account's profiles, and a new profile is created there when none matches, so with
-  more than one business number it can land on the wrong one. Send is disabled while `to` is
-  empty.
+  more than one business number it can land on the wrong one. While `to` is empty, Send is
+  disabled and the footer says "Add a phone number to send a template."
+- **`#actions`** sits right of the search and the category filter, for a host's own buttons
+  such as Create. **`#empty`** replaces the state shown when no template is approved yet; a
+  search or filter with no match keeps the built-in "No matching templates".
+- The search box takes focus when the selector mounts, so opening its dialog lets you type.
 - **`filters`** narrows the templates in the query. It cannot bring back what the reference
   doctype or the Approved status leave out.
 - The two controllers are independent, so a send does not refresh the conversation by itself.

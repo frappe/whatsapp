@@ -120,7 +120,7 @@ export interface TemplateSelectorProps {
   referenceDoctype: string;
   /** the sent template attaches to it, and the cards preview its values */
   referenceDocname?: string;
-  /** recipient: a `WA Profile` name, or a phone number matched on the default account; Send is off while empty */
+  /** recipient: a `WA Profile` name, or a phone number matched on the default account; Send is off and a hint shows while empty */
   to?: string;
   /** `frappe.get_all` filters that narrow the templates offered */
   filters?: Record<string, unknown>;
