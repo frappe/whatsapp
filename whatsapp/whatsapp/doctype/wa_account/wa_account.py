@@ -116,7 +116,7 @@ class WAAccount(Document):
 				frappe.msgprint(
 					_(
 						"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
-					).format(e),
+					).format(str(e)),
 					indicator="orange",
 					alert=True,
 				)
