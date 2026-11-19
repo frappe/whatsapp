@@ -92,7 +92,7 @@ def disconnect_meta_accounts() -> None:
 		"WA Account", {"connected_with_meta": 1}, pluck="business_id", distinct=True
 	):
 		try:
-			call_central_method("disconnect", waba_id=waba_id)
+			call_central_method("disconnect", module="meta_webhook", waba_id=waba_id)
 		except frappe.ValidationError:
 			frappe.clear_last_message()
 			frappe.log_error(f"Couldn't stop Frappe Cloud relaying the webhooks of WABA {waba_id}")

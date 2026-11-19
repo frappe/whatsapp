@@ -14,8 +14,8 @@ NOT_V2 = {"pilot_endpoint": None, "pilot_auth_token": None}
 LINK = {"authorize_url": "https://www.facebook.com/dialog/oauth?x=1", "client_id": "cid", "scopes": []}
 
 
-def pilot_path(method: str) -> str:
-	return f"sites/{frappe.local.site}/central/central.api.oauth.{method}"
+def pilot_path(method: str, module: str = "oauth") -> str:
+	return f"sites/{frappe.local.site}/central/central.api.{module}.{method}"
 
 
 def relayed(waba_id: str = "waba_oauth_1", phone_id: str = "phone_oauth_1") -> dict:
@@ -243,7 +243,9 @@ class TestCallback(IntegrationTestCase):
 		self.assertEqual((account.business_id, account.connected_with_meta), ("waba_oauth_old", 0))
 		self.assertEqual(landed()["whatsapp_connect"], "wrong_waba")
 		path, data = self.pilot.call_args.args
-		self.assertEqual((path, data), (pilot_path("disconnect"), {"waba_id": "waba_oauth_1"}))
+		self.assertEqual(
+			(path, data), (pilot_path("disconnect", "meta_webhook"), {"waba_id": "waba_oauth_1"})
+		)
 
 	def test_a_refused_reconnect_keeps_the_new_secrets_of_the_waba_signed_in_to(self):
 		account = make_account("Other WABA", "waba_oauth_old")
@@ -254,7 +256,9 @@ class TestCallback(IntegrationTestCase):
 		self.assertEqual(landed()["whatsapp_connect"], "wrong_waba")
 		self.assertEqual(other.get_password("webhook_secret"), "route-secret")
 		self.assertEqual(other.get_password("two_step_pin"), "123456")
-		self.assertNotIn(pilot_path("disconnect"), [c.args[0] for c in self.pilot.call_args_list])
+		self.assertNotIn(
+			pilot_path("disconnect", "meta_webhook"), [c.args[0] for c in self.pilot.call_args_list]
+		)
 
 	def test_reconnect_to_a_number_another_account_uses_is_refused(self):
 		account = make_account("Reconnect", "waba_oauth_1")
@@ -300,7 +304,9 @@ class TestCallback(IntegrationTestCase):
 
 		self.assertEqual(landed()["whatsapp_connect"], "failed")
 		self.assertEqual(other.get_password("webhook_secret"), "route-secret")
-		self.assertNotIn(pilot_path("disconnect"), [c.args[0] for c in self.pilot.call_args_list])
+		self.assertNotIn(
+			pilot_path("disconnect", "meta_webhook"), [c.args[0] for c in self.pilot.call_args_list]
+		)
 
 	def test_sign_in_errors_land_with_their_result(self):
 		for error, result in (
@@ -321,7 +327,15 @@ class TestCallback(IntegrationTestCase):
 			("no_waba", "no_waba"),
 			("phone_number_unclear", "phone_number_unclear"),
 			("pin_changed", "pin_changed"),
-			("Meta refused the request: boom", "refused"),
+			("expired", "expired"),
+			("no_permission", "no_permission"),
+			("rate_limited", "rate_limited"),
+			("meta_unavailable", "meta_unavailable"),
+			("account_restricted", "account_restricted"),
+			("number_not_verified", "number_not_verified"),
+			("meta_refused:131099:", "refused"),
+			("Could not reach your server: timed out", "unreachable"),
+			("Frappe Cloud did not answer in time. Try again in a minute.", "unreachable"),
 		):
 			with self.subTest(message):
 				self.pilot.side_effect = frappe.ValidationError(message)
@@ -351,12 +365,37 @@ class TestCallback(IntegrationTestCase):
 	def test_each_central_refusal_has_its_own_message(self):
 		self.assertEqual(
 			oauth.CENTRAL_REFUSALS,
-			("waba_in_use", "no_waba", "no_phone_number", "phone_number_unclear", "pin_changed"),
+			(
+				"waba_in_use",
+				"no_waba",
+				"no_phone_number",
+				"phone_number_unclear",
+				"pin_changed",
+				"expired",
+				"no_permission",
+				"rate_limited",
+				"meta_unavailable",
+				"account_restricted",
+				"number_not_verified",
+			),
 		)
 		messages = {code: oauth.get_connect_message(code)["message"] for code in oauth.CENTRAL_REFUSALS}
 		self.assertEqual(len(set(messages.values())), len(messages))
-		for general in ("failed", "refused"):
+		for general in ("failed", "refused", "unreachable"):
 			self.assertNotIn(oauth.get_connect_message(general)["message"], messages.values())
+
+	def test_metas_text_for_users_is_shown_once_and_escaped(self):
+		self.pilot.side_effect = frappe.ValidationError(
+			"meta_refused:131099:Ask your <b>admin</b>: then retry"
+		)
+		oauth.callback(state=self.note(), code="the-code")
+
+		self.assertEqual(landed()["whatsapp_connect"], "refused")
+		message = oauth.get_connect_message("refused")["message"]
+		self.assertIn("Ask your &lt;b&gt;admin&lt;/b&gt;: then retry", message)
+		self.assertEqual(
+			oauth.get_connect_message("refused")["message"], "Meta refused the connection. Please try again."
+		)
 
 	def test_the_message_escapes_the_account_from_the_url(self):
 		message = oauth.get_connect_message("connected", "<img src=x onerror=alert(1)>")["message"]
@@ -380,7 +419,9 @@ class TestDeleteMetaAccount(IntegrationTestCase):
 		account.delete()
 
 		self.client.return_value.unsubscribe_app.assert_called_once_with()
-		self.pilot.assert_called_once_with(pilot_path("disconnect"), {"waba_id": "waba_oauth_delete"})
+		self.pilot.assert_called_once_with(
+			pilot_path("disconnect", "meta_webhook"), {"waba_id": "waba_oauth_delete"}
+		)
 
 	def test_a_central_failure_does_not_stop_the_delete(self):
 		self.pilot.side_effect = frappe.ValidationError("Could not reach your server")
@@ -428,7 +469,9 @@ class TestUninstall(IntegrationTestCase):
 			sorted(w for w in disconnected if w.startswith("waba_oauth")), ["waba_oauth_a", "waba_oauth_b"]
 		)
 		self.assertEqual(len(disconnected), len(set(disconnected)))
-		self.assertEqual({c.args[0] for c in self.pilot.call_args_list}, {pilot_path("disconnect")})
+		self.assertEqual(
+			{c.args[0] for c in self.pilot.call_args_list}, {pilot_path("disconnect", "meta_webhook")}
+		)
 
 	def test_a_central_failure_is_logged_and_does_not_stop_the_uninstall(self):
 		make_account("Uninstall down", "waba_oauth_down", connected_with_meta=1)

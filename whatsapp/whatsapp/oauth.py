@@ -1,6 +1,6 @@
 """Connect a WhatsApp Business Account with Meta's sign-in, on Frappe Cloud v2 sites.
 
-Central (central.api.oauth) holds Meta's app and its secret; this site reaches it through its own
+Central (central.api.oauth, central.api.meta_webhook) holds Meta's app and its secret; this site reaches it through its own
 Pilot. After the code exchange Central relays: access_token, app_id, waba_id, phone_id, pin,
 webhook_secret, display_phone_number and verified_name.
 """
@@ -24,8 +24,22 @@ PROVIDER = "meta"
 NOTE_TTL = 10 * 60
 CALLBACK_PATH = "/api/method/whatsapp.whatsapp.oauth.callback"
 DEFAULT_LANDING = "/desk/wa-account"
-# Central's codes for a refusal the user must act on; a retry alone cannot fix them
-CENTRAL_REFUSALS = ("waba_in_use", "no_waba", "no_phone_number", "phone_number_unclear", "pin_changed")
+# Central's codes for a refusal the site has its own message for
+CENTRAL_REFUSALS = (
+	"waba_in_use",
+	"no_waba",
+	"no_phone_number",
+	"phone_number_unclear",
+	"pin_changed",
+	"expired",
+	"no_permission",
+	"rate_limited",
+	"meta_unavailable",
+	"account_restricted",
+	"number_not_verified",
+)
+# Central's code for any other Meta error: "meta_refused:<Graph code>:<Meta's text for users, if any>"
+META_REFUSED = "meta_refused:"
 PROVIDERS_DOWN_KEY = "whatsapp_meta_providers_down"
 
 
@@ -43,6 +57,34 @@ def _results() -> dict[str, tuple[str, str]]:
 			"red",
 		),
 		"refused": (_("Meta refused the connection. Please try again."), "red"),
+		"no_permission": (
+			_(
+				"Your Facebook user cannot manage this WhatsApp Business Account. Ask an admin of the business portfolio to give you full control of it, then try again."
+			),
+			"red",
+		),
+		"rate_limited": (
+			_("Meta is limiting requests for this account or number. Wait a few minutes, then try again."),
+			"red",
+		),
+		"meta_unavailable": (
+			_("Meta's service is not available now. Please try again in a few minutes."),
+			"red",
+		),
+		"account_restricted": (
+			_(
+				"Meta has restricted this WhatsApp Business Account. Open Account quality in Meta's WhatsApp Manager to see why."
+			),
+			"red",
+		),
+		"number_not_verified": (
+			_("Verify this phone number in Meta's WhatsApp Manager, then try again."),
+			"red",
+		),
+		"unreachable": (
+			_("Frappe Cloud did not finish the connection. Please try again in a minute."),
+			"red",
+		),
 		"waba_in_use": (
 			_(
 				"This WhatsApp Business Account is connected to another Frappe Cloud site. Disconnect it on that site first, then try again."
@@ -92,6 +134,9 @@ def _results() -> dict[str, tuple[str, str]]:
 def get_connect_message(result: str, account: str | None = None) -> dict:
 	"""The text to show for the `whatsapp_connect` result the callback landed with."""
 	message, indicator = _results().get(result) or _results()["failed"]
+	if result == "refused" and (meta_says := frappe.cache.get_value(_meta_says_key())):
+		frappe.cache.delete_value(_meta_says_key())
+		message = _("Meta refused the connection: {0}").format(escape_html(meta_says))
 	# `account` comes from the URL, so it is escaped before it is shown as HTML
 	return {"message": message.format(frappe.bold(escape_html(account or ""))), "indicator": indicator}
 
@@ -209,12 +254,7 @@ def connect(note: dict, code: str | None, error: str | None, error_description: 
 		)
 	except frappe.ValidationError as e:
 		frappe.clear_last_message()
-		if str(e) == "invalid_grant":  # Central passes on Meta's error code as the message
-			return "expired", wa_account
-		if str(e) in CENTRAL_REFUSALS:
-			return str(e), wa_account
-		frappe.log_error("WhatsApp connect with Meta refused")
-		return "refused", wa_account
+		return _refusal(str(e)), wa_account
 
 	frappe.db.savepoint("wa_connect")
 	try:
@@ -289,7 +329,7 @@ def _store_new_secrets(token: dict, skip: str = "") -> None:
 def disconnect(waba_id: str) -> None:
 	"""Ask Central to stop sending this WABA's webhooks here. A failure is logged, not raised."""
 	try:
-		call_central_method("disconnect", waba_id=waba_id)
+		call_central_method("disconnect", module="meta_webhook", waba_id=waba_id)
 	except frappe.ValidationError as e:
 		frappe.clear_last_message()
 		log("Warning", "API", f"Could not stop Frappe Cloud sending the webhooks of WABA {waba_id}: {e}")
@@ -301,10 +341,31 @@ def _disconnect_unused(waba_id: str) -> None:
 		disconnect(waba_id)
 
 
-def call_central_method(method: str, **data) -> dict:
-	"""Call Central's central.api.oauth.<method> through this site's Pilot."""
+def _refusal(error: str) -> str:
+	"""The result code for Central's refusal of the code exchange."""
+	if error == "invalid_grant":  # Central passes on Meta's error code as the message
+		return "expired"
+	if error in CENTRAL_REFUSALS:
+		return error
+	if error.startswith(META_REFUSED):
+		frappe.log_error("WhatsApp connect with Meta refused", error)
+		meta_says = error.removeprefix(META_REFUSED).partition(":")[2]
+		if meta_says:  # Meta's text for users; the landing page shows it once
+			frappe.cache.set_value(_meta_says_key(), meta_says, expires_in_sec=NOTE_TTL)
+		return "refused"
+	# Pilot or Central failed, not Meta
+	frappe.log_error("WhatsApp connect with Meta failed on Frappe Cloud", error)
+	return "unreachable"
+
+
+def _meta_says_key() -> str:
+	return f"wa_connect_meta_says:{frappe.session.user}"
+
+
+def call_central_method(method: str, module: str = "oauth", **data) -> dict:
+	"""Call Central's central.api.<module>.<method> through this site's Pilot."""
 	client = PilotClient()
-	return client.post(client.site_path(f"central/central.api.oauth.{method}"), data)
+	return client.post(client.site_path(f"central/central.api.{module}.{method}"), data)
 
 
 def land(redirect_to: str, result: str, account: str | None = None) -> None:
