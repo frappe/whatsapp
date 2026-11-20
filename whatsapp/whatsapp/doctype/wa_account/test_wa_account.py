@@ -44,6 +44,18 @@ class IntegrationTestWAAccount(IntegrationTestCase):
 	def _default(self):
 		return frappe.db.get_single_value("WA Settings", "default_account")
 
+	def test_a_new_access_token_makes_a_disconnected_account_active(self):
+		account = self._account("A")
+		account.db_set("status", "Disconnected")
+
+		account.reload()
+		account.save()
+		self.assertEqual(account.status, "Disconnected")
+
+		account.access_token = "new_token"
+		account.save()
+		self.assertEqual(account.status, "Active")
+
 	def test_first_account_becomes_the_default(self):
 		account = self._account("A")
 

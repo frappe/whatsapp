@@ -8,6 +8,7 @@ from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.utils import get_managed_doctypes, log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
+from whatsapp.whatsapp.oauth import disconnect
 
 # Which fieldtypes can hold the value an append action writes into each mapping slot.
 # Drives both the pickers in the grid and the check on save.
@@ -37,12 +38,25 @@ class WAAccount(Document):
 		append_actions: DF.Table[WAAccountAppend]
 		app_id: DF.Data | None
 		business_id: DF.Data | None
+		connected_with_meta: DF.Check
 		phone_id: DF.Data | None
-		status: DF.Literal["Active", "Inactive"]
+		status: DF.Literal["Active", "Inactive", "Disconnected"]
+		two_step_pin: DF.Password | None
+		webhook_secret: DF.Password | None
 	# end: auto-generated types
 
 	def validate(self):
 		self.validate_append_actions()
+		self.reactivate_on_new_token()
+
+	def reactivate_on_new_token(self):
+		"""A Disconnected account is Active again once someone enters a new access token."""
+		if (
+			self.status == "Disconnected"
+			and self.access_token
+			and not self.is_dummy_password(self.access_token)
+		):
+			self.status = "Active"
 
 	def validate_append_actions(self):
 		"""Check every mapped fieldname against the doctype the action appends to.
@@ -97,13 +111,18 @@ class WAAccount(Document):
 			_client_for(self).unsubscribe_app()
 		except requests.RequestException as e:
 			log("Warning", "API", f"Could not unsubscribe the app from WABA {self.business_id}: {e}")
-			frappe.msgprint(
-				_(
-					"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
-				).format(e),
-				indicator="orange",
-				alert=True,
-			)
+			# with Meta, Frappe Cloud stops relaying below, so the app in Business Manager must stay
+			if not self.connected_with_meta:
+				frappe.msgprint(
+					_(
+						"The account is deleted, but Meta still sends its webhooks to this site: {0}. Remove the app from the WhatsApp Business Account in Meta Business Manager."
+					).format(str(e)),
+					indicator="orange",
+					alert=True,
+				)
+
+		if self.connected_with_meta:
+			disconnect(self.business_id)
 
 
 def _validate_mapped_field(action, slot: str, target_meta) -> None:

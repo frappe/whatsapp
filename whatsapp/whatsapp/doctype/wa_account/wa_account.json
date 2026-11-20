@@ -14,6 +14,9 @@
     "business_id",
     "phone_id",
     "access_token",
+    "connected_with_meta",
+    "two_step_pin",
+    "webhook_secret",
     "read_receipts_sb",
     "auto_read_receipts",
     "append_actions_section",
@@ -30,7 +33,7 @@
       "fieldname": "status",
       "fieldtype": "Select",
       "label": "Status",
-      "options": "Active\nInactive"
+      "options": "Active\nInactive\nDisconnected"
     },
     {
       "fieldname": "app_id",
@@ -56,6 +59,25 @@
       "fieldtype": "Password",
       "label": "Access token",
       "length": 500
+    },
+    {
+      "default": "0",
+      "fieldname": "connected_with_meta",
+      "fieldtype": "Check",
+      "label": "Connected with Meta",
+      "read_only": 1
+    },
+    {
+      "fieldname": "two_step_pin",
+      "fieldtype": "Password",
+      "hidden": 1,
+      "label": "Two-step PIN"
+    },
+    {
+      "fieldname": "webhook_secret",
+      "fieldtype": "Password",
+      "hidden": 1,
+      "label": "Central webhook secret"
     },
     {
       "fieldname": "read_receipts_sb",
@@ -105,7 +127,7 @@
       "link_fieldname": "account"
     }
   ],
-  "modified": "2026-09-28 16:41:37.000000",
+  "modified": "2026-11-18 16:30:00.000000",
   "modified_by": "Administrator",
   "module": "WhatsApp",
   "name": "WA Account",

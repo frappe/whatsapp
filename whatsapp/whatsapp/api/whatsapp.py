@@ -38,14 +38,13 @@ class WhatsApp:
 			)
 			error_msg = _extract_meta_error(body)
 			self._log_api_error(method, url, kwargs.get("json"), resp)
+			self._disconnect_on_expired_token(body)
 			raise requests.HTTPError(error_msg)
 		result = resp.json()
 		self._log_api_success(method, url, kwargs.get("json"), result)
 		return result
 
-	def _log_api_error(
-		self, method: str, url: str, payload: dict | None, resp: requests.Response
-	) -> None:
+	def _log_api_error(self, method: str, url: str, payload: dict | None, resp: requests.Response) -> None:
 		try:
 			event_type = "API"
 			if "message_templates" in url or "/templates" in url:
@@ -67,6 +66,35 @@ class WhatsApp:
 			)
 		except Exception:
 			pass
+
+	def _disconnect_on_expired_token(self, body: str) -> None:
+		"""Meta answers 190 when the token expired or was revoked, so the account needs a reconnect."""
+		try:
+			code = json.loads(body)["error"]["code"]
+		except (ValueError, KeyError, TypeError):
+			return
+		if code != 190 or not self.account_name:
+			return
+
+		def mark():
+			# A reconnect may have saved a new token since this client was built; leave that one alone.
+			stored = frappe.utils.password.get_decrypted_password(
+				"WA Account", self.account_name, "access_token", raise_exception=False
+			)
+			if stored == self.access_token:
+				frappe.db.set_value("WA Account", self.account_name, "status", "Disconnected")
+
+		try:
+			mark()
+		except Exception:
+			# A reconnect committed during the call makes this write fail (1020); the caller must still
+			# get the Meta error, and the re-mark below runs in a fresh transaction.
+			frappe.logger("whatsapp").exception(f"Could not mark WA Account {self.account_name} Disconnected")
+		# The caller usually throws and the transaction rolls back, so mark it again after the rollback
+		# and commit it. Queued from inside the rollback callbacks, the commit runs after all of them.
+		frappe.db.after_rollback.add(
+			lambda: frappe.db.after_rollback.add(lambda: (mark(), frappe.db.commit()))
+		)
 
 	def _log_api_success(self, method: str, url: str, payload: dict | None, result: dict) -> None:
 		try:
@@ -142,6 +170,7 @@ class WhatsApp:
 		except requests.HTTPError:
 			error_msg = _extract_meta_error(resp.text)
 			self._log_api_error("POST", url, {"file": file_name, "type": mime_type}, resp)
+			self._disconnect_on_expired_token(resp.text)
 			raise requests.HTTPError(error_msg)
 		result = resp.json()
 		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, result)

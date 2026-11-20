@@ -104,7 +104,10 @@ after_migrate = [
 # Uninstallation
 # ------------
 
-before_uninstall = "whatsapp.install.teardown_notification_channel"
+before_uninstall = [
+	"whatsapp.install.disconnect_meta_accounts",
+	"whatsapp.install.teardown_notification_channel",
+]
 # after_uninstall = "whatsapp.uninstall.after_uninstall"
 
 # Integration Setup

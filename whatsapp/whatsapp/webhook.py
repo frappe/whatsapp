@@ -11,6 +11,7 @@ from frappe import _
 from frappe.core.doctype.server_script.server_script_utils import (
 	run_server_script_for_doc_event,
 )
+from frappe.utils.password import get_decrypted_password
 from werkzeug.wrappers import Response
 
 from whatsapp.whatsapp.api.utils import log, normalize_template_status
@@ -24,6 +25,12 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 )
 
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
+CENTRAL_SIGNATURE_HEADER = "X-Frappe-Central-Signature"
+
+
+class WABANotHere(frappe.ValidationError):
+	# Central deletes its route for this WABA and site when the site answers 410
+	http_status_code = 410
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
@@ -61,9 +68,13 @@ def _receive() -> str:
 	"""Receive incoming webhook events from Meta. Always 200 + Content-Type: text/plain."""
 	payload = frappe.local.form_dict
 
-	settings = frappe.get_single("WA Settings")
-	secret = settings.get("webhook_secret")
-	if secret:
+	if frappe.get_request_header(CENTRAL_SIGNATURE_HEADER):
+		_verify_central_signature(payload)
+	elif _names_meta_connected_account(payload):
+		# These accounts get their webhooks only through Central, signed per account.
+		log("Error", "Webhook", "Unsigned webhook for an account connected with Meta")
+		frappe.throw(_("Invalid signature"), frappe.PermissionError)
+	elif secret := frappe.get_single("WA Settings").get("webhook_secret"):
 		try:
 			_verify_signature(secret)
 		except Exception:
@@ -98,20 +109,88 @@ def _verify_signature(secret: str) -> None:
 		frappe.throw(_("HMAC signature mismatch"), frappe.AuthenticationError)
 
 
+def _verify_central_signature(payload: dict) -> None:
+	"""Check a webhook that Central relays for an account connected with Meta.
+
+	Central signs the body with the webhook secret of the WABA in entry[].id.
+	"""
+	signature = frappe.get_request_header(CENTRAL_SIGNATURE_HEADER, "").removeprefix("sha256=")
+	raw = frappe.local.request.get_data()
+	waba_ids = {entry.get("id") for entry in payload.get("entry") or [] if isinstance(entry, dict)}
+	if len(waba_ids) == 1 and (waba_id := waba_ids.pop()):
+		accounts = frappe.get_all("WA Account", {"business_id": waba_id}, pluck="name")
+		if not accounts:
+			frappe.throw(_("No WhatsApp account here uses this WhatsApp Business Account"), WABANotHere)
+		for account in accounts:
+			secret = get_decrypted_password("WA Account", account, "webhook_secret", raise_exception=False)
+			if not secret:
+				continue
+			digest = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+			if hmac.compare_digest(digest, signature):
+				return
+
+	log("Error", "Webhook", "Central signature verification failed")
+	frappe.throw(_("Invalid signature"), frappe.PermissionError)
+
+
+def _names_meta_connected_account(payload: dict) -> bool:
+	"""True when the payload would reach or change a record of an account connected with Meta.
+
+	Find each account the same way processing does: the WABA id in entry[].id, the
+	account of each messages change (_account_for_phone), and the account of each
+	message and template that a status update changes.
+	"""
+	accounts, message_ids, template_ids = set(), set(), set()
+	for entry in payload.get("entry") or []:
+		if not isinstance(entry, dict):
+			continue
+		if entry.get("id"):
+			accounts.update(frappe.get_all("WA Account", {"business_id": entry["id"]}, pluck="name"))
+		for change in entry.get("changes") or []:
+			if not isinstance(change, dict) or not isinstance(value := change.get("value"), dict):
+				continue
+			if change.get("field") == "messages":
+				accounts.add(_account_for_phone((value.get("metadata") or {}).get("phone_number_id")))
+				message_ids.update(
+					status.get("id") for status in value.get("statuses") or [] if isinstance(status, dict)
+				)
+			elif change.get("field") == "message_template_status_update":
+				template_ids.add(value.get("message_template_id"))
+
+	if message_ids := message_ids - {None, ""}:
+		accounts.update(
+			frappe.get_all("WA Message", {"message_id": ("in", list(message_ids))}, pluck="whatsapp_account")
+		)
+	if template_ids := template_ids - {None, ""}:
+		accounts.update(
+			frappe.get_all(
+				"WA Template", {"whatsapp_template_id": ("in", list(template_ids))}, pluck="whatsapp_account"
+			)
+		)
+	accounts -= {None, ""}
+	return bool(
+		accounts
+		and frappe.db.exists("WA Account", {"name": ("in", list(accounts)), "connected_with_meta": 1})
+	)
+
+
+def _account_for_phone(phone_number_id: str | None) -> str | None:
+	"""The account that a messages change goes to: matched by phone_id, else the default account."""
+	return frappe.db.get_value("WA Account", {"phone_id": phone_number_id}, "name") or (
+		frappe.db.get_single_value("WA Settings", "default_account") or None
+	)
+
+
 def _handle_messages(value: dict) -> None:
 	metadata = value.get("metadata", {})
 	phone_number_id = metadata.get("phone_number_id")
 
-	account_name = frappe.db.get_value("WA Account", {"phone_id": phone_number_id}, "name")
+	account_name = _account_for_phone(phone_number_id)
 	if not account_name:
-		default_account = frappe.db.get_single_value("WA Settings", "default_account")
-		if default_account:
-			account_name = default_account
-		else:
-			msg = f"No account found for phone_number_id={phone_number_id} and no default account set"
-			log("Error", "Webhook", msg, response_data=value)
-			frappe.log_error(title="WhatsApp Webhook", message=msg)
-			return
+		msg = f"No account found for phone_number_id={phone_number_id} and no default account set"
+		log("Error", "Webhook", msg, response_data=value)
+		frappe.log_error(title="WhatsApp Webhook", message=msg)
+		return
 
 	contacts = value.get("contacts", [])
 	contact_profile = contacts[0].get("profile", {}) if contacts else {}

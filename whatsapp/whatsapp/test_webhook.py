@@ -1,6 +1,9 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
+import hashlib
+import hmac
+import json
 import secrets
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +12,7 @@ from frappe.tests import IntegrationTestCase
 
 from whatsapp.whatsapp.doctype.wa_profile.wa_profile import get_or_create_profile
 from whatsapp.whatsapp.webhook import (
+	WABANotHere,
 	_create_incoming_message,
 	_handle_template_status,
 	_update_message_status,
@@ -443,3 +447,253 @@ class TestWebhookNotifications(IntegrationTestCase):
 		doc = frappe.get_doc("WA Message", doc_name)
 		self.assertEqual(doc.reaction, "")
 		self.assertEqual(doc.context_message_id, "wamid.target_msg2")
+
+
+class TestWebhookSignature(IntegrationTestCase):
+	"""POST signature checks: relayed by Central (per-account secret) and direct from Meta."""
+
+	def setUp(self):
+		super().setUp()
+		frappe.set_user("Administrator")
+		frappe.db.set_single_value("WA Settings", "webhook_secret", "")
+		self.addCleanup(self._unbind_request)
+
+	def _unbind_request(self):
+		try:
+			del frappe.local.request
+		except AttributeError:
+			pass
+		frappe.local.form_dict = frappe._dict()
+
+	def _make_account(self, waba_id: str, secret: str | None) -> str:
+		uid = frappe.generate_hash(length=6)
+		return (
+			frappe.get_doc(
+				doctype="WA Account",
+				account_name=f"_Test Sig Acc {uid}",
+				status="Active",
+				phone_id=f"phone_{uid}",
+				business_id=waba_id,
+				app_id="test_app",
+				access_token="test_token",
+				webhook_secret=secret,
+			)
+			.insert()
+			.name
+		)
+
+	def _body(self, waba_id: str, phone_id: str) -> tuple[str, str]:
+		message_id = f"wamid.{frappe.generate_hash(length=12)}"
+		payload = {
+			"object": "whatsapp_business_account",
+			"entry": [
+				{
+					"id": waba_id,
+					"changes": [
+						{
+							"field": "messages",
+							"value": {
+								"metadata": {"phone_number_id": phone_id},
+								"contacts": [{"profile": {"name": "Relay Test"}}],
+								"messages": [
+									{
+										"from": "14155550100",
+										"id": message_id,
+										"timestamp": "1700000000",
+										"type": "text",
+										"text": {"body": "hello via central"},
+									}
+								],
+							},
+						}
+					],
+				}
+			],
+		}
+		# Central sends the same text it signs: frappe.as_json(body)
+		return frappe.as_json(payload), message_id
+
+	def _post(self, body: str, headers: dict):
+		from werkzeug.test import EnvironBuilder
+		from werkzeug.wrappers import Request
+
+		env = EnvironBuilder(
+			method="POST", data=body.encode(), headers=headers, content_type="application/json"
+		).get_environ()
+		frappe.local.request = Request(env)
+		frappe.local.form_dict = frappe._dict(json.loads(body))
+		return handler()
+
+	@staticmethod
+	def _sign(secret: str, body: str) -> str:
+		return hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+
+	def _relayed(self, secret: str):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, secret)
+		phone_id = frappe.db.get_value("WA Account", account, "phone_id")
+		body, message_id = self._body(waba_id, phone_id)
+		return account, waba_id, body, message_id
+
+	def test_valid_relayed_webhook_is_processed(self):
+		account, _waba, body, message_id = self._relayed("acc-secret")
+		# The site-wide secret of manual accounts does not apply to relayed webhooks.
+		frappe.db.set_single_value("WA Settings", "webhook_secret", "manual-secret")
+
+		result = self._post(body, {"X-Frappe-Central-Signature": f"sha256={self._sign('acc-secret', body)}"})
+
+		self.assertEqual(result, "ok")
+		self.assertEqual(
+			frappe.db.get_value("WA Message", {"message_id": message_id}, "whatsapp_account"), account
+		)
+
+	def test_relayed_bare_hex_signature_is_accepted(self):
+		_account, _waba, body, message_id = self._relayed("acc-secret")
+		self._post(body, {"X-Frappe-Central-Signature": self._sign("acc-secret", body)})
+		self.assertTrue(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_relayed_wrong_signature_is_rejected(self):
+		_account, _waba, body, message_id = self._relayed("acc-secret")
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("not-the-secret", body)})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_relayed_signature_with_another_accounts_secret_is_rejected(self):
+		_account, _waba, body, message_id = self._relayed("acc-secret")
+		self._make_account(f"waba_{frappe.generate_hash(length=8)}", "other-secret")
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("other-secret", body)})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_relayed_webhook_for_a_waba_no_account_uses_is_gone(self):
+		body, message_id = self._body(f"waba_{frappe.generate_hash(length=8)}", "phone_x")
+		with self.assertRaises(WABANotHere) as gone:
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("acc-secret", body)})
+		self.assertEqual(gone.exception.http_status_code, 410)
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_relayed_wrong_signature_is_forbidden_not_gone(self):
+		_account, _waba, body, _message_id = self._relayed("acc-secret")
+		with self.assertRaises(frappe.PermissionError) as forbidden:
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("not-the-secret", body)})
+		self.assertEqual(forbidden.exception.http_status_code, 403)
+
+	def test_relayed_signature_for_account_without_secret_is_rejected(self):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, None)
+		body, message_id = self._body(waba_id, frappe.db.get_value("WA Account", account, "phone_id"))
+		with self.assertRaises(frappe.PermissionError):
+			# Signed with an empty key: must not pass for an account that has no secret.
+			self._post(body, {"X-Frappe-Central-Signature": self._sign("", body)})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_manual_path_checks_settings_secret_as_before(self):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, None)
+		phone_id = frappe.db.get_value("WA Account", account, "phone_id")
+		frappe.db.set_single_value("WA Settings", "webhook_secret", "manual-secret")
+
+		body, message_id = self._body(waba_id, phone_id)
+		with self.assertRaises(frappe.AuthenticationError):
+			self._post(body, {"X-Hub-Signature-256": f"sha256={self._sign('wrong', body)}"})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+		body, message_id = self._body(waba_id, phone_id)
+		self._post(body, {"X-Hub-Signature-256": f"sha256={self._sign('manual-secret', body)}"})
+		self.assertTrue(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_unsigned_webhook_for_meta_connected_account_is_rejected(self):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		phone_id = frappe.db.get_value("WA Account", account, "phone_id")
+
+		# Named by its WABA id, and by its phone number under another WABA id.
+		for entry_id in (waba_id, f"waba_{frappe.generate_hash(length=8)}"):
+			body, message_id = self._body(entry_id, phone_id)
+			with self.assertRaises(frappe.PermissionError):
+				self._post(body, {})
+			self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_unsigned_webhook_routed_to_meta_connected_default_account_is_rejected(self):
+		account = self._make_account(f"waba_{frappe.generate_hash(length=8)}", "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		frappe.db.set_single_value("WA Settings", "default_account", account)
+
+		body, message_id = self._body(f"waba_{frappe.generate_hash(length=8)}", "phone_unknown")
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {})
+		self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def test_manual_path_without_settings_secret_accepts_unsigned(self):
+		waba_id = f"waba_{frappe.generate_hash(length=8)}"
+		account = self._make_account(waba_id, None)
+		body, message_id = self._body(waba_id, frappe.db.get_value("WA Account", account, "phone_id"))
+		self._post(body, {})
+		self.assertTrue(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def _connected_default_account(self) -> str:
+		account = self._make_account(f"waba_{frappe.generate_hash(length=8)}", "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		frappe.db.set_single_value("WA Settings", "default_account", account)
+		return account
+
+	def test_unsigned_webhook_without_phone_id_for_meta_connected_default_account_is_rejected(self):
+		self._connected_default_account()
+		for metadata in ({}, {"phone_number_id": ""}):
+			body, message_id = self._body(f"waba_{frappe.generate_hash(length=8)}", "unused")
+			payload = json.loads(body)
+			payload["entry"][0]["changes"][0]["value"]["metadata"] = metadata
+			body = frappe.as_json(payload)
+			with self.assertRaises(frappe.PermissionError):
+				self._post(body, {})
+			self.assertFalse(frappe.db.exists("WA Message", {"message_id": message_id}))
+
+	def _unsigned_change(self, field: str, value: dict) -> str:
+		entry = {
+			"id": f"waba_{frappe.generate_hash(length=8)}",
+			"changes": [{"field": field, "value": value}],
+		}
+		return frappe.as_json({"object": "whatsapp_business_account", "entry": [entry]})
+
+	def test_unsigned_template_status_for_meta_connected_account_is_rejected(self):
+		account = self._make_account(f"waba_{frappe.generate_hash(length=8)}", "central-secret")
+		frappe.db.set_value("WA Account", account, "connected_with_meta", 1)
+		template = TestWebhookNotifications._make_template(self, account, status="Pending")
+		template_id = frappe.db.get_value("WA Template", template, "whatsapp_template_id")
+		old_status = frappe.db.get_value("WA Template", template, "status")
+
+		body = self._unsigned_change(
+			"message_template_status_update", {"message_template_id": template_id, "status": "APPROVED"}
+		)
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {})
+		self.assertEqual(frappe.db.get_value("WA Template", template, "status"), old_status)
+
+	def test_unsigned_message_status_for_meta_connected_account_is_rejected(self):
+		manual = self._make_account(f"waba_{frappe.generate_hash(length=8)}", None)
+		connected = self._make_account(f"waba_{frappe.generate_hash(length=8)}", "central-secret")
+		frappe.db.set_value("WA Account", connected, "connected_with_meta", 1)
+		message_id = f"wamid.{frappe.generate_hash(length=12)}"
+		message = TestWebhookNotifications._make_outgoing(
+			self,
+			connected,
+			message_id=message_id,
+			status="Sent",
+			to=get_or_create_profile(
+				phone_number=f"+1{secrets.randbelow(10**10):010d}", account_name=connected, profile_name="x"
+			),
+		)
+		old_status = frappe.db.get_value("WA Message", message, "status")
+
+		# Sent under the phone number of a manual account, which the check allows.
+		body = self._unsigned_change(
+			"messages",
+			{
+				"metadata": {"phone_number_id": frappe.db.get_value("WA Account", manual, "phone_id")},
+				"statuses": [{"id": message_id, "status": "read"}],
+			},
+		)
+		with self.assertRaises(frappe.PermissionError):
+			self._post(body, {})
+		self.assertEqual(frappe.db.get_value("WA Message", message, "status"), old_status)

@@ -21,7 +21,7 @@ export function accountLayout(controller: AccountController): FormLayoutSchema {
                   fieldname: "status",
                   fieldtype: "Select",
                   label: "Status",
-                  options: "Active\nInactive",
+                  options: "Active\nInactive\nDisconnected",
                 },
                 { fieldname: "app_id", fieldtype: "Data", label: "App ID", placeholder: "Enter App ID" },
               ],

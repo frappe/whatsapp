@@ -5,6 +5,7 @@ const MAPPING_FIELDS = ["message_field", "sender_field", "sender_name_field", "t
 
 frappe.ui.form.on("WA Account", {
 	refresh: function (frm) {
+		add_connect_button(frm);
 		if (frm.is_new()) return;
 		frm.page.add_menu_item(__("Check Webhook Subscription"), () => {
 			frappe.call({
@@ -46,6 +47,33 @@ frappe.ui.form.on("WA Account Append", {
 	},
 });
 
+function add_connect_button(frm) {
+	const name = frm.doc.name;
+	const account = frm.is_new() ? null : name;
+	if (account && frm.doc.status !== "Disconnected") return;
+
+	frappe.xcall("whatsapp.whatsapp.oauth.can_connect_with_meta").then((can_connect) => {
+		// the form may have moved to another document while this was asked
+		if (frm.doc.name !== name) return;
+		if (account) {
+			frm.set_intro(
+				__("Meta no longer accepts this account's access token.") +
+					" " +
+					(can_connect
+						? __("Reconnect to send and receive messages again.")
+						: __("Enter a new access token below.")),
+				"red"
+			);
+		}
+		if (!can_connect) return;
+		frm.add_custom_button(account ? __("Reconnect") : __("Connect with Meta"), () =>
+			frappe
+				.xcall("whatsapp.whatsapp.oauth.initiate_connect", { wa_account: account })
+				.then((url) => window.location.assign(url))
+		);
+	});
+}
+
 function show_subscription_result(frm, result) {
 	const escape = frappe.utils.escape_html;
 	const waba = escape(frm.doc.business_id);
@@ -82,11 +110,15 @@ function show_subscription_result(frm, result) {
 			});
 		},
 	});
-	dialog.$body
-		.html(`<p>${__("The app is not subscribed to WABA {0}, so it receives no webhook events.", [waba])}</p>
+	dialog.$body.html(`<p>${__(
+		"The app is not subscribed to WABA {0}, so it receives no webhook events.",
+		[waba]
+	)}</p>
 		<p>${expected}</p>
 		<p>${__("Subscribed apps:")}</p>
 		<ul>${apps || `<li>${__("none")}</li>`}</ul>
-		<p>${__("Subscribe uses this account's access token, so the app that token belongs to is the one that gets subscribed.")}</p>`);
+		<p>${__(
+			"Subscribe uses this account's access token, so the app that token belongs to is the one that gets subscribed."
+		)}</p>`);
 	dialog.show();
 }
