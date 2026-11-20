@@ -193,12 +193,11 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
       sending.value = false;
     }
 
-    if (payload.attach) {
-      clearAttachment();
-      clearReply();
-    } else {
-      reset();
-    }
+    // The composer stays editable while the send is in flight, so only what was sent is
+    // cleared: a draft, attachment or reply chosen meanwhile is the next message.
+    if (pendingMedia.value?.file_url === payload.attach) clearAttachment();
+    if (replyTo.value?.name === payload.replyTo) clearReply();
+    if (!payload.attach && draft.value === payload.message) draft.value = "";
 
     await reload();
     return name;
