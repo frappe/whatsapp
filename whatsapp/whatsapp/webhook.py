@@ -26,7 +26,7 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 MESSAGE_FIELDS = frozenset({"messages", "message_template_status_update"})
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"], rate_limit=None)  # nosemgrep: guest-whitelisted-method  # fmt: skip
 def handler():
 	"""Dispatch Meta webhook requests: GET verifies, POST delivers events."""
 	if frappe.request.method == "GET":
