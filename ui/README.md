@@ -341,56 +341,59 @@ template created here with a media header will be refused by Meta until that lan
 
 ### Sending a template
 
-There is no template picker in this package. `useTemplates()` fetches the sendable templates
-and sends one; `TemplateContent` draws one; **where they are shown is the host's decision** —
-a dialog, a sidebar, a dropdown, a slash-command menu. Search, the grid and the "create a
-template" affordance are all host chrome.
+`TemplateSelector` is the picker: a search, a category filter, a grid of the approved templates
+and a Send button. It fetches, previews and sends by itself, and emits `sent` with the new
+message's docname. It draws no dialog or title, so wrap it in your own.
 
 ```vue
 <script setup lang="ts">
-import { TemplateContent, useTemplates } from "@whatsapp/ui";
-
-const templates = useTemplates({
-  referenceDoctype: () => props.doctype,
-  referenceDocname: () => props.docname,
-  to: () => props.phone,
-});
-
-async function send(templateName: string) {
-  // The two controllers are independent, so a template send does not refresh the
-  // conversation by itself. (With a socket wired up the realtime event does it for you.)
-  if (await templates.sendTemplate(templateName)) messages.reload();
-}
+import { TemplateSelector } from "@whatsapp/ui";
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-    <div
-      v-for="template in templates.templates"
-      :key="template.name"
-      class="flex h-56 cursor-pointer flex-col gap-2 rounded-lg border p-3 hover:bg-surface-gray-2"
-      @click="send(template.name)"
-    >
-      <div class="truncate border-b pb-2 text-base-semibold">{{ template.name }}</div>
-      <TemplateContent
-        class="min-h-0 flex-1 text-sm text-ink-gray-5"
-        :header="template.header_text"
-        :body="template.message"
-        :footer="template.footer"
-        :buttons="template.buttons"
-        body-class="min-h-0 flex-1 overflow-y-auto"
-      />
-    </div>
-  </div>
+  <Dialog v-model:open="show" title="WhatsApp Templates" size="4xl">
+    <template #default>
+      <TemplateSelector
+        reference-doctype="HD Ticket"
+        :reference-docname="ticket.name"
+        :to="phone"
+        :filters="{ name: ['in', allowed] }"
+        @sent="show = false; messages.reload()"
+      >
+        <template #actions><!-- sits right of the search and filter --></template>
+        <template #empty><!-- replaces "No approved templates" --></template>
+      </TemplateSelector>
+    </template>
+  </Dialog>
 </template>
 ```
 
+- **`reference-docname`** fills each card's mapped variables from that document on the server,
+  as the sent message will be. Unmapped ones stay as `{{1}}`.
+- **`to`** is the recipient: a `WA Profile` name or a phone number. Pass the profile when you
+  have one, such as the sender of the conversation's last incoming message. A profile is one
+  contact on one business number, so it is used as is. A phone number is matched only against
+  the default account's profiles, and a new profile is created there when none matches, so with
+  more than one business number it can land on the wrong one. While `to` is empty, Send is
+  disabled and the footer says "Add a phone number to send a template."
+- **`#actions`** sits right of the search and the category filter, for a host's own buttons
+  such as Create. **`#empty`** replaces the state shown when no template is approved yet; a
+  search or filter with no match keeps the built-in "No matching templates".
+- The search box takes focus when the selector mounts, so opening its dialog lets you type.
+- **`filters`** narrows the templates in the query. It cannot bring back what the reference
+  doctype or the Approved status leave out.
+- The two controllers are independent, so a send does not refresh the conversation by itself.
+  (With a socket wired up the realtime event does it for you.)
+
+For a picker of your own, `useTemplates()` fetches and sends, and `TemplateContent` draws one
+template, as each card of the selector does.
+
 `TemplateContent` is the template-side counterpart of `MessageBubble`, and the bubble's own
 template branch renders through it — so a preview cannot drift from the message it becomes.
-Feed it a `WhatsAppTemplate`'s `header_text`/`message`/`footer` as above, or a sent
+Feed it a `WhatsAppTemplate`'s `header_text`/`message`/`footer`, or a sent
 `WhatsAppMessage`'s `header`/`template`/`footer`.
 
-`body-class` exists for the fixed-height card above: only the body scrolls, so the footer and
+`body-class` is for a fixed-height card of your own: only the body scrolls, so the footer and
 buttons stay pinned rather than being clipped by a long body.
 
 ### Roll your own input
@@ -511,8 +514,9 @@ errors.
 ```ts
 const templates = useTemplates({
   referenceDoctype, // decides which templates are offered
-  referenceDocname, // optional: the document a sent template attaches to
+  referenceDocname, // optional: the document a sent template attaches to and fills from
   to, // optional: default recipient for sendTemplate()
+  filters, // optional: frappe.get_all filters that narrow the offering
 });
 
 // controller (a reactive object):
@@ -680,7 +684,7 @@ send_template(template, to, reference_doctype, reference_docname)
 From `whatsapp.whatsapp.doctype.wa_template.wa_template`:
 
 ```
-get_sendable_templates(reference_doctype)
+get_sendable_templates(reference_doctype, reference_docname, filters)
 create_template_and_push(doc_data, account_name)
 ```
 

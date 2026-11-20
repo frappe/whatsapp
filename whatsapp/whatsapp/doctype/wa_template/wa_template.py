@@ -679,17 +679,24 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 
 
 @frappe.whitelist()
-def get_sendable_templates(reference_doctype: str) -> list[dict]:
+def get_sendable_templates(
+	reference_doctype: str,
+	reference_docname: str | None = None,
+	filters: dict | None = None,
+) -> list[dict]:
 	"""Return Approved templates that can be sent from the given DocType.
 
 	Sendable means bound to that doctype, or unbound with no variables. Unbound templates
-	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md).
+	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md). `filters`
+	narrows the list further; with `reference_docname`, mapped variables in the header and
+	body come back filled from that document, as the sent message will be.
 	"""
 	run_access_guards()
 
 	templates = frappe.get_all(
 		"WA Template",
 		filters={
+			**(filters or {}),
 			"status": "Approved",
 			"reference_doctype": ["in", [reference_doctype, ""]],
 		},
@@ -703,6 +710,7 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 			"header_type",
 			"reference_doctype",
 			"language",
+			"template_type",
 		],
 		order_by="modified desc",
 	)
@@ -746,7 +754,26 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 		template["template_variables"] = variables_by_template.get(template.name, [])
 		template["buttons"] = buttons_by_template.get(template.name, [])
 
+	if reference_docname:
+		_fill_from_reference(sendable, reference_doctype, reference_docname)
 	return sendable
+
+
+def _fill_from_reference(templates: list[dict], doctype: str, docname: str) -> None:
+	"""Fill mapped variables from the reference document, with the values `WA Message` sends."""
+	frappe.has_permission(doctype, "read", docname, throw=True)
+	fields = {v["variable_field"] for t in templates for v in t["template_variables"] if v["variable_field"]}
+	if not fields:
+		return
+	values = frappe.db.get_value(doctype, docname, list(fields), as_dict=True) or {}
+	for template in templates:
+		for variable in template["template_variables"]:
+			if not variable["variable_field"]:
+				continue
+			placeholder = f"{{{{{variable['variable_name']}}}}}"
+			value = str(values.get(variable["variable_field"]) or "")
+			template["message"] = (template.message or "").replace(placeholder, value)
+			template["header_text"] = (template.header_text or "").replace(placeholder, value)
 
 
 @frappe.whitelist()

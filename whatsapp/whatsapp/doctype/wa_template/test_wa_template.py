@@ -514,6 +514,42 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 		template = next(t for t in get_sendable_templates("ToDo") if t.name == plain)
 		self.assertEqual(template["buttons"], [])
 
+	def test_reference_docname_fills_mapped_variables_and_leaves_the_rest(self):
+		"""The preview shows what `WA Message` will send: mapped values in, unmapped placeholders kept."""
+		todo = frappe.get_doc(doctype="ToDo", description="Call back").insert().name
+		bound = self._make_template(
+			"filled",
+			reference_doctype="ToDo",
+			message="Hi {{description}}, your code is {{code}}",
+			template_variables=[
+				{"variable_name": "description", "variable_example": "x", "variable_field": "description"},
+				{"variable_name": "code", "variable_example": "1234", "variable_field": ""},
+			],
+		)
+
+		row = next(t for t in get_sendable_templates("ToDo", todo) if t.name == bound)
+		self.assertEqual(row["message"], "Hi Call back, your code is {{code}}")
+		unfilled = next(t for t in get_sendable_templates("ToDo") if t.name == bound)
+		self.assertEqual(unfilled["message"], "Hi {{description}}, your code is {{code}}")
+
+	def test_reference_docname_needs_read_permission(self):
+		todo = frappe.get_doc(doctype="ToDo", description="Private").insert()
+		self._make_template("perm", reference_doctype="ToDo")
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			get_sendable_templates("ToDo", todo.name)
+
+	def test_filters_narrow_the_list_but_cannot_widen_it(self):
+		kept = self._make_template("kept", reference_doctype="ToDo")
+		dropped = self._make_template("dropped", reference_doctype="ToDo")
+		pending = self._make_template("pending_filtered", status="Pending", reference_doctype="ToDo")
+
+		names = [t.name for t in get_sendable_templates("ToDo", filters={"name": ["in", [kept, pending]]})]
+		self.assertEqual(names, [kept])
+		self.assertNotIn(dropped, names)
+		widened = get_sendable_templates("ToDo", filters={"status": "Pending"})
+		self.assertNotIn(pending, [t.name for t in widened])
+
 
 class TestUtils:
 	"""Plain unit tests for utility functions (no DB needed)."""

@@ -1,5 +1,6 @@
 export { default as TemplateForm } from "./TemplateForm.vue";
 export { default as TemplatePreview } from "./TemplatePreview.vue";
+export { default as TemplateSelector } from "./TemplateSelector.vue";
 export { default as TemplateBodyEditor } from "./TemplateBodyEditor.vue";
 export { default as TemplateVariablesField } from "./TemplateVariablesField.vue";
 export { useTemplate, emptyTemplate } from "./useTemplate";
@@ -12,6 +13,7 @@ export type {
   TemplateController,
   TemplateFormProps,
   TemplatePreviewProps,
+  TemplateSelectorProps,
   TemplateHeaderType,
   TemplateIndicator,
   TemplateStatus,
