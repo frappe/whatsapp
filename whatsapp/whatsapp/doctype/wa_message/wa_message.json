@@ -66,6 +66,7 @@
    "fieldname": "to",
    "fieldtype": "Link",
    "label": "To",
+   "link_filters": "[[\"WA Profile\",\"status\",\"!=\",\"Disabled\"]]",
    "options": "WA Profile",
    "reqd": 1,
    "search_index": 1

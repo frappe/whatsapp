@@ -20,7 +20,7 @@ const props = defineProps<FlowListProps>();
 const emit = defineEmits<{ open: [name: string]; new: [] }>();
 
 const chrome = useChrome(() => props.chrome);
-const COLUMNS = ["minmax(0,1fr)", "7rem", "minmax(0,14rem)", "8rem", "8rem"];
+const COLUMNS = ["minmax(0,2fr)", "7rem", "minmax(0,1fr)", "8rem", "8rem"];
 const columns = computed(() => (props.canWrite ? [...COLUMNS, "2.5rem"] : COLUMNS));
 const SKELETON_ROWS = 4;
 
@@ -62,12 +62,12 @@ function confirmDelete(row: FlowListRow) {
 
 <template>
 	<div class="flex flex-col gap-6 text-ink-gray-8">
-		<div class="flex items-start justify-between gap-4">
+		<div v-if="!hideHeader" class="flex items-start justify-between gap-4">
 			<div class="flex min-w-0 flex-col gap-1">
 				<h2 class="text-xl-semibold text-ink-gray-9">{{ chrome.listTitle }}</h2>
 				<p class="text-p-base text-ink-gray-6">{{ chrome.listDescription }}</p>
 			</div>
-			<div class="flex shrink-0 items-center gap-2">
+			<div v-if="canWrite" class="flex shrink-0 items-center gap-2">
 				<Button
 					v-if="controller.account"
 					variant="subtle"
@@ -104,6 +104,7 @@ function confirmDelete(row: FlowListRow) {
 				<p class="text-p-sm text-ink-gray-6">{{ chrome.emptyDescription }}</p>
 			</div>
 			<Button
+				v-if="canWrite"
 				variant="solid"
 				icon-left="lucide-plus"
 				:label="chrome.newFlow"

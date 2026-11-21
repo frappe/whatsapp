@@ -33,6 +33,7 @@ const publishReason = computed(() => {
 		<nav class="flex min-w-0 items-center gap-1 text-lg" aria-label="Breadcrumbs">
 			<Button
 				variant="ghost"
+				icon-left="lucide-arrow-left"
 				:label="chrome.flowsCrumb"
 				class="shrink-0 text-ink-gray-5"
 				@click="emit('close')"

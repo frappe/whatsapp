@@ -29,6 +29,11 @@ export class LoadCache<T> {
     return PENDING;
   }
 
+  /** Fetches every loaded key again; each keeps its data until the answer comes. */
+  refresh() {
+    for (const entry of this.entries.values()) entry.retry();
+  }
+
   clear() {
     this.entries.clear();
     this.scheduled.clear();

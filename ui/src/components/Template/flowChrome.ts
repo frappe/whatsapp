@@ -19,6 +19,8 @@ export const FLOW_BUTTON_CHROME = {
   actionNavigate: "Navigate",
   actionDataExchange: "Data exchange",
   previewLabel: "Preview",
+  newFlow: "New flow",
+  editFlow: "Edit flow",
   emptyOutline:
     "This Flow's JSON could not be read, so its inputs and answers can't be listed until the Flow syncs.",
   outlineError: "Couldn't load this Flow's screens and answers",

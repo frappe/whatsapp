@@ -9,6 +9,7 @@ import PreviewColumn from "./builder/PreviewColumn.vue";
 import ScreensList from "./builder/ScreensList.vue";
 import JsonDialog from "./preview/JsonDialog.vue";
 import PreviewToolbar from "./preview/PreviewToolbar.vue";
+import { firstProblem } from "./builder/problems";
 import { ContentRows, titleRow } from "./builder/rows";
 import { format } from "./chrome";
 import { provideBuilder, useChrome } from "./context";
@@ -60,6 +61,7 @@ const readOnlyAlert = computed(() => {
 	const status = session.flow?.status;
 	if (!session.readOnly || !status) return null;
 	const titles: Record<string, string> = {
+		Draft: chrome.value.readOnlyNoPermission,
 		Published: chrome.value.readOnlyPublished,
 		Deprecated: chrome.value.readOnlyDeprecated,
 		Throttled: chrome.value.readOnlyThrottled,
@@ -91,17 +93,26 @@ async function close() {
 	});
 }
 
-/** Escape closes the builder unless it belongs to a dialog or menu open above it. */
+/**
+ * Escape closes the builder unless it belongs to a dialog or menu open above it. `defaultPrevented`
+ * is not checked: a non-dismissible host Dialog prevents every Escape.
+ */
 function closeOnEscape(event: KeyboardEvent) {
-	if (event.key !== "Escape" || event.defaultPrevented || overlayAbove()) return;
+	if (event.key !== "Escape" || overlayAbove()) return;
 	close();
 }
 
+/** Overlays open later are later in the DOM, so a host dialog under the builder doesn't count. */
 function overlayAbove(): boolean {
+	if (!root.value) return true;
 	const overlays = document.querySelectorAll(
 		'[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]'
 	);
-	return [...overlays].some((overlay) => !root.value || !overlay.contains(root.value));
+	return [...overlays].some(
+		(overlay) =>
+			!overlay.contains(root.value!) &&
+			!!(root.value!.compareDocumentPosition(overlay) & Node.DOCUMENT_POSITION_FOLLOWING)
+	);
 }
 
 useEventListener(window, "keydown", closeOnEscape);
@@ -115,15 +126,31 @@ async function publish() {
 		title: chrome.value.publishTitle,
 		message: chrome.value.publishMessage,
 		confirmLabel: chrome.value.publish,
-		async onConfirm() {
-			publishing.value = true;
-			try {
-				await rethrowReadable(() => session.publish());
-			} finally {
-				publishing.value = false;
-			}
-		},
+		onConfirm: ({ close }) => runPublish(close),
 	});
+}
+
+/** A refusal closes the confirm: problems it reveals are shown to fix, anything else offers Try again. */
+async function runPublish(close: () => void) {
+	publishing.value = true;
+	try {
+		await session.publish();
+	} catch (e) {
+		close();
+		if (session.errorCount) {
+			rows.revealProblem(firstProblem(session.model!, session.problems)!);
+			return;
+		}
+		dialog.confirm({
+			title: chrome.value.publishFailedTitle,
+			message: serverErrorMessage(e),
+			confirmLabel: chrome.value.tryAgain,
+			cancelLabel: chrome.value.close,
+			onConfirm: ({ close: closeRetry }) => runPublish(closeRetry),
+		});
+	} finally {
+		publishing.value = false;
+	}
 }
 
 async function makeCopy() {
@@ -178,7 +205,11 @@ async function rethrowReadable<T>(run: () => Promise<T>): Promise<T> {
 			<div v-if="readOnlyAlert" class="border-b border-outline-gray-1 px-3 py-2">
 				<Alert
 					:theme="readOnlyAlert.theme"
-					:primary-action="{ label: chrome.makeCopy, onClick: makeCopy }"
+					:primary-action="
+						session.canWrite
+							? { label: chrome.makeCopy, onClick: makeCopy }
+							: undefined
+					"
 				>
 					<template #title>
 						{{ readOnlyAlert.title }}

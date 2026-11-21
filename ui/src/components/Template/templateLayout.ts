@@ -3,7 +3,9 @@ import FlowButtonEditor from "./FlowButtonEditor.vue";
 import TemplateBodyEditor from "./TemplateBodyEditor.vue";
 import TemplateVariablesField from "./TemplateVariablesField.vue";
 import { FLOW_BUTTON_CHROME, type FlowButtonChrome } from "./flowChrome";
-import type { TemplateButtonRow, TemplateController } from "./types";
+import type { FlowButtonEditorProps, TemplateButtonRow, TemplateController } from "./types";
+
+type FlowLinks = Pick<FlowButtonEditorProps, "onNewFlow" | "onEditFlow">;
 
 // Only documents a template can be sent from: child rows and singles have no record to bind to.
 const REFERENCE_FILTERS = { istable: 0, issingle: 0 };
@@ -36,7 +38,8 @@ const BUTTON_COLUMNS: FieldNode[] = [
 
 export function templateLayout(
   controller: TemplateController,
-  flowChrome: Partial<FlowButtonChrome> = {}
+  flowChrome: Partial<FlowButtonChrome> = {},
+  flowLinks: FlowLinks = {}
 ): FormLayoutSchema {
   const { isNew, doc, editable } = controller;
   const schema: FormLayoutSchema = [
@@ -191,7 +194,7 @@ export function templateLayout(
             },
           ],
         },
-        ...flowButtonSections(controller, flowChrome),
+        ...flowButtonSections(controller, flowChrome, flowLinks),
       ],
     },
   ];
@@ -201,7 +204,8 @@ export function templateLayout(
 // A Flow button's settings don't fit a grid row, so each gets a section of its own below the grid.
 function flowButtonSections(
   controller: TemplateController,
-  chrome: Partial<FlowButtonChrome>
+  chrome: Partial<FlowButtonChrome>,
+  links: FlowLinks
 ): Section[] {
   const untitled = chrome.untitledButton ?? FLOW_BUTTON_CHROME.untitledButton;
   return controller.doc.buttons
@@ -215,7 +219,7 @@ function flowButtonSections(
       part: {
         name: "flow-button",
         component: FlowButtonEditor,
-        props: { controller, button, chrome, disabled: !controller.editable },
+        props: { controller, button, chrome, disabled: !controller.editable, ...links },
       },
     }));
 }

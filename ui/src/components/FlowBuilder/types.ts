@@ -93,8 +93,10 @@ export interface FlowBuilderProps {
 
 export interface FlowListProps {
   controller: import("./listSession").FlowListSession;
-  /** Offers Delete on Draft Flows. The server checks the permission again. */
+  /** Offers New flow, Sync from WhatsApp and Delete on Draft Flows. The server checks the permission again. */
   canWrite?: boolean;
+  /** Leaves out the title, description, New flow and Sync, for a host that shows them in its own header. */
+  hideHeader?: boolean;
   chrome?: Partial<FlowBuilderChrome>;
 }
 

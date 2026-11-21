@@ -63,12 +63,15 @@ export const FLOW_BUILDER_CHROME = {
   publishBlockedError: "Fix 1 error before you publish",
   publishBlockedErrors: "Fix {0} errors before you publish",
   publishTitle: "Publish this Flow?",
+  publishFailedTitle: "Couldn't publish",
+  tryAgain: "Try again",
   publishMessage:
     "Publishing locks this Flow. You can't change it after this; you can only make a copy. Templates can send it once it is published.",
   closeTitle: "Close anyway?",
   closeMessage: "Your last changes couldn't be saved.",
   loadError: "Couldn't open this Flow",
 
+  readOnlyNoPermission: "You can view this Flow, but you don't have permission to change it.",
   readOnlyPublished: "Published Flows can't be changed.",
   readOnlyDeprecated: "This Flow is deprecated. It can't be changed or sent.",
   readOnlyThrottled: "WhatsApp throttles this Flow, so it's read only.",

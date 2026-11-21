@@ -155,6 +155,8 @@ export interface TemplateController {
   reload(): Promise<void>;
   /** the Flows of the WhatsApp Business Account of `doc.whatsapp_account`; null while there is no account */
   flows: Loaded<WhatsAppFlowOption[]> | null;
+  /** Fetches the Flows and their outlines again, keeping the form's edits, e.g. after the Flow builder closes. */
+  refreshFlows(): void;
   /** one Flow's outline, cached per Flow */
   outline(flow: string | undefined): Loaded<FlowOutline> | null;
   /** fields of the reference DocType that can fill a Flow input declared as `declaredType` */
@@ -167,6 +169,9 @@ export interface TemplateFormProps {
   controller: TemplateController;
   /** Chrome for every Flow button's editor */
   flowChrome?: Partial<FlowButtonChrome>;
+  /** passed on to every Flow button's editor */
+  onNewFlow?: () => void;
+  onEditFlow?: (flow: string) => void;
 }
 
 /** Configures one Flow button row: its Flow, inputs and Response actions. Draws content, not its container. */
@@ -176,6 +181,12 @@ export interface FlowButtonEditorProps {
   button: TemplateButtonRow;
   disabled?: boolean;
   chrome?: Partial<FlowButtonChrome>;
+  /**
+   * `@new-flow` shows "New flow" under the Flow picker's options; `@edit-flow` shows "Edit flow"
+   * beside its label once a Flow is chosen. Props, not emits, so each shows only when the host listens.
+   */
+  onNewFlow?: () => void;
+  onEditFlow?: (flow: string) => void;
 }
 
 /** The message as the contact will read it, with the variables' examples filled in. */

@@ -187,6 +187,7 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
     save,
     reload,
     flows,
+    refreshFlows: flowOptions.refreshFlows,
     outline: flowOptions.outline,
     inputSourceFields: flowOptions.inputSourceFields,
     mappableFields: flowOptions.mappableFields,

@@ -11,8 +11,16 @@ const RULES_DELAY_MS = 300;
  * Opens one Flow for the builder. Every edit replaces the model, so a shallow proxy is enough;
  * the rules run once typing pauses, and the session saves once it pauses longer.
  */
-export function useFlowBuilder({ name, api = frappeFlowApi }: { name: string; api?: FlowBuilderApi }) {
-  const session = shallowReactive(new BuilderSession(api, name)) as BuilderSession;
+export function useFlowBuilder({
+  name,
+  canWrite = true,
+  api = frappeFlowApi,
+}: {
+  name: string;
+  canWrite?: boolean;
+  api?: FlowBuilderApi;
+}) {
+  const session = shallowReactive(new BuilderSession(api, name, canWrite)) as BuilderSession;
   const checkRules = debounce(() => session.checkRules(), RULES_DELAY_MS);
   watch(
     () => session.model,

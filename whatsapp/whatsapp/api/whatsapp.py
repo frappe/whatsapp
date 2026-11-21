@@ -177,6 +177,12 @@ class WhatsApp:
 		}
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)
 
+	def block_user(self, user: str) -> dict:
+		return self._request("POST", f"{self.phone_number_id}/block_users", json=_block_users_payload(user))
+
+	def unblock_user(self, user: str) -> dict:
+		return self._request("DELETE", f"{self.phone_number_id}/block_users", json=_block_users_payload(user))
+
 	def upload_media(self, file_content: bytes, mime_type: str, file_name: str) -> dict:
 		url = f"{self.base_url}/{self.api_version}/{self.phone_number_id}/media"
 		headers = {"Authorization": f"Bearer {self.access_token}"}
@@ -203,3 +209,7 @@ def _extract_meta_error(body: str) -> str:
 	except ValueError, AttributeError:
 		return body
 	return describe_meta_error(error) or body
+
+
+def _block_users_payload(user: str) -> dict:
+	return {"messaging_product": "whatsapp", "block_users": [{"user": user}]}

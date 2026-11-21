@@ -52,11 +52,13 @@ export class BuilderSession {
 
   constructor(
     private api: FlowBuilderApi,
-    readonly name: string
+    readonly name: string,
+    /** The user's write permission on the Flow; without it every Flow opens read only. */
+    readonly canWrite = true
   ) {}
 
   get readOnly(): boolean {
-    return !!this.flow && this.flow.status !== EDITABLE_STATUS;
+    return !this.canWrite || (!!this.flow && this.flow.status !== EDITABLE_STATUS);
   }
 
   get saveState(): SaveState {

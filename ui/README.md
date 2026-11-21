@@ -367,6 +367,24 @@ popover, each with a Retry.
 other field. A mapping whose answer the current Flow no longer sends shows an amber warning on
 its line and on its collapsed row; the server warns about it too, without refusing the save.
 
+**Links to the Flow builder.** `@edit-flow="(flow) => …"` shows "Edit flow" beside the "Flow to
+open" label once a Flow is chosen, and `@new-flow="() => …"` shows "New flow" under the picker's
+options (only when the template has an account). The host opens its own builder dialog or
+`NewFlowDialog`; leave a listener off and its link is not drawn, so a host that can't create
+Flows passes no `@new-flow`. They are props (`onNewFlow`, `onEditFlow`), not emits, so the editor
+can tell whether anyone listens. `TemplateForm` takes the same two and passes them to every
+editor. After the builder closes, call `template.refreshFlows()`: it fetches the Flows and the
+outlines again in place, keeping each one's data until the answer comes and keeping the form's
+unsaved edits (`reload()` would drop them).
+
+```vue
+<TemplateForm
+  :controller="template"
+  @new-flow="creating = true"
+  @edit-flow="(flow) => (openFlow = flow)"
+/>
+```
+
 **Chrome** is one `chrome` prop (`FLOW_BUTTON_CHROME` lists every key and its English default),
 not a prop per string: the editor has some sixty strings. `TemplateForm` passes its own
 `flowChrome` prop on to every editor.
@@ -383,7 +401,7 @@ controller to point them elsewhere.
 import { FlowList, NewFlowDialog, FlowBuilder, useFlowList, useFlowBuilder } from "@whatsapp/ui"
 
 const flows = useFlowList({ account: "Sales Line" })   // get_flow_list, create_flow, delete_flow, sync_flows
-const builder = useFlowBuilder({ name: flowName })      // get_flow_for_builder, save_flow, publish_flow, copy_flow
+const builder = useFlowBuilder({ name: flowName, canWrite })  // get_flow_for_builder, save_flow, publish_flow, copy_flow
 </script>
 
 <FlowList :controller="flows" can-write @new="creating = true" @open="openBuilder" />
@@ -396,11 +414,14 @@ const builder = useFlowBuilder({ name: flowName })      // get_flow_for_builder,
 </Dialog>
 ```
 
-- **`FlowList`** draws the title, New flow, Sync from WhatsApp (when the controller has an
-  account), the table, its skeleton, its empty state and a load error with Retry. It emits
-  `open(name)` and `new`. With `can-write`, each Draft row has Delete: it asks with
-  `dialog.danger`, calls `delete_flow` and reloads the list. A refusal, such as templates still
-  using the Flow, shows as a toast. The host decides `can-write`; the server checks it again.
+- **`FlowList`** draws the title, the table, its skeleton, its empty state and a load error with
+  Retry. It emits `open(name)` and `new`. With `can-write` it also draws New flow (in the header
+  and the empty state), Sync from WhatsApp (when the controller has an account), and Delete on
+  each Draft row: Delete asks with `dialog.danger`, calls `delete_flow` and reloads the list. A
+  refusal, such as templates still using the Flow, shows as a toast. Without `can-write` the list
+  is read only. The host decides `can-write` from the user's permission; the server checks it again.
+  With `hide-header`, the title, description, New flow and Sync are left out, for a host that puts
+  them in its own header (the controller's `sync()` and `syncing` drive a host's Sync button).
 - **`NewFlowDialog`** asks for the name, the categories and a starting point (Blank, or a copy
   of a listed Flow, which is `create_flow` with `clone_from`). `FlowNameError` and
   `FlowCategoriesError` show on their field; other errors under the form. It emits
@@ -424,7 +445,19 @@ says otherwise (jumps, more than one ending, navigation in Advanced blocks or a
 **The controller owns the state.** `useFlowBuilder` returns a `BuilderSession`: `model`,
 `dirty`, `saveState` (`saved`, `saving`, `failed`, `conflict`), `problems` (the model's rules,
 run 300 ms after an edit stops, plus Meta's `validation_errors` located on the blocks),
-`errorCount` (Publish waits for it to be 0), `selection` and `readOnly` (any status but Draft).
+`errorCount` (Publish waits for it to be 0), `selection` and `readOnly` (any status but Draft,
+or `canWrite: false`).
+
+**A user without write permission sees every Flow read only.** Pass `canWrite: false` to
+`useFlowBuilder` when the user can read `WA Flow` but not write it (it defaults to `true`). The
+builder then never saves, has no Publish and no "Make a copy", and a Draft shows "You can view
+this Flow, but you don't have permission to change it." in place of the status banner. The
+server refuses the writes anyway; this keeps the user from editing into a save that fails.
+
+**Escape** closes the builder even when the host's Dialog marks the key handled (a
+non-dismissible frappe-ui Dialog prevents every Escape). It is ignored while a dialog, menu or
+listbox opened after the builder is open; a host dialog under the builder, such as CRM's
+Settings, does not count.
 
 **It saves by itself.** 1500 ms after the last edit the session calls `save_flow`, which stores
 the Flow and uploads it to Meta. One save runs at a time; edits made during it are saved once

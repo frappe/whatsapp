@@ -47,6 +47,10 @@ export function useFlowOptions() {
     clear() {
       for (const cache of [flows, outlines, inputFields, targetFields]) cache.clear();
     },
+    refreshFlows() {
+      flows.refresh();
+      outlines.refresh();
+    },
     flowsFor: (account: string | undefined) => (account ? flows.get(account) : null),
     outline: (flow: string | undefined) => (flow ? outlines.get(flow) : null),
     inputSourceFields: (referenceDoctype: string | undefined, declaredType: string) =>

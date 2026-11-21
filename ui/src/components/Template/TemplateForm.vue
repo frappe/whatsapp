@@ -10,7 +10,12 @@ const props = defineProps<TemplateFormProps>();
 
 provide(CommitKey, NO_COMMIT);
 
-const layout = computed(() => templateLayout(props.controller, props.flowChrome));
+const layout = computed(() =>
+	templateLayout(props.controller, props.flowChrome, {
+		onNewFlow: props.onNewFlow,
+		onEditFlow: props.onEditFlow,
+	})
+);
 
 const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 </script>

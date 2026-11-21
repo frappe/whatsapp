@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Badge, Combobox, FormLabel, Select } from "frappe-ui";
+import { Badge, Button, Combobox, FormLabel, Select } from "frappe-ui";
 import FlowInputsEditor from "./FlowInputsEditor.vue";
 import ResponseActionsEditor from "./ResponseActionsEditor.vue";
 import { FLOW_BUTTON_CHROME } from "./flowChrome";
@@ -97,6 +97,11 @@ function setInputs(next: FlowInput[]) {
 	set({ flow_inputs: serializeInputs(next) });
 }
 
+function newFlow(closePicker: () => void) {
+	closePicker();
+	props.onNewFlow?.();
+}
+
 function writeActions() {
 	written = serializeActions(actions.value);
 	set({ flow_response_actions: written });
@@ -111,24 +116,34 @@ function writeActions() {
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center justify-between gap-2">
 						<FormLabel :label="chrome.flowLabel" />
-						<button
-							v-if="flows?.error"
-							type="button"
-							class="truncate text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
-							@click="flows.retry()"
-						>
-							{{ chrome.flowsError }} · {{ chrome.retry }}
-						</button>
-						<a
-							v-else-if="flow?.preview_url"
-							:href="flow.preview_url"
-							target="_blank"
-							rel="noopener noreferrer"
-							class="flex items-center gap-1 text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
-						>
-							{{ chrome.previewLabel }}
-							<span class="lucide-arrow-up-right size-3" aria-hidden="true" />
-						</a>
+						<div class="flex min-w-0 items-center gap-3">
+							<button
+								v-if="onEditFlow && button.flow"
+								type="button"
+								class="shrink-0 text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
+								@click="onEditFlow(button.flow)"
+							>
+								{{ chrome.editFlow }}
+							</button>
+							<button
+								v-if="flows?.error"
+								type="button"
+								class="truncate text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
+								@click="flows.retry()"
+							>
+								{{ chrome.flowsError }} · {{ chrome.retry }}
+							</button>
+							<a
+								v-else-if="flow?.preview_url"
+								:href="flow.preview_url"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="flex items-center gap-1 text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
+							>
+								{{ chrome.previewLabel }}
+								<span class="lucide-arrow-up-right size-3" aria-hidden="true" />
+							</a>
+						</div>
 					</div>
 					<Combobox
 						trigger="button"
@@ -161,6 +176,18 @@ function writeActions() {
 								variant="subtle"
 								:theme="STATUS_THEME[item.status as WhatsAppFlowStatus]"
 								:label="item.status"
+							/>
+						</template>
+						<template
+							v-if="onNewFlow && controller.doc.whatsapp_account"
+							#footer="{ close }"
+						>
+							<Button
+								variant="ghost"
+								class="w-full !justify-start"
+								icon-left="lucide-plus"
+								:label="chrome.newFlow"
+								@click="newFlow(close)"
 							/>
 						</template>
 						<template #empty>
