@@ -17,6 +17,7 @@ from whatsapp.whatsapp.api.utils import (
 	build_reaction_message_payload,
 	build_template_message_payload,
 	build_text_message_payload,
+	get_header_media_file,
 	get_managed_doctypes,
 	log,
 )
@@ -229,37 +230,35 @@ class WAMessage(Document):
 				self.run_notifications("on_send_failed")
 				frappe.throw(_("Failed to upload media: {0}").format(str(e)))
 
-		if self.is_template and self.whatsapp_template:
+		if self.is_template and self.whatsapp_template and not self.template_header_parameters:
 			template_doc = frappe.get_doc("WA Template", self.whatsapp_template)
 			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media:
-				if not template_doc.header_media_handle:
-					file_doc = frappe.get_doc("File", template_doc.header_media)
-					file_content = file_doc.get_content()
-					file_name = file_doc.file_name
-					mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
-					try:
-						media_result = client.upload_media(file_content, mime_type, file_name)
-						handle = media_result.get("id")
-						frappe.db.set_value("WA Template", template_doc.name, "header_media_handle", handle)
-						template_doc.header_media_handle = handle
-						template_doc.mime_type = mime_type
-						frappe.db.set_value("WA Template", template_doc.name, "mime_type", mime_type)
-					except requests.HTTPError as e:
-						self.status = "Failed"
-						self.error_message = str(e)
-						log(
-							"Error",
-							"Message",
-							f"Template header media upload failed for {self.to}: {e}",
-							account=self.whatsapp_account,
-							reference_doctype="WA Message",
-							reference_docname=self.name,
-							traceback=frappe.get_traceback(),
-						)
-						self.db_set("status", "Failed")
-						self.db_set("error_message", str(e))
-						self.run_notifications("on_send_failed")
-						frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
+				file_doc = get_header_media_file(template_doc.header_media)
+				if not file_doc:
+					frappe.throw(_("The template sample file is missing."))
+				file_content = file_doc.get_content()
+				file_name = file_doc.file_name
+				mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
+				try:
+					media_result = client.upload_media(file_content, mime_type, file_name)
+					self.media_id = media_result.get("id")
+					self.mime_type = mime_type
+				except requests.HTTPError as e:
+					self.status = "Failed"
+					self.error_message = str(e)
+					log(
+						"Error",
+						"Message",
+						f"Template header media upload failed for {self.to}: {e}",
+						account=self.whatsapp_account,
+						reference_doctype="WA Message",
+						reference_docname=self.name,
+						traceback=frappe.get_traceback(),
+					)
+					self.db_set("status", "Failed")
+					self.db_set("error_message", str(e))
+					self.run_notifications("on_send_failed")
+					frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
 
 		payload = self._build_payload()
 		try:
@@ -349,9 +348,8 @@ class WAMessage(Document):
 			body_params = json.loads(self.template_body_parameters or "{}")
 
 			header_params = self.template_header_parameters
-			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media_handle:
-				if not header_params:
-					header_params = json.dumps({"id": template_doc.header_media_handle})
+			if template_doc.header_type in MEDIA_HEADER_TYPES and self.media_id and not header_params:
+				header_params = json.dumps({"id": self.media_id})
 
 			payload = build_template_message_payload(
 				to=to_phone,

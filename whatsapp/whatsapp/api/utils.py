@@ -310,6 +310,18 @@ BUTTON_TYPES = {
 MEDIA_HEADER_TYPES = ("Image", "Document", "Video", "GIF")
 
 
+def get_header_media_file(file_ref: str | None):
+	"""File named by a WA Template header, whether the value is a File name or a URL."""
+	if not file_ref:
+		return None
+	if frappe.db.exists("File", file_ref):
+		return frappe.get_doc("File", file_ref)
+	name = frappe.db.get_value("File", {"file_url": file_ref}, "name")
+	if not name:
+		return None
+	return frappe.get_doc("File", name)
+
+
 def _to_local(mapping: dict[str, str], api_value: str, default: str = "") -> str:
 	return mapping.get((api_value or "").upper(), default)
 

@@ -147,6 +147,49 @@ class WhatsApp:
 		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, result)
 		return result
 
+	def upload_template_sample(self, file_content: bytes, mime_type: str, file_name: str) -> str:
+		"""Upload a template header sample and return Meta's approval handle.
+
+		This is the resumable upload on the app id. ``upload_media`` is a different
+		call: it returns an id for sending a chat message, and Meta will not accept
+		that id as ``example.header_handle`` when the template is created.
+		"""
+		if not self.app_id:
+			raise requests.HTTPError("WhatsApp App ID is required to upload a template sample")
+
+		session = self._request(
+			"POST",
+			f"{self.app_id}/uploads",
+			params={
+				"file_name": file_name,
+				"file_length": len(file_content),
+				"file_type": mime_type,
+			},
+		)
+		session_id = session.get("id")
+		if not session_id:
+			raise requests.HTTPError("Meta did not return an upload session for the template sample")
+
+		url = f"{self.base_url}/{self.api_version}/{session_id}"
+		headers = {
+			"Authorization": f"OAuth {self.access_token}",
+			"file_offset": "0",
+			"Content-Type": "application/octet-stream",
+		}
+		resp = requests.post(url, headers=headers, data=file_content)
+		try:
+			resp.raise_for_status()
+		except requests.HTTPError:
+			error_msg = _extract_meta_error(resp.text)
+			self._log_api_error("POST", url, {"file": file_name, "type": mime_type}, resp)
+			raise requests.HTTPError(error_msg)
+		result = resp.json()
+		handle = result.get("h")
+		if not handle:
+			raise requests.HTTPError("Meta did not return a template sample handle")
+		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, {"h": handle})
+		return handle
+
 
 def _extract_meta_error(body: str) -> str:
 	try:

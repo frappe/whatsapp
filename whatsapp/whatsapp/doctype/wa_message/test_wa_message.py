@@ -692,7 +692,7 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_template_header_media_uploaded_when_missing(self, mock_send, mock_upload):
-		"""Template header media is uploaded on first send when handle missing."""
+		"""Sending a media template uploads a message id and leaves the approval handle alone."""
 		mock_upload.return_value = {"id": "h_handle_001"}
 		mock_send.return_value = {"messages": [{"id": "wa_th_001"}]}
 		self._make_setting()
@@ -710,13 +710,17 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 		doc.submit()
 
 		mock_upload.assert_called_once()
-		handle = frappe.db.get_value("WA Template", tmpl, "header_media_handle")
-		self.assertEqual(handle, "h_handle_001")
+		self.assertEqual(doc.media_id, "h_handle_001")
+		self.assertFalse(frappe.db.get_value("WA Template", tmpl, "header_media_handle"))
+		payload = mock_send.call_args.args[0]
+		header = next(row for row in payload["template"]["components"] if row["type"] == "header")
+		self.assertEqual(header["parameters"][0]["image"]["id"], "h_handle_001")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
-	def test_template_header_media_skipped_when_cached(self, mock_send, mock_upload):
-		"""Template header media is NOT re-uploaded when handle already cached."""
+	def test_template_header_media_uploaded_when_approval_handle_exists(self, mock_send, mock_upload):
+		"""An approval handle is not a send id, so the sample is still uploaded for the message."""
+		mock_upload.return_value = {"id": "send_media_002"}
 		mock_send.return_value = {"messages": [{"id": "wa_th_002"}]}
 		self._make_setting()
 
@@ -733,7 +737,9 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 		doc.insert()
 		doc.submit()
 
-		mock_upload.assert_not_called()
+		mock_upload.assert_called_once()
+		self.assertEqual(frappe.db.get_value("WA Template", tmpl, "header_media_handle"), "existing_handle")
+		self.assertEqual(doc.media_id, "send_media_002")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	def test_template_header_media_upload_failure_fails_send(self, mock_upload):
