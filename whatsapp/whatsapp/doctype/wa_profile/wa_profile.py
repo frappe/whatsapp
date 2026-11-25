@@ -6,6 +6,7 @@ import re
 
 import frappe
 import phonenumbers
+import requests
 from frappe import _
 from frappe.geo.country_info import get_country_info
 from frappe.model.document import Document
@@ -24,11 +25,10 @@ class WAProfile(Document):
 		from frappe.core.doctype.dynamic_link.dynamic_link import DynamicLink
 		from frappe.types import DF
 
-		last_message_at: DF.Datetime | None
 		links: DF.Table[DynamicLink]
 		phone_number: DF.Data
 		profile_name: DF.Data | None
-		status: DF.Literal["Active", "Blocked", "Archived"]
+		status: DF.Literal["Active", "Blocked", "Disabled"]
 		wa_id: DF.Data | None
 		whatsapp_account: DF.Link
 	# end: auto-generated types
@@ -63,6 +63,33 @@ class WAProfile(Document):
 
 	def before_insert(self) -> None:
 		self._set_defaults()
+
+	def before_save(self) -> None:
+		self._sync_block_with_whatsapp()
+
+	def _sync_block_with_whatsapp(self) -> None:
+		"""Meta only blocks users who messaged the number in the last 24 hours, so a rejection
+		throws before the status is written rather than leaving the two sides disagreeing."""
+		previous = self.get_doc_before_save()
+		was_blocked = bool(previous) and previous.status == "Blocked"
+		is_blocked = self.status == "Blocked"
+		if was_blocked == is_blocked:
+			return
+
+		# wa_account imports wa_message, which imports this module
+		from whatsapp.whatsapp.doctype.wa_account.wa_account import _client_for
+
+		client = _client_for(frappe.get_doc("WA Account", self.whatsapp_account))
+		user = self.wa_id or self.phone_number.lstrip("+")
+		try:
+			if is_blocked:
+				client.block_user(user)
+			else:
+				client.unblock_user(user)
+		except requests.HTTPError as e:
+			if is_blocked:
+				frappe.throw(_("WhatsApp could not block this contact: {0}").format(e))
+			frappe.throw(_("WhatsApp could not unblock this contact: {0}").format(e))
 
 	def _validate_unique_phone_per_account(self) -> None:
 		if not self.phone_number or not self.whatsapp_account:
