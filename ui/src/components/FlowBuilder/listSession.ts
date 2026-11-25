@@ -1,5 +1,8 @@
 import type { CreateFlowArgs, FlowBuilderApi, FlowListRow } from "./types";
 
+// The last rows per account, so a list opened again shows them while it reloads.
+const lastRows = new Map<string, FlowListRow[]>();
+
 /** The Flows list and the calls that add to it. `useFlowList` makes it reactive. */
 export class FlowListSession {
   rows: FlowListRow[] = [];
@@ -12,7 +15,13 @@ export class FlowListSession {
   constructor(
     private api: FlowBuilderApi,
     readonly account?: string
-  ) {}
+  ) {
+    const cached = lastRows.get(account ?? "");
+    if (cached) {
+      this.rows = cached;
+      this.loaded = true;
+    }
+  }
 
   async load() {
     this.loading = true;
@@ -20,6 +29,7 @@ export class FlowListSession {
     try {
       this.rows = await this.api.list(this.account);
       this.loaded = true;
+      lastRows.set(this.account ?? "", this.rows);
     } catch (e) {
       this.error = e;
     } finally {

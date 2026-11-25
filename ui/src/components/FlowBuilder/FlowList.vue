@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Badge, Button, Skeleton, dayjsLocal, dialog, toast } from "frappe-ui";
+import { Badge, Button, Skeleton, TextInput, dayjsLocal, toast } from "frappe-ui";
+import ConfirmDeleteButton from "../common/ConfirmDeleteButton.vue";
 import {
 	List,
 	ListCell,
@@ -12,8 +13,10 @@ import {
 } from "frappe-ui/list";
 import { format } from "./chrome";
 import { useChrome } from "./context";
+import FlowListFilter from "./FlowListFilter.vue";
 import { STATUS_THEME } from "./status";
-import type { FlowListProps, FlowListRow } from "./types";
+import type { WhatsAppFlowStatus } from "../Messages/types";
+import type { FlowCategory, FlowListProps, FlowListRow } from "./types";
 import { serverErrorMessage } from "../../utils/serverError";
 
 const props = defineProps<FlowListProps>();
@@ -25,10 +28,28 @@ const columns = computed(() => (props.canWrite ? [...COLUMNS, "2.5rem"] : COLUMN
 const SKELETON_ROWS = 4;
 
 const direction = ref<"asc" | "desc">("desc");
+const search = ref("");
+const statusFilter = ref<WhatsAppFlowStatus[]>([]);
+const categoryFilter = ref<FlowCategory[]>([]);
+const filtering = computed(() => Boolean(search.value.trim() || statusFilter.value.length || categoryFilter.value.length));
+
 const rows = computed(() => {
-	const sorted = [...props.controller.rows].sort((a, b) => a.modified.localeCompare(b.modified));
+	const sorted = props.controller.rows.filter(matches).sort((a, b) => a.modified.localeCompare(b.modified));
 	return direction.value === "asc" ? sorted : sorted.reverse();
 });
+
+function matches(row: FlowListRow) {
+	const query = search.value.trim().toLowerCase();
+	if (query && !row.flow_name.toLowerCase().includes(query)) return false;
+	if (statusFilter.value.length && !statusFilter.value.includes(row.status)) return false;
+	return !categoryFilter.value.length || categoryFilter.value.some((c) => row.categories.includes(c));
+}
+
+function clearFilters() {
+	search.value = "";
+	statusFilter.value = [];
+	categoryFilter.value = [];
+}
 const firstLoad = computed(() => !props.controller.loaded && !props.controller.error);
 
 function usedBy(row: FlowListRow) {
@@ -42,21 +63,13 @@ function categories(row: FlowListRow) {
 	return row.categories.map((category) => chrome.value[category] ?? category).join(", ");
 }
 
-/** A refusal, such as templates still using the Flow, closes the dialog and shows as a toast. */
-function confirmDelete(row: FlowListRow) {
-	dialog.danger({
-		title: format(chrome.value.deleteFlowTitle, row.flow_name),
-		message: chrome.value.deleteFlowMessage,
-		confirmLabel: chrome.value.delete,
-		cancelLabel: chrome.value.cancel,
-		async onConfirm() {
-			try {
-				await props.controller.remove(row.name);
-			} catch (e) {
-				toast.error(serverErrorMessage(e));
-			}
-		},
-	});
+/** A refusal, such as templates still using the Flow, shows as a toast. */
+async function deleteFlow(row: FlowListRow) {
+	try {
+		await props.controller.remove(row.name);
+	} catch (e) {
+		toast.error(serverErrorMessage(e));
+	}
 }
 </script>
 
@@ -69,14 +82,6 @@ function confirmDelete(row: FlowListRow) {
 			</div>
 			<div v-if="canWrite" class="flex shrink-0 items-center gap-2">
 				<Button
-					v-if="controller.account"
-					variant="subtle"
-					icon-left="lucide-refresh-cw"
-					:label="chrome.syncFlows"
-					:loading="controller.syncing"
-					@click="controller.sync()"
-				/>
-				<Button
 					variant="solid"
 					icon-left="lucide-plus"
 					:label="chrome.newFlow"
@@ -85,11 +90,44 @@ function confirmDelete(row: FlowListRow) {
 			</div>
 		</div>
 
+		<div v-if="!controller.error" class="flex items-center gap-2">
+			<template v-if="controller.rows.length">
+				<TextInput
+					v-model="search"
+					class="min-w-0 flex-1"
+					:placeholder="chrome.searchFlows"
+					:debounce="200"
+				>
+					<template #prefix>
+						<span class="lucide-search size-4 text-ink-gray-6" aria-hidden="true" />
+					</template>
+				</TextInput>
+				<FlowListFilter v-model:statuses="statusFilter" v-model:categories="categoryFilter" :chrome="chrome" />
+			</template>
+			<!-- Meta owns a Flow's status, so it moves only on a sync or a webhook. -->
+			<Button
+				v-if="canWrite && controller.account"
+				class="ml-auto shrink-0"
+				icon-left="lucide-refresh-cw"
+				:label="chrome.syncFlows"
+				:loading="controller.syncing"
+				@click="controller.sync()"
+			/>
+		</div>
+
 		<div v-if="controller.error" class="flex flex-col items-center gap-3 py-16 text-center">
 			<p class="text-p-base text-ink-gray-7">
 				{{ chrome.listError }}: {{ serverErrorMessage(controller.error) }}
 			</p>
 			<Button :label="chrome.retry" @click="controller.load()" />
+		</div>
+
+		<div
+			v-else-if="controller.loaded && !rows.length && filtering"
+			class="flex flex-col items-center gap-3 py-16 text-center"
+		>
+			<p class="text-base-medium text-ink-gray-8">{{ chrome.noMatches }}</p>
+			<Button :label="chrome.clearFilters" @click="clearFilters" />
 		</div>
 
 		<div
@@ -112,7 +150,13 @@ function confirmDelete(row: FlowListRow) {
 			/>
 		</div>
 
-		<List v-else :columns="columns" :row-height="44" class="list-row-px-3">
+		<!-- In dark mode the list's own divider colour matches a dialog's elevated surface. -->
+		<List
+			v-else
+			:columns="columns"
+			:row-height="44"
+			class="list-row-px-3 [&_[data-slot=list-divider]]:border-outline-elevation-2 [&_[data-slot=list-header-border]]:border-outline-elevation-2"
+		>
 			<ListHeader>
 				<ListHeaderCell>{{ chrome.columnName }}</ListHeaderCell>
 				<ListHeaderCell>{{ chrome.columnStatus }}</ListHeaderCell>
@@ -175,12 +219,11 @@ function confirmDelete(row: FlowListRow) {
 							}}</span>
 						</ListCell>
 						<ListCell v-if="canWrite">
-							<Button
+							<ConfirmDeleteButton
 								v-if="item.status === 'Draft'"
-								variant="ghost"
-								icon="lucide-trash-2"
-								:aria-label="chrome.deleteFlow"
-								@click.stop="confirmDelete(item as FlowListRow)"
+								:label="chrome.deleteFlow"
+								:confirm-label="chrome.confirmDelete"
+								@confirm="deleteFlow(item as FlowListRow)"
 							/>
 						</ListCell>
 					</ListRow>
