@@ -303,9 +303,7 @@ class WAMessage(Document):
 
 		file_doc = get_header_media_file(template_doc.header_media)
 		if not file_doc:
-			error = _("The template sample file {0} is missing.").format(template_doc.header_media)
-			self._fail_send(error, f"Template header file {template_doc.header_media} missing for {self.to}")
-			frappe.throw(error)
+			self._fail_missing_header_file(template_doc.header_media)
 
 		self.mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_doc.file_name)
 		cache_key = f"wa_template_header_media:{self.whatsapp_account}:{file_doc.name}"
@@ -314,13 +312,21 @@ class WAMessage(Document):
 			return
 
 		try:
-			self.media_id = client.upload_media(
-				file_doc.get_content(), self.mime_type, file_doc.file_name
-			).get("id")
+			content = file_doc.get_content()
+		except OSError:
+			self._fail_missing_header_file(template_doc.header_media)
+
+		try:
+			self.media_id = client.upload_media(content, self.mime_type, file_doc.file_name).get("id")
 		except requests.HTTPError as e:
 			self._fail_send(str(e), f"Template header media upload failed for {self.to}: {e}")
 			frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
 		frappe.cache.set_value(cache_key, self.media_id, expires_in_sec=SEND_MEDIA_ID_TTL)
+
+	def _fail_missing_header_file(self, header_media: str) -> None:
+		error = _("The template sample file {0} is missing.").format(header_media)
+		self._fail_send(error, f"Template header file {header_media} missing for {self.to}")
+		frappe.throw(error)
 
 	def _fail_send(self, error: str, log_message: str) -> None:
 		self.status = "Failed"

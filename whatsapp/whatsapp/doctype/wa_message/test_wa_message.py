@@ -2,6 +2,7 @@
 # See license.txt
 
 import json
+import os
 import secrets
 from unittest.mock import patch
 
@@ -790,6 +791,23 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 		"""A template whose sample file is gone marks the message Failed instead of only raising."""
 		self._make_setting()
 		tmpl = self._make_template(header_type="Image", header_media="/files/_test_gone.png")
+		doc = frappe.get_doc(self._make_outgoing(is_template=1, whatsapp_template=tmpl))
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		mock_upload.assert_not_called()
+		self.assertEqual(doc.status, "Failed")
+		self.assertTrue(doc.error_message)
+
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	def test_template_header_file_gone_from_disk_fails_send(self, mock_upload):
+		"""A File row whose content is gone from disk marks the message Failed."""
+		self._make_setting()
+		file_name = self._make_file("gone_from_disk.png", b"bytes")
+		os.remove(frappe.get_doc("File", file_name).get_full_path())
+		tmpl = self._make_template(header_type="Image", header_media=file_name)
 		doc = frappe.get_doc(self._make_outgoing(is_template=1, whatsapp_template=tmpl))
 		doc.insert()
 
