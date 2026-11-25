@@ -69,7 +69,7 @@ META_ERROR_FIELDS = (
 )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def create_flow(account: str, flow_name: str, categories: list[str], clone_from: str | None = None) -> str:
 	"""Create a Draft Flow on Meta, blank or as a copy of `clone_from`, and return its WA Flow name.
 
@@ -96,7 +96,7 @@ def create_flow(account: str, flow_name: str, categories: list[str], clone_from:
 	return flow_id
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def copy_flow(name: str, flow_name: str) -> str:
 	"""Make a copy: a new Draft cloned on Meta from any Flow, published or not."""
 	source = frappe.get_doc("WA Flow", name)
@@ -106,7 +106,7 @@ def copy_flow(name: str, flow_name: str) -> str:
 	)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_flow(name: str, flow_json: str, modified: str) -> dict:
 	"""Store and upload the Flow JSON of a Draft, and return `flow_state`.
 
@@ -126,11 +126,18 @@ def save_flow(name: str, flow_json: str, modified: str) -> dict:
 	return flow_state(flow)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_flow(name: str) -> None:
-	"""Delete a Draft on Meta, then here. Refused while a template has a Flow button on it."""
+	"""Delete a Draft on Meta, then here. Refused while a template has a Flow button on it, or a message links it."""
 	flow = flow_to_write(name)
+	flow.check_permission("delete")
 	_require_draft(flow, _("Only a Draft Flow can be deleted. This one is {0}."))
+	if frappe.db.exists("WA Message", {"flow": name}):
+		frappe.throw(
+			_("Flow {0} has messages that sent it or answered it, so it cannot be deleted.").format(
+				flow.flow_name
+			)
+		)
 	if templates := templates_using(name):
 		frappe.throw(
 			_("Flow {0} is used by these templates: {1}. Remove its Flow button from them first.").format(
@@ -208,7 +215,7 @@ def _create_on_meta(account: str, flow_name: str, categories: list[str], source:
 		return _get_whatsapp_client(account).create_flow(flow_name, categories, **source)
 	except requests.RequestException as e:
 		log("Error", "Flow", f"Could not create Flow {flow_name} on Meta: {e}", account=account)
-		frappe.throw(_("Could not create the Flow: {0}").format(e), _field_error(str(e)))
+		frappe.throw(_("Could not create the Flow: {0}").format(str(e)), _field_error(str(e)))
 
 
 def _field_error(meta_message: str) -> type[frappe.ValidationError]:

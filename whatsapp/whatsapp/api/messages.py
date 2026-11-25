@@ -215,7 +215,7 @@ def send_template(
 	return doc.name
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def send_flow(
 	flow: str,
 	to: str,

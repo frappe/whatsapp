@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
+import copy
 import json
 from functools import cached_property
 
@@ -8,6 +9,7 @@ import frappe
 from frappe.utils import get_datetime
 
 from whatsapp.whatsapp.api.utils import log
+from whatsapp.whatsapp.flows.answers import response_outline
 from whatsapp.whatsapp.flows.field_values import UnconvertibleValue, to_field_value
 from whatsapp.whatsapp.flows.send import template_flow_buttons
 
@@ -67,7 +69,7 @@ class ResponseAction:
 		if not condition:
 			return True
 		names = {
-			"response": frappe._dict(self.sources.answers),
+			"response": _attribute_dict(self.sources.answers),
 			"doc": reference.as_dict() if reference else None,
 			"message": self.message.as_dict(),
 		}
@@ -123,12 +125,25 @@ class ResponseSources:
 			"reference_doctype": lambda: self.message.reference_doctype,
 			"reference_name": lambda: self.message.reference_docname,
 			"received_at": lambda: get_datetime(self.message.timestamp or self.message.creation),
-			"whole_response": lambda: json.dumps(self.answers),
+			"whole_response": lambda: json.dumps(self._without_sensitive()),
 		}
 
 	@cached_property
 	def _profile(self):
 		return frappe.get_cached_doc("WA Profile", self.message.to)
+
+	def _without_sensitive(self) -> dict:
+		flow = frappe.get_doc("WA Flow", self.message.flow) if self.message.flow else None
+		outline = response_outline(flow, self.message.flow_template)
+		answers = copy.deepcopy(self.answers)
+		for path in outline.sensitive if outline else []:
+			*parents, key = path.split(".")
+			parent = answers
+			for name in parents:
+				parent = parent.get(name) if isinstance(parent, dict) else None
+			if isinstance(parent, dict):
+				parent.pop(key, None)
+		return answers
 
 	def _answer(self, path: str):
 		value = self.answers
@@ -140,9 +155,20 @@ class ResponseSources:
 
 
 def _configured_actions(message) -> list[dict]:
-	# An unknown button leaves `flow` empty, while flow_button_index (an Int) reads 0.
+	# flow_button_index is an Int, so an unmatched button reads 0: only a button that still opens the
+	# message's Flow is trusted.
 	if not (message.flow_template and message.flow):
 		return []
 	template = frappe.get_cached_doc("WA Template", message.flow_template)
 	button = dict(template_flow_buttons(template)).get(message.flow_button_index)
-	return (frappe.parse_json(button.flow_response_actions) or []) if button else []
+	if not (button and button.flow == message.flow):
+		return []
+	return frappe.parse_json(button.flow_response_actions) or []
+
+
+def _attribute_dict(value):
+	if isinstance(value, dict):
+		return frappe._dict({key: _attribute_dict(item) for key, item in value.items()})
+	if isinstance(value, list):
+		return [_attribute_dict(item) for item in value]
+	return value

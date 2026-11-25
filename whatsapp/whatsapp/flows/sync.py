@@ -18,7 +18,7 @@ FLOW_STATUSES = {
 }
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def sync_flows(account_name: str) -> dict:
 	"""Return counts of created, updated and removed Flows."""
 	frappe.has_permission("WA Flow", "write", throw=True)

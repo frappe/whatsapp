@@ -47,12 +47,32 @@ def validate_flow_inputs_reference(message, template) -> None:
 		)
 
 
+def validate_update_reference_permission(message, template) -> None:
+	"""Update Reference actions save the reference without permission checks, so the sender must be able to write it."""
+	if not _has_update_reference(template):
+		return
+	reference_doctype = message.reference_doctype if message.reference_docname else None
+	if template.reference_doctype != reference_doctype:
+		frappe.throw(
+			_("Template '{0}' updates {1} from Flow responses; cannot send from {2}.").format(
+				template.name, template.reference_doctype, reference_doctype or _("no reference document")
+			)
+		)
+	if not frappe.has_permission(reference_doctype, "write", doc=message.reference_docname):
+		frappe.throw(
+			_(
+				"Template '{0}' updates {1} {2} from Flow responses, and you have no write permission on it."
+			).format(template.name, reference_doctype, message.reference_docname),
+			frappe.PermissionError,
+		)
+
+
 def flow_button_components(message, template) -> list[dict]:
 	"""One button component per Flow button, with the message's token and the button's resolved Flow inputs."""
 	token = FlowToken(message.flow_token)
 	inputs = FlowInputs(message)
 	return [
-		_button_component(index, token.for_button(index), inputs.resolve(button))
+		_button_component(index, token.for_button(index, button.flow), inputs.resolve(button))
 		for index, button in template_flow_buttons(template)
 	]
 
@@ -72,6 +92,7 @@ def interactive_flow_screen(flow_name: str, screen: str | None, mode: str) -> st
 		frappe.throw(_("Mode must be one of: {0}").format(", ".join(SEND_MODES)))
 
 	flow = frappe.get_doc("WA Flow", flow_name)
+	flow.check_permission("write" if mode == "draft" else "read")
 	_refuse_unsendable(flow)
 	if flow.status == "Draft" and mode != "draft":
 		frappe.throw(
@@ -159,6 +180,14 @@ class FlowInputs:
 
 def _has_flow_inputs(template) -> bool:
 	return any(frappe.parse_json(button.flow_inputs) for _index, button in template_flow_buttons(template))
+
+
+def _has_update_reference(template) -> bool:
+	return any(
+		action.get("action") == "Update Reference"
+		for _index, button in template_flow_buttons(template)
+		for action in frappe.parse_json(button.flow_response_actions) or []
+	)
 
 
 def _flow_buttons(message) -> list[tuple[int, object]]:

@@ -29,6 +29,7 @@ from whatsapp.whatsapp.flows.send import (
 	interactive_flow_payload,
 	validate_flow_inputs_reference,
 	validate_sendable_flows,
+	validate_update_reference_permission,
 )
 
 
@@ -175,6 +176,7 @@ class WAMessage(Document):
 			if not self.reference_docname:
 				frappe.throw(_("Reference Document is required when template has variables"))
 		validate_flow_inputs_reference(self, template)
+		validate_update_reference_permission(self, template)
 
 	def _populate_template_parameters(self) -> None:
 		template = frappe.get_cached_doc("WA Template", self.whatsapp_template)

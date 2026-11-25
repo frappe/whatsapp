@@ -78,22 +78,35 @@ class FlowResponse:
 	def _template_button(self) -> dict:
 		template = self.send.whatsapp_template
 		buttons = dict(template_flow_buttons(frappe.get_cached_doc("WA Template", template)))
-		index = self._button_index(buttons)
-		if index is None:
-			return {"flow_template": template}
-		return {"flow_template": template, "flow_button_index": index, "flow": buttons[index].flow}
+		if self.token and self.token.flow:
+			return self._named_button(template, buttons)
+		return self._lone_button(template, buttons)
 
-	def _button_index(self, buttons: dict) -> int | None:
-		if self.token and self.token.button_index in buttons:
-			return self.token.button_index
+	def _named_button(self, template: str, buttons: dict) -> dict:
+		"""Match the token's button only while the template still has its Flow at that index;
+		otherwise keep the sent Flow for masking, without the template, so no Response actions run."""
+		index, flow = self.token.button_index, self.token.flow
+		button = buttons.get(index)
+		if button and button.flow == flow:
+			return {"flow_template": template, "flow_button_index": index, "flow": flow}
+		self._warn(
+			f"Flow response {self.msg.get('id')} answers button {index} of template {template}, "
+			f"which no longer opens Flow {flow}. It is stored without its button, and runs no Response actions."
+		)
+		if frappe.db.exists("WA Flow", flow):
+			return {"flow": flow}
+		return {"flow_template": template}
+
+	def _lone_button(self, template: str, buttons: dict) -> dict:
 		# Meta drops the flow_token on some iOS clients, so only a lone Flow button is certain.
 		if len(buttons) == 1:
-			return next(iter(buttons))
+			index, button = next(iter(buttons.items()))
+			return {"flow_template": template, "flow_button_index": index, "flow": button.flow}
 		self._warn(
-			f"Flow response {self.msg.get('id')} has no button index, and template {self.send.whatsapp_template} "
+			f"Flow response {self.msg.get('id')} has no button index, and template {template} "
 			"has several Flow buttons. It is stored without its Flow, and runs no Response actions."
 		)
-		return None
+		return {"flow_template": template}
 
 	def _parse_answers(self) -> dict:
 		try:

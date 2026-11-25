@@ -84,6 +84,14 @@ def _text(df, value):
 	return value
 
 
+def _select(df, value):
+	value = str(_text(df, value))
+	options = [option for option in (df.options or "").split("\n") if option]
+	if options and value not in options:
+		raise ValueError(f"expected one of {', '.join(options)}")
+	return value
+
+
 def _json(df, value):
 	return json.dumps(value) if isinstance(value, dict | list) else value
 
@@ -97,5 +105,6 @@ CONVERTERS = {
 	"Datetime": _datetime,
 	"Table MultiSelect": _table_multiselect,
 	**dict.fromkeys(STRING, _text),
+	"Select": _select,
 	**dict.fromkeys(("JSON", "Code"), _json),
 }

@@ -25,6 +25,7 @@ PROFILE_INPUTS = [
 	{"key": "sessions", "source_field": "simultaneous_sessions"},
 	{"key": "enabled", "source_field": "enabled"},
 ]
+UPDATE_BIO = {"action": "Update Reference", "fields": [{"source": "comment", "target_field": "bio"}]}
 
 
 class FlowSendCase(WithoutHostAccessGuards, FlowMetaCase):
@@ -76,7 +77,7 @@ class IntegrationTestFlowTemplateSend(FlowSendCase):
 						{
 							"type": "action",
 							"action": {
-								"flow_token": f"{token}:0",
+								"flow_token": f"{token}:0:{flow}",
 								"flow_action_data": {"first_name": "Asha", "sessions": 3, "enabled": True},
 							},
 						}
@@ -100,7 +101,7 @@ class IntegrationTestFlowTemplateSend(FlowSendCase):
 		token = frappe.db.get_value("WA Message", name, "flow_token")
 		self.assertEqual(
 			[(c["index"], c["parameters"][0]["action"]) for c in self._button_components()],
-			[("1", {"flow_token": f"{token}:1"}), ("2", {"flow_token": f"{token}:2"})],
+			[("1", {"flow_token": f"{token}:1:{feedback}"}), ("2", {"flow_token": f"{token}:2:{survey}"})],
 		)
 
 	def test_a_template_with_flow_inputs_needs_a_reference_document(self):
@@ -173,6 +174,38 @@ class IntegrationTestFlowTemplateSend(FlowSendCase):
 
 		self.assertEqual(button["flow_icon"], "Review")
 		self.assertNotIn("flow_inputs", button)
+
+	def test_update_reference_needs_write_permission_on_the_reference(self):
+		template = self._approved_template(
+			[flow_button(self.make_flow(), flow_response_actions=[UPDATE_BIO])]
+		)
+		reader, writer = self._shared_user(write=0), self._shared_user(write=1)
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(reader)
+		with self.assertRaisesRegex(frappe.PermissionError, "write"):
+			self._send(template)
+		self.client.send_message.assert_not_called()
+
+		frappe.set_user(writer)
+		self._send(template)
+		self.client.send_message.assert_called_once()
+
+	def test_update_reference_needs_a_reference_of_the_templates_doctype(self):
+		template = self._approved_template(
+			[flow_button(self.make_flow(), flow_response_actions=[UPDATE_BIO])]
+		)
+		todo = frappe.get_doc(doctype="ToDo", description="Call Asha").insert()
+
+		with self.assertRaisesRegex(frappe.ValidationError, "updates User"):
+			send_template(template, self.phone, reference_doctype="ToDo", reference_docname=todo.name)
+		with self.assertRaisesRegex(frappe.ValidationError, "updates User"):
+			send_template(template, self.phone)
+
+		self.client.send_message.assert_not_called()
+
+	def _shared_user(self, write: int) -> str:
+		return _desk_user_sharing(("User", self.user.name, write))
 
 	def _approved_template(self, buttons: list[dict]) -> str:
 		template = template_doc(self.account, buttons, reference_doctype="User").insert()
@@ -254,7 +287,54 @@ class IntegrationTestSendFlow(FlowSendCase):
 		self.assertEqual(self.sent_payload()["interactive"]["action"]["parameters"]["mode"], "draft")
 		self.assertEqual(frappe.db.get_value("WA Message", name, "flow_mode"), "Draft")
 
+	def test_sending_a_flow_needs_read_on_it_and_a_draft_needs_write(self):
+		published, draft = self.make_flow(), self.make_flow(status="Draft")
+		sender = _desk_user_sharing(("User", self.user.name, 0))
+
+		def send(flow: str, **kwargs) -> str:
+			return send_flow(
+				flow,
+				self.phone,
+				"Try this form",
+				reference_doctype="User",
+				reference_docname=self.user.name,
+				**kwargs,
+			)
+
+		self.addCleanup(frappe.set_user, "Administrator")
+
+		frappe.set_user(sender)
+		with self.assertRaises(frappe.PermissionError):
+			send(published)
+
+		frappe.set_user("Administrator")
+		for flow in (published, draft):
+			frappe.share.add_docshare(
+				"WA Flow", flow, sender, read=1, flags={"ignore_share_permission": True}
+			)
+		frappe.set_user(sender)
+		send(published)
+		with self.assertRaises(frappe.PermissionError):
+			send(draft, mode="draft")
+		self.client.send_message.assert_called_once()
+
 	def test_a_screen_that_is_not_an_entry_screen_is_refused(self):
 		with self.assertRaisesRegex(frappe.ValidationError, "RATE is not an entry screen"):
 			send_flow(self.make_flow(), self.phone, "How did the deal go?", screen="RATE")
 		self.client.send_message.assert_not_called()
+
+
+def _desk_user_sharing(*shares: tuple[str, str, int]) -> str:
+	"""A Desk User with read on each (doctype, name, write) document, and write where `write` is 1."""
+	user = frappe.get_doc(
+		doctype="User",
+		email=f"flow-sender-{frappe.generate_hash(length=6)}@example.com",
+		first_name="Sender",
+		send_welcome_email=0,
+		roles=[{"role": "Desk User"}],
+	).insert(ignore_permissions=True)
+	for doctype, name, write in shares:
+		frappe.share.add_docshare(
+			doctype, name, user.name, read=1, write=write, flags={"ignore_share_permission": True}
+		)
+	return user.name

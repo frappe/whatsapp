@@ -324,13 +324,14 @@ their content on the left, and a WhatsApp phone preview on the right.
 | `authoring.create_flow` | create WA Flow | Creates a Flow on Meta, blank or as a copy. |
 | `authoring.save_flow` | write WA Flow | Saves and uploads a Draft. Refuses when the Flow changed since it was opened. |
 | `authoring.copy_flow` | create WA Flow | Copies a Flow on Meta as a new draft. |
-| `authoring.delete_flow` | write WA Flow | Deletes a Draft, unless a template uses it. |
+| `authoring.delete_flow` | write and delete WA Flow | Deletes a Draft, unless a template uses it or a message links it. |
 | `manage.publish_flow` | write WA Flow | Publishes a Flow. |
 
 ### Flow buttons on templates
 
 Add a button of type **Flow** to a WA Template, next to its other buttons. A template can have
-more than one Flow button. The label can have at most 25 characters.
+more than one Flow button, but no Copy Code button: the push to Meta leaves Copy Code out, which
+changes the index Meta gives each Flow button. The label can have at most 25 characters.
 
 | Field | Details |
 |---|---|
@@ -393,7 +394,8 @@ A Response action updates the reference document or creates a document from the 
   fails to evaluate is logged as an Error, and its action is skipped.
 - **`source`** is an answer key from the Flow, a dotted path into a nested answer such as
   `address.city`, or a message source: `sender_phone`, `sender_name`, `reference_doctype`,
-  `reference_name`, `received_at` or `whole_response` (all the answers as JSON).
+  `reference_name`, `received_at` or `whole_response` (all the answers as JSON, without the
+  answers the Flow marks as sensitive).
 - **`target_field`** is a field on the reference DocType (Update Reference) or on `doctype`
   (Create Document). A save refuses a field whose type cannot hold the source. If the current
   Flow version no longer sends a source, the save shows a warning only, because older versions
@@ -407,7 +409,8 @@ Values are converted by the type of the target field:
 | Int, Float, Currency, Percent | A number. Int refuses a number that is not whole. |
 | Date, Datetime | An ISO 8601 string. A time with a zone is converted to the system time zone. |
 | Table MultiSelect | A list, one row per item. |
-| Data, text fields, Select, Link, Phone | A list joined with ", ". An object as JSON. |
+| Data, text fields, Link, Phone | A list joined with ", ". An object as JSON. |
+| Select | As a text field. A value that is not one of the options is skipped with a Warning. |
 | JSON, Code | An object or a list as JSON. |
 | Attach, Attach Image | Skipped with a Warning. See [Limitations](#limitations). |
 
@@ -423,6 +426,9 @@ saves it:
 
 The check runs on every save. If a user with fewer permissions edits the template later, the save
 checks their permissions. A template sync from Meta skips the check.
+
+A send checks the sender too. A template with an Update Reference action is sent only from a
+document of its reference DocType that the sender can write.
 
 - A missing answer, or one that is `null`, is skipped. It is never written as empty.
 - A value that cannot be converted skips that field, with a Warning.
@@ -449,6 +455,10 @@ the form, even when another record has the same phone number. It also gets the s
 A response that matches no send, for example to a Flow sent from WhatsApp Manager, is stored and
 shown. Its `flow` is empty, it goes through Append Actions like any incoming message, and it runs
 no Response actions. Its message text is "Form submitted", not a summary of the answers.
+
+A template button's token also names the button's index and Flow. If the template's button at
+that index no longer opens that Flow, the response keeps the Flow but not the template. It runs no
+Response actions, and WA Log gets a Warning.
 
 A response to a template with several Flow buttons that lost its token keeps the template, but
 not its Flow. It runs no Response actions, and WA Log gets a Warning.
@@ -506,7 +516,7 @@ if doc.flow_response and doc.reference_doctype == "CRM Deal":
   | `flow_message_version` is `"3"` | `FLOW_MESSAGE_VERSION` in `flows/send.py` |
   | `navigate_screen` is sent only when set | `_navigate_screen` in `flows/template_button.py` |
   | The icon values, sent only when set | `FLOW_ICONS` and `_icon` in `flows/template_button.py` |
-  | A response without a token belongs to the template's only Flow button | `FlowResponse._button_index` in `flows/receive.py` |
+  | A response without a token belongs to the template's only Flow button | `FlowResponse._lone_button` in `flows/receive.py` |
 
 - **Media answers** from a photo or document picker are stored as Meta's media IDs, but the files
   are not downloaded. A Response action skips an Attach target with a Warning.
@@ -626,8 +636,8 @@ whatsapp.whatsapp.api.messages.send_flow(flow, to, body, cta, screen, data, mode
 | `mode` | `published` by default. `draft` sends a Draft Flow, to test it. |
 | `reference_doctype`, `reference_docname` | Optional document the message belongs to. |
 
-Returns the new message's name. Throws before a message is created if the Flow is Blocked or
-Deprecated, if it is a Draft and `mode` is not `draft`, or if `screen` is not an entry screen.
+Returns the new message's name. The sender needs `read` on the WA Flow, and `write` for `mode`
+`draft`. Throws before a message is created if the Flow is Blocked or Deprecated, if it is a Draft and `mode` is not `draft`, or if `screen` is not an entry screen.
 The send works only inside the customer service window. Its responses run no Response actions.
 
 ### `react_to_message`

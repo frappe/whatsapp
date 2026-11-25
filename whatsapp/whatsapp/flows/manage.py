@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 DEPRECATABLE_STATUSES = ("Published", "Throttled", "Blocked")
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def publish_flow(name: str) -> dict:
 	"""Return the Flow's state after Meta's publish, in the shape of `flow_state`."""
 	flow = flow_to_write(name)
@@ -31,7 +31,7 @@ def publish_flow(name: str) -> dict:
 	return flow_state(flow.reload())
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def deprecate_flow(name: str) -> None:
 	flow = flow_to_write(name)
 	if flow.status not in DEPRECATABLE_STATUSES:
@@ -44,7 +44,7 @@ def deprecate_flow(name: str) -> None:
 	_log_action(flow, "Deprecated")
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def refresh_flow(name: str) -> None:
 	flow = flow_to_write(name)
 	on_meta(flow, _("Could not refresh the Flow"), lambda: sync_flow(flow.whatsapp_account, flow.flow_id))
@@ -96,7 +96,7 @@ def on_meta(flow: "WAFlow", failure: str, call: Callable):
 		return call()
 	except requests.RequestException as e:
 		flow.log("Error", f"{failure} {flow.flow_name} ({flow.flow_id}): {e}")
-		frappe.throw(f"{failure}: {e}")
+		frappe.throw(_("{0}: {1}").format(failure, str(e)))
 
 
 def _log_action(flow: "WAFlow", action: str) -> None:

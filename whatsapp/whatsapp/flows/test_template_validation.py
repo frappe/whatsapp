@@ -52,6 +52,16 @@ class IntegrationTestFlowButtonValidation(FlowMetaCase):
 		self.assertEqual(template.buttons[0].flow_screen, "WELCOME")
 		self.assertFalse(self._warnings())
 
+	def test_a_copy_code_button_beside_a_flow_button_is_refused(self):
+		"""The push leaves Copy Code out, which would shift the Flow button's index on Meta."""
+		template = template_doc(
+			self.account, [{"button_type": "Copy Code", "button_text": "Copy"}, flow_button(self.feedback)]
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Copy Code"):
+			template.insert(ignore_permissions=True)
+		self.meta.client.create_template.assert_not_called()
+
 	def test_a_button_without_a_flow_is_refused(self):
 		self._assert_refused(flow_button(""), r"Button #1 \(Give feedback\): choose the Flow")
 

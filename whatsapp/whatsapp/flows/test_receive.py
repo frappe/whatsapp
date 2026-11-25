@@ -94,7 +94,7 @@ class IntegrationTestFlowResponseMatching(FlowResponseCase):
 			]
 		)
 
-		response = self.respond(RATING, token=f"{send.flow_token}:2")
+		response = self.respond(RATING, token=f"{send.flow_token}:2:{survey}")
 
 		self.assertEqual(
 			(
@@ -109,6 +109,47 @@ class IntegrationTestFlowResponseMatching(FlowResponseCase):
 		self.assertTrue(response.flow_template)
 		self.assertEqual(json.loads(response.flow_response), RATING)
 		self.assertFalse(response.is_template)
+
+	def test_a_token_names_the_buttons_flow_so_the_response_runs_its_actions(self):
+		flow = self.make_flow()
+		todo = {
+			"action": "Create Document",
+			"doctype": "ToDo",
+			"fields": [{"source": "comment", "target_field": "description"}],
+		}
+		send = self.send_template([flow_button(flow, flow_response_actions=[todo])])
+
+		response = self.respond(RATING, token=f"{send.flow_token}:0:{flow}")
+
+		self.assertEqual((response.flow_button_index, response.flow), (0, flow))
+		self.assertTrue(response.flow_template)
+		self.assertEqual(frappe.db.count("ToDo", {"description": ("like", "%Great%")}), 1)
+
+	def test_a_button_moved_after_the_send_runs_no_actions_and_masks_with_the_sent_flow(self):
+		qualify, feedback = self.make_flow(flow_json=LEAD_QUALIFICATION), self.make_flow()
+		todo = {
+			"action": "Create Document",
+			"doctype": "ToDo",
+			"fields": [{"source": "company", "target_field": "description"}],
+		}
+		send = self.send_template(
+			[
+				flow_button(qualify, text="Qualify", flow_response_actions=[todo]),
+				flow_button(feedback, flow_response_actions=[todo]),
+			]
+		)
+		template = frappe.db.get_value("WA Message", send.name, "whatsapp_template")
+		for idx, flow in ((1, feedback), (2, qualify)):
+			frappe.db.set_value("WA Template Button", {"parent": template, "idx": idx}, "flow", flow)
+		frappe.clear_document_cache("WA Template", template)
+
+		response = self.respond(LEAD_ANSWERS, token=f"{send.flow_token}:0:{qualify}")
+
+		self.assertEqual((response.flow, response.flow_template), (qualify, None))
+		self.assertEqual(frappe.db.count("ToDo", {"description": ("like", "%Acme%")}), 0)
+		self.assertNotIn("1234", response.message)
+		self.assertNotIn("5000", response.message)
+		self.assertTrue(any("no longer" in message for message in self.flow_logs("Warning")))
 
 	def test_a_response_without_a_token_is_matched_by_its_context(self):
 		flow = self.make_flow()

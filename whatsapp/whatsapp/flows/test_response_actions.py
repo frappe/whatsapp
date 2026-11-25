@@ -9,10 +9,10 @@ import frappe
 from frappe.utils import getdate
 
 from whatsapp.whatsapp.doctype.wa_message.wa_message import WAMessage
-from whatsapp.whatsapp.flows.flow_json_fixtures import CUSTOMER_PROFILE, DEAL_FEEDBACK
+from whatsapp.whatsapp.flows.flow_json_fixtures import CUSTOMER_PROFILE, DEAL_FEEDBACK, LEAD_QUALIFICATION
 from whatsapp.whatsapp.flows.meta_fixtures import nfm_reply
 from whatsapp.whatsapp.flows.template_fixtures import flow_button
-from whatsapp.whatsapp.flows.test_receive import RATING, FlowResponseCase
+from whatsapp.whatsapp.flows.test_receive import LEAD_ANSWERS, RATING, FlowResponseCase
 
 
 def update_reference(*fields: tuple[str, str], condition: str | None = None) -> dict:
@@ -82,6 +82,18 @@ class IntegrationTestResponseActions(FlowResponseCase):
 
 		self.assertEqual(self.user_values("location", "bio"), ("5", None))
 
+	def test_a_condition_reads_nested_answers_by_attribute(self):
+		self.complete(
+			[
+				update_reference(
+					("rating", "location"), condition="response.contact.email == 'asha@example.com'"
+				)
+			],
+			answers={**RATING, "contact": {"email": "asha@example.com"}},
+		)
+
+		self.assertEqual(self.user_values("location"), ("5",))
+
 	def test_a_condition_cannot_write_through_the_documents_it_sees(self):
 		response = self.complete(
 			[
@@ -119,7 +131,7 @@ class IntegrationTestResponseActions(FlowResponseCase):
 		send = self.send_template(
 			[flow_button(flow, flow_response_actions=[create_document("ToDo", ("comment", "description"))])]
 		)
-		message = nfm_reply(self.phone.lstrip("+"), {"flow_token": f"{send.flow_token}:0", **RATING})
+		message = nfm_reply(self.phone.lstrip("+"), {"flow_token": f"{send.flow_token}:0:{flow}", **RATING})
 		first_delivery = []
 
 		def first_delivery_commits_while_waiting(profile):
@@ -214,10 +226,26 @@ class IntegrationTestResponseActions(FlowResponseCase):
 		self.assertIn("login_after", warnings)
 		self.assertIn("user_image", warnings)
 
+	def test_a_value_that_is_not_a_select_option_skips_only_that_field(self):
+		response = self.complete([update_reference(("rating", "desk_theme"), ("comment", "location"))])
+
+		self.assertEqual(self.user_values("desk_theme", "location"), ("Light", "Great"))
+		self.assertIn("desk_theme", " ".join(self.message_logs(response, "Warning")))
+
+	def test_the_whole_response_leaves_out_sensitive_answers(self):
+		self.complete(
+			[create_document("Error Log", ("whole_response", "error"))],
+			flow_json=LEAD_QUALIFICATION,
+			answers=LEAD_ANSWERS,
+		)
+
+		written = json.loads(frappe.get_last_doc("Error Log").error)
+		self.assertEqual(written, {k: v for k, v in LEAD_ANSWERS.items() if k not in ("budget", "passcode")})
+
 	def complete(self, actions: list[dict], flow_json: dict = DEAL_FEEDBACK, answers: dict = RATING):
 		flow = self.make_flow(flow_json=flow_json)
 		send = self.send_template([flow_button(flow, flow_response_actions=actions)])
-		return self.respond(answers, token=f"{send.flow_token}:0")
+		return self.respond(answers, token=f"{send.flow_token}:0:{flow}")
 
 	def user_values(self, *fields: str) -> tuple:
 		values = frappe.db.get_value("User", self.user.name, list(fields), as_dict=True)

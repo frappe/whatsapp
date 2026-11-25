@@ -10,6 +10,7 @@ import requests
 from frappe.share import add_docshare
 from frappe.tests import IntegrationTestCase
 
+from whatsapp.whatsapp.doctype.wa_profile.wa_profile import get_or_create_profile
 from whatsapp.whatsapp.flows.authoring import (
 	FlowNameError,
 	copy_flow,
@@ -216,6 +217,33 @@ class IntegrationTestDeleteFlow(AuthoringCase):
 		self.client.delete_flow.assert_not_called()
 		self.assertTrue(frappe.db.exists("WA Flow", name))
 
+	def test_a_flow_with_messages_is_kept(self):
+		name = self.new_flow()
+		frappe.get_doc(
+			doctype="WA Message",
+			direction="Incoming",
+			to=get_or_create_profile("+15550001111", self.account),
+			whatsapp_account=self.account,
+			message="Form submitted",
+			flow=name,
+		).insert(ignore_permissions=True)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "messages"):
+			delete_flow(name)
+
+		self.client.delete_flow.assert_not_called()
+		self.assertTrue(frappe.db.exists("WA Flow", name))
+
+	def test_a_user_who_can_write_but_not_delete_flows_cannot_delete_one(self):
+		name = self.new_flow()
+		writer = _desk_user("flow.writer@example.com")
+		add_docshare("WA Flow", name, writer, read=1, write=1, flags={"ignore_share_permission": True})
+
+		with self.set_user(writer), self.assertRaises(frappe.PermissionError):
+			delete_flow(name)
+
+		self.client.delete_flow.assert_not_called()
+
 	def test_only_a_draft_can_be_deleted(self):
 		name = self.published_flow()
 
@@ -266,6 +294,28 @@ class IntegrationTestBuilderPermissions(AuthoringCase):
 
 		with self.set_user(_desk_user("no.flows@example.com")), self.assertRaises(frappe.PermissionError):
 			get_flow_for_builder(name)
+
+
+class IntegrationTestFlowEndpointMethods(IntegrationTestCase):
+	def test_endpoints_that_change_flows_or_send_them_accept_only_post(self):
+		from whatsapp.whatsapp.api.messages import send_flow
+		from whatsapp.whatsapp.flows import authoring, manage
+		from whatsapp.whatsapp.flows.sync import sync_flows
+
+		endpoints = (
+			authoring.create_flow,
+			authoring.copy_flow,
+			authoring.save_flow,
+			authoring.delete_flow,
+			manage.publish_flow,
+			manage.deprecate_flow,
+			manage.refresh_flow,
+			sync_flows,
+			send_flow,
+		)
+		for endpoint in endpoints:
+			with self.subTest(endpoint=endpoint.__name__):
+				self.assertEqual(list(frappe.allowed_http_methods_for_whitelisted_func[endpoint]), ["POST"])
 
 
 def _desk_user(email: str) -> str:

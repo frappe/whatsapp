@@ -9,11 +9,12 @@ SEPARATOR = ":"
 
 
 class FlowToken(NamedTuple):
-	"""The Flow token a message sends. A template button sends the message's token with the button's index,
-	because Meta's response names neither the button nor the Flow."""
+	"""The Flow token a message sends. A template button sends the message's token with the button's index
+	and Flow, because Meta's response names neither, and the template's buttons can change after the send."""
 
 	base: str
 	button_index: int | None = None
+	flow: str | None = None
 
 	@classmethod
 	def new(cls) -> "FlowToken":
@@ -21,13 +22,15 @@ class FlowToken(NamedTuple):
 
 	@classmethod
 	def parse(cls, sent: str) -> "FlowToken":
-		base, separator, index = sent.rpartition(SEPARATOR)
-		if separator and base and index.isdigit():
-			return cls(base, int(index))
+		parts = sent.split(SEPARATOR)
+		if len(parts) == 3 and all(parts) and parts[1].isdigit():
+			return cls(parts[0], int(parts[1]), parts[2])
 		return cls(sent)
 
-	def for_button(self, index: int) -> "FlowToken":
-		return FlowToken(self.base, index)
+	def for_button(self, index: int, flow: str) -> "FlowToken":
+		return FlowToken(self.base, index, flow)
 
 	def __str__(self) -> str:
-		return self.base if self.button_index is None else f"{self.base}{SEPARATOR}{self.button_index}"
+		if self.flow is None:
+			return self.base
+		return SEPARATOR.join((self.base, str(self.button_index), self.flow))
