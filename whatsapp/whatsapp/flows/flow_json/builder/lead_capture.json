@@ -1,0 +1,95 @@
+{
+	"version": "7.3",
+	"screens": [
+		{
+			"id": "YOUR_DETAILS",
+			"title": "Your details",
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "TextHeading",
+						"text": "Tell us about you"
+					},
+					{
+						"type": "TextInput",
+						"name": "full_name",
+						"label": "Full name",
+						"init-value": "${data.full_name}"
+					},
+					{
+						"type": "TextInput",
+						"name": "email",
+						"label": "Email",
+						"input-type": "email",
+						"required": true
+					},
+					{
+						"type": "Footer",
+						"label": "Continue",
+						"on-click-action": {
+							"name": "navigate",
+							"next": {
+								"type": "screen",
+								"name": "BUDGET"
+							},
+							"payload": {}
+						}
+					}
+				]
+			},
+			"data": {
+				"full_name": {
+					"type": "string",
+					"__example__": "Asha"
+				}
+			}
+		},
+		{
+			"id": "BUDGET",
+			"title": "Budget",
+			"terminal": true,
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Dropdown",
+						"name": "budget",
+						"label": "Budget",
+						"data-source": [
+							{
+								"id": "option_1",
+								"title": "Option 1"
+							},
+							{
+								"id": "option_2",
+								"title": "Option 2"
+							}
+						]
+					},
+					{
+						"type": "TextArea",
+						"name": "anything_else",
+						"label": "Anything else?"
+					},
+					{
+						"type": "Footer",
+						"label": "Submit",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"full_name": "${screen.YOUR_DETAILS.form.full_name}",
+								"email": "${screen.YOUR_DETAILS.form.email}",
+								"budget": "${form.budget}",
+								"anything_else": "${form.anything_else}"
+							}
+						}
+					}
+				]
+			},
+			"sensitive": [
+				"anything_else"
+			]
+		}
+	]
+}

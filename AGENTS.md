@@ -12,6 +12,7 @@ Official WhatsApp integration for Frappe CRM. A Frappe app that provides DocType
   - `whatsapp/api/utils.py` — Template payload builders/parsers, `{{var}}` interpolation helpers, `log()` utility, `get_logs()` whitelisted API
   - `hooks.py` — Frappe hooks (most commented out; early stage)
   - `modules.txt` — Single module: `WhatsApp`
+- `ui/` — `@whatsapp/ui`, the Vue parts that host apps embed. UI and UX patterns for it are in `.claude/skills/whatsapp-ui-design/SKILL.md`; read that skill before building or reviewing a screen.
 
 ## Validation
 

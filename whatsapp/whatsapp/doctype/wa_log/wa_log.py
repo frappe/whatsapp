@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 
@@ -15,7 +16,7 @@ class WALog(Document):
 		from frappe.types import DF
 
 		account: DF.Link | None
-		event_type: DF.Literal["", "Webhook", "Template", "Message", "API", "System"]
+		event_type: DF.Literal["", "Webhook", "Template", "Message", "API", "System", "Flow"]
 		level: DF.Literal["Info", "Warning", "Error", "Debug"]
 		message: DF.Text
 		reference_docname: DF.DynamicLink | None
@@ -26,4 +27,7 @@ class WALog(Document):
 		traceback: DF.Code | None
 	# end: auto-generated types
 
-	pass
+	def validate(self) -> None:
+		# Administrator holds every permission, so the missing write permission does not stop it.
+		if not self.is_new():
+			frappe.throw(_("WhatsApp logs cannot be edited."))

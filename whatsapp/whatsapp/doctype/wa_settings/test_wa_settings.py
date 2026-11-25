@@ -29,7 +29,7 @@ class IntegrationTestWhatsAppSetting(IntegrationTestCase):
 		profile = get_or_create_profile(phone, account.name, phone)
 		msg = frappe.get_doc(
 			doctype="WA Message",
-			to=phone,
+			to=profile,
 			direction="Outgoing",
 		)
 		msg.insert()

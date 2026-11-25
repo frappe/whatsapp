@@ -50,11 +50,6 @@ function onKeyDown({ event }: { event: KeyboardEvent }): boolean {
 	return false;
 }
 
-// A literal `}}` in the template would close the mustache.
-function braced(value: string) {
-	return `{{${value}}}`;
-}
-
 defineExpose({ onKeyDown });
 </script>
 
@@ -78,7 +73,7 @@ defineExpose({ onKeyDown });
 			@click.stop.prevent="select(index)"
 			@mouseover="selectedIndex = index"
 		>
-			{{ braced(item.value) }}
+			{{ item.label }}
 		</button>
 	</div>
 </template>

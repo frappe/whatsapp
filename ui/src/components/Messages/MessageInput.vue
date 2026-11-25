@@ -281,7 +281,6 @@ defineExpose({ focus });
 					<Button
 						variant="solid"
 						:disabled="!sendable"
-						:loading="sending"
 						:aria-label="sendLabel"
 						@click="submit()"
 					>
@@ -297,7 +296,6 @@ defineExpose({ focus });
 			v-model:open="showMediaPreview"
 			:file="pendingMedia"
 			:type="pendingType"
-			:loading="sending"
 			:caption-placeholder="captionPlaceholder"
 			@send="onMediaSend"
 		/>

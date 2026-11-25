@@ -1,0 +1,47 @@
+{
+	"version": "7.1",
+	"screens": [
+		{
+			"id": "PROFILE",
+			"title": "Profile",
+			"terminal": true,
+			"data": {
+				"first_name": {
+					"type": "string",
+					"__example__": "Asha"
+				},
+				"last_name": {
+					"type": "string",
+					"__example__": "Rao"
+				},
+				"sessions": {
+					"type": "number",
+					"__example__": 1
+				},
+				"enabled": {
+					"type": "boolean",
+					"__example__": true
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "TextHeading",
+						"text": "Hi ${data.first_name} ${data.last_name}"
+					},
+					{
+						"type": "Footer",
+						"label": "Confirm",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"confirmed": true
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}

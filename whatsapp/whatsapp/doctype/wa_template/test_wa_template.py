@@ -13,7 +13,9 @@ from whatsapp.whatsapp.doctype.wa_template.wa_template import (
 	_mark_deleted_templates,
 	_upsert_template,
 	create_template_and_push,
+	get_doctype_columns,
 	get_sendable_templates,
+	get_variable_fields,
 )
 
 EXTRA_TEST_RECORD_DEPENDENCIES = []
@@ -126,6 +128,41 @@ class IntegrationTestWATemplate(WithoutHostAccessGuards, IntegrationTestCase):
 			},
 		)
 		self.assertTrue(log_exists, "expected a success WhatsApp Log row for the template push")
+
+	@patch("whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp")
+	def test_image_template_uploads_sample_before_create(self, MockWhatsApp):
+		"""A media header is uploaded with the resumable API before Meta creates the template."""
+		MockWhatsApp.return_value.upload_template_sample.return_value = "4::sample"
+		MockWhatsApp.return_value.create_template.return_value = {
+			"id": "tmpl_img",
+			"status": "PENDING",
+		}
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		sample = frappe.get_doc(
+			doctype="File",
+			file_name=f"sample_{uid}.png",
+			is_private=0,
+			content=b"png-bytes",
+		).insert(ignore_permissions=True)
+
+		doc = frappe.get_doc(
+			doctype="WA Template",
+			template_label=f"_Test Image {uid}",
+			template_name=f"_test_image_{uid}",
+			template_type="Marketing",
+			language="en_US",
+			message="See the picture",
+			header_type="Image",
+			header_media=sample.file_url,
+			whatsapp_account=account,
+		).insert()
+
+		self.assertEqual(doc.header_media_handle, "4::sample")
+		MockWhatsApp.return_value.upload_template_sample.assert_called_once()
+		payload = MockWhatsApp.return_value.create_template.call_args.args[0]
+		header = next(row for row in payload["components"] if row["type"] == "HEADER")
+		self.assertEqual(header["example"]["header_handle"], ["4::sample"])
 
 	@patch("whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp")
 	def test_repush_of_a_local_template_does_not_update_in_meta(self, MockWhatsApp):
@@ -512,6 +549,42 @@ class IntegrationTestGetSendableTemplates(WithoutHostAccessGuards, IntegrationTe
 		template = next(t for t in get_sendable_templates("ToDo") if t.name == plain)
 		self.assertEqual(template["buttons"], [])
 
+	def test_reference_docname_fills_mapped_variables_and_leaves_the_rest(self):
+		"""The preview shows what `WA Message` will send: mapped values in, unmapped placeholders kept."""
+		todo = frappe.get_doc(doctype="ToDo", description="Call back").insert().name
+		bound = self._make_template(
+			"filled",
+			reference_doctype="ToDo",
+			message="Hi {{description}}, your code is {{code}}",
+			template_variables=[
+				{"variable_name": "description", "variable_example": "x", "variable_field": "description"},
+				{"variable_name": "code", "variable_example": "1234", "variable_field": ""},
+			],
+		)
+
+		row = next(t for t in get_sendable_templates("ToDo", todo) if t.name == bound)
+		self.assertEqual(row["message"], "Hi Call back, your code is {{code}}")
+		unfilled = next(t for t in get_sendable_templates("ToDo") if t.name == bound)
+		self.assertEqual(unfilled["message"], "Hi {{description}}, your code is {{code}}")
+
+	def test_reference_docname_needs_read_permission(self):
+		todo = frappe.get_doc(doctype="ToDo", description="Private").insert()
+		self._make_template("perm", reference_doctype="ToDo")
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			get_sendable_templates("ToDo", todo.name)
+
+	def test_filters_narrow_the_list_but_cannot_widen_it(self):
+		kept = self._make_template("kept", reference_doctype="ToDo")
+		dropped = self._make_template("dropped", reference_doctype="ToDo")
+		pending = self._make_template("pending_filtered", status="Pending", reference_doctype="ToDo")
+
+		names = [t.name for t in get_sendable_templates("ToDo", filters={"name": ["in", [kept, pending]]})]
+		self.assertEqual(names, [kept])
+		self.assertNotIn(dropped, names)
+		widened = get_sendable_templates("ToDo", filters={"status": "Pending"})
+		self.assertNotIn(pending, [t.name for t in widened])
+
 
 class TestUtils:
 	"""Plain unit tests for utility functions (no DB needed)."""
@@ -877,3 +950,12 @@ class IntegrationTestRetiredLanguageCodePatch(IntegrationTestCase):
 		self.assertFalse(frappe.db.exists("WA Template", retired))
 		self.assertEqual(frappe.db.get_value("WA Template", kept, "language"), "en_GB")
 		self.assertEqual(frappe.db.get_value("WA Message", message, "whatsapp_template"), kept)
+
+
+class IntegrationTestVariableFields(IntegrationTestCase):
+	def test_fields_carry_their_label(self):
+		fields = {field["value"]: field["label"] for field in get_variable_fields("ToDo")}
+
+		self.assertEqual(fields["status"], "Status")
+		self.assertNotIn("description", fields)
+		self.assertEqual(get_doctype_columns("ToDo"), list(fields))

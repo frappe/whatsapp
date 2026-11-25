@@ -8,7 +8,7 @@ Frappe app providing WhatsApp Business Cloud API (Graph API v22.0) integration. 
 
 **Canonical reference:** `~/Dev/frappe-bench/apps/frappe/` — always check Frappe source for framework APIs before assuming behavior.
 
-**Related docs:** `AGENTS.md` has exhaustive Frappe coding conventions (naming, lifecycle method ordering, error handling, test fixture patterns) — check it for anything not covered below. `DESIGN_DECISIONS.md` documents intentional product constraints (e.g. named-only template variables, reference-DocType-driven template parameters) that are not bugs.
+**Related docs:** `AGENTS.md` has exhaustive Frappe coding conventions (naming, lifecycle method ordering, error handling, test fixture patterns) — check it for anything not covered below. `DESIGN_DECISIONS.md` documents intentional product constraints (e.g. named-only template variables, reference-DocType-driven template parameters) that are not bugs. `.claude/skills/whatsapp-ui-design/SKILL.md` holds the UI and UX patterns for `@whatsapp/ui`; read it before building or reviewing a screen.
 
 ## Commands
 

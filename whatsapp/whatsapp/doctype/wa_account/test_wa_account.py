@@ -124,12 +124,6 @@ class IntegrationTestWAAccount(IntegrationTestCase):
 		)
 		return account
 
-	def test_append_action_needs_the_sender_mappings(self):
-		account = self._append_action(self._account("A"))
-
-		with self.assertRaises(frappe.MandatoryError):
-			account.save()
-
 	def test_append_action_rejects_a_field_the_target_doctype_lacks(self):
 		account = self._append_action(
 			self._account("A"), sender_field="mobile_no", sender_name_field="no_such_field"

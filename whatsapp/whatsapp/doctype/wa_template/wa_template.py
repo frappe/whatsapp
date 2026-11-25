@@ -6,12 +6,15 @@ from collections.abc import Iterator
 from typing import cast
 
 import frappe
+import requests
 from frappe import _
 from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
 from whatsapp.whatsapp.api.utils import (
+	MEDIA_HEADER_TYPES,
 	build_create_template_payload,
+	get_header_media_file,
 	log,
 	normalize_template_status,
 	parse_whatsapp_template_to_doc,
@@ -20,6 +23,9 @@ from whatsapp.whatsapp.api.utils import (
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.wa_account.wa_account import WAAccount
 from whatsapp.whatsapp.doctype.wa_settings.wa_settings import WASettings
+from whatsapp.whatsapp.flows.template_button import button_view
+from whatsapp.whatsapp.flows.template_sync import prepare_flow_buttons
+from whatsapp.whatsapp.flows.template_validation import validate_flow_buttons
 
 EDITABLE_STATUSES = ("Approved", "Rejected")
 
@@ -92,10 +98,11 @@ class WATemplate(Document):
 
 		try:
 			file_doc = frappe.get_doc("File", {"file_url": self.header_media})
-			if file_doc.content_type:
-				self.mime_type = file_doc.content_type
+			content_type = getattr(file_doc, "content_type", None)
+			if content_type:
+				self.mime_type = content_type
 				return
-		except frappe.DoesNotExistError:
+		except (frappe.DoesNotExistError, AttributeError):
 			pass
 
 		ext = self.header_media.rsplit(".", 1)[-1].lower() if "." in self.header_media else ""
@@ -111,6 +118,31 @@ class WATemplate(Document):
 			"ogg": "audio/ogg",
 		}
 		self.mime_type = mime_map.get(ext, "")
+
+	def _ensure_header_media_handle(self) -> None:
+		"""Upload the sample file and keep Meta's approval handle on this template.
+
+		Skipped when the file has not changed and a handle is already stored.
+		A chat media id must not be written here; that id cannot approve a template.
+		"""
+		if self.header_type not in MEDIA_HEADER_TYPES or not self.header_media:
+			return
+		if self.header_media_handle and not self.has_value_changed("header_media"):
+			return
+
+		file_doc = get_header_media_file(self.header_media)
+		if not file_doc:
+			frappe.throw(_("Upload the sample on this site before sending the template to Meta."))
+
+		content = file_doc.get_content()
+		mime = self.mime_type or getattr(file_doc, "content_type", None) or "application/octet-stream"
+		whatsapp = _get_whatsapp_client(self.whatsapp_account)
+		try:
+			self.header_media_handle = whatsapp.upload_template_sample(
+				content, mime, file_doc.file_name or "sample"
+			)
+		except requests.HTTPError as e:
+			frappe.throw(_("Could not upload the template sample to Meta: {0}").format(str(e)))
 
 	def validate_template_name(self) -> None:
 		if not self.template_name:
@@ -128,6 +160,8 @@ class WATemplate(Document):
 		self._sync_template_variables()
 		self.validate_template_name()
 		self.validate_variable_examples()
+		if not self.flags.get("from_sync"):
+			validate_flow_buttons(self)
 
 	def validate_variable_examples(self) -> None:
 		"""Meta refuses a variable without an example, and the push in before_save runs before the mandatory check."""
@@ -209,6 +243,7 @@ class WATemplate(Document):
 			)
 			frappe.throw(_("WhatsApp Account is required to push template to Meta"))
 
+		self._ensure_header_media_handle()
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
@@ -301,6 +336,7 @@ class WATemplate(Document):
 				)
 			)
 
+		self._ensure_header_media_handle()
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
@@ -484,7 +520,8 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			pv["variable_field"] = existing_variable_fields.get(pv["variable_name"], "")
 		doc.set("template_variables", parsed_variables)
 
-		doc.set("buttons", parsed.get("buttons", []))
+		prepare_flow_buttons(parsed["buttons"], account_name, doc.buttons)
+		doc.set("buttons", parsed["buttons"])
 		if whatsapp_template_id and not doc.whatsapp_template_id:
 			doc.whatsapp_template_id = whatsapp_template_id
 		doc.save()
@@ -498,6 +535,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		)
 		return parsed["template_name"], False
 
+	prepare_flow_buttons(parsed["buttons"], account_name, [])
 	doc = frappe.get_doc(
 		{
 			"doctype": "WA Template",
@@ -515,9 +553,10 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			"footer": parsed.get("footer", ""),
 			"variable_format": parsed.get("variable_format", "Named"),
 			"template_variables": parsed.get("template_variables", []),
-			"buttons": parsed.get("buttons", []),
+			"buttons": parsed["buttons"],
 		}
 	)
+	doc.flags.from_sync = True
 	doc.insert()
 	log(
 		"Info",
@@ -585,12 +624,22 @@ def sync_from_account(account_name: str) -> dict:
 	}
 
 
+VARIABLE_FIELDTYPES = ("Data", "Link", "Select", "Small Text", "Text")
+
+
 @frappe.whitelist()
 def get_doctype_columns(doctype: str) -> list[str]:
+	return [field["value"] for field in get_variable_fields(doctype)]
+
+
+@frappe.whitelist()
+def get_variable_fields(doctype: str) -> list[dict]:
+	"""Fields of `doctype` a template variable can be filled from."""
 	frappe.has_permission(doctype, "read", throw=True)
-	meta = frappe.get_meta(doctype)
 	return [
-		df.fieldname for df in meta.fields if df.fieldtype in ("Data", "Link", "Select", "Small Text", "Text")
+		{"value": df.fieldname, "label": _(df.label) if df.label else df.fieldname}
+		for df in frappe.get_meta(doctype).fields
+		if df.fieldtype in VARIABLE_FIELDTYPES
 	]
 
 
@@ -669,17 +718,24 @@ def create_template_and_push(doc_data: dict, account_name: str) -> dict:
 
 
 @frappe.whitelist()
-def get_sendable_templates(reference_doctype: str) -> list[dict]:
+def get_sendable_templates(
+	reference_doctype: str,
+	reference_docname: str | None = None,
+	filters: dict | None = None,
+) -> list[dict]:
 	"""Return Approved templates that can be sent from the given DocType.
 
 	Sendable means bound to that doctype, or unbound with no variables. Unbound templates
-	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md).
+	with variables have nothing to resolve them from (see DESIGN_DECISIONS.md). `filters`
+	narrows the list further; with `reference_docname`, mapped variables in the header and
+	body come back filled from that document, as the sent message will be.
 	"""
 	run_access_guards()
 
 	templates = frappe.get_all(
 		"WA Template",
 		filters={
+			**(filters or {}),
 			"status": "Approved",
 			"reference_doctype": ["in", [reference_doctype, ""]],
 		},
@@ -693,6 +749,7 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 			"header_type",
 			"reference_doctype",
 			"language",
+			"template_type",
 		],
 		order_by="modified desc",
 	)
@@ -720,23 +777,35 @@ def get_sendable_templates(reference_doctype: str) -> list[dict]:
 	for row in frappe.get_all(
 		"WA Template Button",
 		filters={"parent": ["in", [t.name for t in sendable]], "parenttype": "WA Template"},
-		fields=["parent", "button_type", "button_text", "url", "phone_number"],
+		fields=["parent", "button_type", "button_text", "url", "phone_number", "flow_icon"],
 		order_by="idx asc",
 	):
-		buttons_by_template.setdefault(row.parent, []).append(
-			{
-				"button_type": row.button_type,
-				"button_text": row.button_text,
-				"url": row.url,
-				"phone_number": row.phone_number,
-			}
-		)
+		buttons_by_template.setdefault(row.parent, []).append(button_view(row))
 
 	for template in sendable:
 		template["template_variables"] = variables_by_template.get(template.name, [])
 		template["buttons"] = buttons_by_template.get(template.name, [])
 
+	if reference_docname:
+		_fill_from_reference(sendable, reference_doctype, reference_docname)
 	return sendable
+
+
+def _fill_from_reference(templates: list[dict], doctype: str, docname: str) -> None:
+	"""Fill mapped variables from the reference document, with the values `WA Message` sends."""
+	frappe.has_permission(doctype, "read", docname, throw=True)
+	fields = {v["variable_field"] for t in templates for v in t["template_variables"] if v["variable_field"]}
+	if not fields:
+		return
+	values = frappe.db.get_value(doctype, docname, list(fields), as_dict=True) or {}
+	for template in templates:
+		for variable in template["template_variables"]:
+			if not variable["variable_field"]:
+				continue
+			placeholder = f"{{{{{variable['variable_name']}}}}}"
+			value = str(values.get(variable["variable_field"]) or "")
+			template["message"] = (template.message or "").replace(placeholder, value)
+			template["header_text"] = (template.header_text or "").replace(placeholder, value)
 
 
 @frappe.whitelist()

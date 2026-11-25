@@ -22,9 +22,11 @@ from whatsapp.whatsapp.api.messages import (
 	_validate_template_is_approved,
 	get_messages,
 	react_to_message,
+	send_flow,
 	send_message,
 	send_template,
 )
+from whatsapp.whatsapp.api.meta_errors import META_ERRORS
 from whatsapp.whatsapp.api.utils import (
 	get_logs,
 	humanize_error_message,
@@ -40,6 +42,8 @@ from whatsapp.whatsapp.doctype.wa_template.wa_template import (
 	sync_all,
 	sync_from_account,
 )
+
+EXTRA_TEST_RECORD_DEPENDENCIES = ["User"]
 
 
 class WithoutHostAccessGuards:
@@ -165,21 +169,22 @@ class TestHumanizeErrorMessage(UnitTestCase):
 			'"details":"Recipient phone number not in allowed list: Add recipient phone number '
 			'to recipient list and try again."},"fbtrace_id":"AeALCYwKZ1csanln8U18Q9i"}}'
 		)
-		self.assertEqual(
-			humanize_error_message(raw),
-			"(#131030) Recipient phone number not in allowed list",
-		)
+		self.assertEqual(humanize_error_message(raw), str(META_ERRORS[131030]))
 
 	def test_extracts_message_from_webhook_errors_array(self):
-		raw = '[{"code":131030,"title":"Undeliverable","message":"(#131030) Not allowed"}]'
-		self.assertEqual(humanize_error_message(raw), "(#131030) Not allowed")
+		raw = '[{"code":131047,"title":"Re-engagement message","message":"(#131047) Re-engagement"}]'
+		self.assertEqual(humanize_error_message(raw), str(META_ERRORS[131047]))
+
+	def test_unknown_code_keeps_metas_message(self):
+		raw = '[{"code":999999,"title":"Undeliverable","message":"(#999999) Not allowed"}]'
+		self.assertEqual(humanize_error_message(raw), "(#999999) Not allowed")
 
 	def test_falls_back_to_error_user_msg(self):
 		raw = '{"error":{"code":131030,"error_user_msg":"Add the number to your allowed list"}}'
 		self.assertEqual(humanize_error_message(raw), "Add the number to your allowed list")
 
 	def test_falls_back_to_title(self):
-		self.assertEqual(humanize_error_message('[{"code":131030,"title":"Undeliverable"}]'), "Undeliverable")
+		self.assertEqual(humanize_error_message('[{"code":999999,"title":"Undeliverable"}]'), "Undeliverable")
 
 	def test_empty_errors_array_returns_original(self):
 		self.assertEqual(humanize_error_message("[]"), "[]")
@@ -242,6 +247,7 @@ class TestAccessGuard(UnitTestCase):
 			(send_message, ("15550001111", "hello")),
 			(react_to_message, ("m1", "👍")),
 			(send_template, ("tpl", "15550001111")),
+			(send_flow, ("flow", "15550001111", "hello")),
 			(get_sendable_templates, ("ToDo",)),
 			(create_template_and_push, ({}, "_Test Account")),
 		]
@@ -894,6 +900,37 @@ class TestGetMessages(WithoutHostAccessGuards, UnitTestCase):
 			],
 		)
 
+	def test_template_flow_button_carries_its_icon(self):
+		templates = {
+			"tpl_a": _template_doc(
+				buttons=[
+					frappe._dict(
+						button_type="Flow",
+						button_text="Rate us",
+						url="",
+						phone_number="",
+						flow="1290456178312045",
+						flow_icon="Review",
+					),
+				],
+			)
+		}
+		rows = [_message_row("m1", is_template=1, whatsapp_template="tpl_a")]
+		message = self._run(rows, templates=templates)[0]
+
+		self.assertEqual(
+			message["buttons"],
+			[
+				{
+					"button_type": "Flow",
+					"button_text": "Rate us",
+					"url": "",
+					"phone_number": "",
+					"flow_icon": "Review",
+				}
+			],
+		)
+
 	def test_template_with_no_stored_parameters_keeps_placeholders(self):
 		templates = {"tpl_a": _template_doc(template_name="tpl_a", message="Hi {{name}}")}
 		rows = [_message_row("m1", is_template=1, whatsapp_template="tpl_a")]
@@ -1508,6 +1545,7 @@ class IntegrationTestPermissionGates(WithoutHostAccessGuards, IntegrationTestCas
 			(get_logs, ()),
 			(send_message, ("15550001111", "hello")),
 			(send_template, ("tpl", "15550001111")),
+			(send_flow, ("flow", "15550001111", "hello")),
 			(get_active_accounts, ()),
 			(sync_from_account, ("_Test Account",)),
 			(sync_all, ()),

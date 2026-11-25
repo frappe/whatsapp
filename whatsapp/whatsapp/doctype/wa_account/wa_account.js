@@ -15,6 +15,25 @@ frappe.ui.form.on("WA Account", {
 				callback: (r) => show_subscription_result(frm, r.message),
 			});
 		});
+		frm.page.add_menu_item(__("Sync Flows"), () => {
+			frappe.call({
+				method: "whatsapp.whatsapp.flows.sync.sync_flows",
+				args: { account_name: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Fetching this account's Flows from Meta..."),
+				callback: ({ message: counts }) => {
+					frappe.msgprint({
+						title: __("Flows Synced"),
+						indicator: "green",
+						message: __("{0} created, {1} updated, {2} removed.", [
+							counts.created,
+							counts.updated,
+							counts.removed,
+						]),
+					});
+				},
+			});
+		});
 	},
 
 	setup: function (frm) {
@@ -82,11 +101,15 @@ function show_subscription_result(frm, result) {
 			});
 		},
 	});
-	dialog.$body
-		.html(`<p>${__("The app is not subscribed to WABA {0}, so it receives no webhook events.", [waba])}</p>
+	dialog.$body.html(`<p>${__(
+		"The app is not subscribed to WABA {0}, so it receives no webhook events.",
+		[waba]
+	)}</p>
 		<p>${expected}</p>
 		<p>${__("Subscribed apps:")}</p>
 		<ul>${apps || `<li>${__("none")}</li>`}</ul>
-		<p>${__("Subscribe uses this account's access token, so the app that token belongs to is the one that gets subscribed.")}</p>`);
+		<p>${__(
+			"Subscribe uses this account's access token, so the app that token belongs to is the one that gets subscribed."
+		)}</p>`);
 	dialog.show();
 }

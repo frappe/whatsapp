@@ -2,6 +2,7 @@
 # See license.txt
 
 import json
+import os
 import secrets
 from unittest.mock import patch
 
@@ -692,7 +693,7 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
 	def test_template_header_media_uploaded_when_missing(self, mock_send, mock_upload):
-		"""Template header media is uploaded on first send when handle missing."""
+		"""Sending a media template uploads a message id and leaves the approval handle alone."""
 		mock_upload.return_value = {"id": "h_handle_001"}
 		mock_send.return_value = {"messages": [{"id": "wa_th_001"}]}
 		self._make_setting()
@@ -710,13 +711,17 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 		doc.submit()
 
 		mock_upload.assert_called_once()
-		handle = frappe.db.get_value("WA Template", tmpl, "header_media_handle")
-		self.assertEqual(handle, "h_handle_001")
+		self.assertEqual(doc.media_id, "h_handle_001")
+		self.assertFalse(frappe.db.get_value("WA Template", tmpl, "header_media_handle"))
+		payload = mock_send.call_args.args[0]
+		header = next(row for row in payload["template"]["components"] if row["type"] == "header")
+		self.assertEqual(header["parameters"][0]["image"]["id"], "h_handle_001")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
-	def test_template_header_media_skipped_when_cached(self, mock_send, mock_upload):
-		"""Template header media is NOT re-uploaded when handle already cached."""
+	def test_template_header_media_uploaded_when_approval_handle_exists(self, mock_send, mock_upload):
+		"""An approval handle is not a send id, so the sample is still uploaded for the message."""
+		mock_upload.return_value = {"id": "send_media_002"}
 		mock_send.return_value = {"messages": [{"id": "wa_th_002"}]}
 		self._make_setting()
 
@@ -733,7 +738,9 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 		doc.insert()
 		doc.submit()
 
-		mock_upload.assert_not_called()
+		mock_upload.assert_called_once()
+		self.assertEqual(frappe.db.get_value("WA Template", tmpl, "header_media_handle"), "existing_handle")
+		self.assertEqual(doc.media_id, "send_media_002")
 
 	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
 	def test_template_header_media_upload_failure_fails_send(self, mock_upload):
@@ -759,6 +766,57 @@ class IntegrationTestWAMessage(IntegrationTestCase):
 
 		self.assertEqual(doc.status, "Failed")
 		self.assertIn("Header upload rejected", doc.error_message)
+
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.send_message")
+	def test_template_header_media_reused_across_sends(self, mock_send, mock_upload):
+		"""A second send of the same template from the same account reuses the uploaded media id."""
+		mock_upload.return_value = {"id": "send_media_once"}
+		mock_send.return_value = {"messages": [{"id": "wa_th_reuse"}]}
+		self._make_setting()
+
+		file_name = self._make_file("reuse.png", b"reuse_bytes")
+		tmpl = self._make_template(header_type="Image", header_media=file_name)
+		account = self._make_account()
+		for _i in range(2):
+			doc = frappe.get_doc(self._make_outgoing(account=account, is_template=1, whatsapp_template=tmpl))
+			doc.insert()
+			doc.submit()
+			self.assertEqual(doc.media_id, "send_media_once")
+
+		mock_upload.assert_called_once()
+
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	def test_template_header_missing_file_fails_send(self, mock_upload):
+		"""A template whose sample file is gone marks the message Failed instead of only raising."""
+		self._make_setting()
+		tmpl = self._make_template(header_type="Image", header_media="/files/_test_gone.png")
+		doc = frappe.get_doc(self._make_outgoing(is_template=1, whatsapp_template=tmpl))
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		mock_upload.assert_not_called()
+		self.assertEqual(doc.status, "Failed")
+		self.assertTrue(doc.error_message)
+
+	@patch("whatsapp.whatsapp.api.whatsapp.WhatsApp.upload_media")
+	def test_template_header_file_gone_from_disk_fails_send(self, mock_upload):
+		"""A File row whose content is gone from disk marks the message Failed."""
+		self._make_setting()
+		file_name = self._make_file("gone_from_disk.png", b"bytes")
+		os.remove(frappe.get_doc("File", file_name).get_full_path())
+		tmpl = self._make_template(header_type="Image", header_media=file_name)
+		doc = frappe.get_doc(self._make_outgoing(is_template=1, whatsapp_template=tmpl))
+		doc.insert()
+
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()
+
+		mock_upload.assert_not_called()
+		self.assertEqual(doc.status, "Failed")
+		self.assertTrue(doc.error_message)
 
 	# -------------------------------------------------------------------------
 	# interactive messages

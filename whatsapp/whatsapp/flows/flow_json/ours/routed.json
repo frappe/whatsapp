@@ -1,0 +1,57 @@
+{
+	"version": "7.1",
+	"data_api_version": "3.0",
+	"routing_model": {
+		"START": [
+			"NEXT"
+		],
+		"NEXT": []
+	},
+	"screens": [
+		{
+			"id": "START",
+			"title": "Start",
+			"data": {
+				"profile": {
+					"type": "object"
+				},
+				"count": {
+					"type": "number"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Footer",
+						"label": "Go",
+						"on-click-action": {
+							"name": "data_exchange",
+							"payload": {}
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "NEXT",
+			"title": "Next",
+			"terminal": true,
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Footer",
+						"label": "Done",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"ok": true
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}

@@ -10,7 +10,12 @@ const props = defineProps<TemplateFormProps>();
 
 provide(CommitKey, NO_COMMIT);
 
-const layout = computed(() => templateLayout(props.controller));
+const layout = computed(() =>
+	templateLayout(props.controller, props.flowChrome, {
+		onNewFlow: props.onNewFlow,
+		onManageFlows: props.onManageFlows,
+	})
+);
 
 const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 </script>
@@ -28,3 +33,14 @@ const errorMessage = computed(() => serverErrorMessage(props.controller.error));
 		<ErrorMessage class="mt-4" :message="errorMessage" />
 	</div>
 </template>
+
+<style scoped>
+:deep([data-part="flow-button"]) {
+	animation: flow-button-in 150ms ease-out;
+}
+@keyframes flow-button-in {
+	from {
+		opacity: 0;
+	}
+}
+</style>
