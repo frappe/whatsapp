@@ -12,6 +12,8 @@ from frappe.geo.country_info import get_country_info
 from frappe.model.document import Document
 from phonenumbers import NumberParseException, PhoneNumberFormat
 
+from whatsapp.whatsapp.api.utils import log
+
 FALLBACK_REGION = "IN"
 
 
@@ -68,28 +70,46 @@ class WAProfile(Document):
 		self._sync_block_with_whatsapp()
 
 	def _sync_block_with_whatsapp(self) -> None:
-		"""Meta only blocks users who messaged the number in the last 24 hours, so a rejection
-		throws before the status is written rather than leaving the two sides disagreeing."""
 		previous = self.get_doc_before_save()
 		was_blocked = bool(previous) and previous.status == "Blocked"
 		is_blocked = self.status == "Blocked"
 		if was_blocked == is_blocked:
 			return
+		if was_blocked and self.status == "Disabled":
+			frappe.throw(_("Unblock this contact before you disable it."))
 
 		# wa_account imports wa_message, which imports this module
 		from whatsapp.whatsapp.doctype.wa_account.wa_account import _client_for
 
 		client = _client_for(frappe.get_doc("WA Account", self.whatsapp_account))
 		user = self.wa_id or self.phone_number.lstrip("+")
+		if is_blocked:
+			self._block_on_whatsapp(client, user)
+		else:
+			self._unblock_on_whatsapp(client, user)
+
+	def _block_on_whatsapp(self, client, user: str) -> None:
+		"""Meta only blocks users who messaged the number in the last 24 hours, so a rejection
+		throws before the status is written rather than leaving the two sides disagreeing."""
 		try:
-			if is_blocked:
-				client.block_user(user)
-			else:
-				client.unblock_user(user)
+			client.block_user(user)
 		except requests.HTTPError as e:
-			if is_blocked:
-				frappe.throw(_("WhatsApp could not block this contact: {0}").format(e))
-			frappe.throw(_("WhatsApp could not unblock this contact: {0}").format(e))
+			frappe.throw(_("WhatsApp could not block this contact: {0}").format(str(e)))
+
+	def _unblock_on_whatsapp(self, client, user: str) -> None:
+		"""Profiles blocked before blocking reached Meta are not blocked there, so a rejected
+		unblock is logged and the profile is unblocked anyway."""
+		try:
+			client.unblock_user(user)
+		except requests.HTTPError as e:
+			log(
+				"Warning",
+				"API",
+				f"WhatsApp could not unblock {self.name}: {e}",
+				account=self.whatsapp_account,
+				reference_doctype=self.doctype,
+				reference_docname=self.name,
+			)
 
 	def _validate_unique_phone_per_account(self) -> None:
 		if not self.phone_number or not self.whatsapp_account:
