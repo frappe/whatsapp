@@ -10,7 +10,6 @@ const props = defineProps<{
 	inputs: FlowInput[];
 	/** The entry screen's declared keys and types; null while unknown. */
 	declared: Record<string, string> | null;
-	hasFlow: boolean;
 	/** The outline is still loading, so the lines are the saved ones and stay disabled. */
 	pending: boolean;
 	disabled: boolean;
@@ -33,12 +32,6 @@ const lines = computed(() => {
 	}));
 });
 
-const note = computed(() => {
-	if (!props.hasFlow) return props.chrome.noFlowChosen;
-	if (lines.value.length || props.pending) return "";
-	return props.declared ? props.chrome.noInputs : props.chrome.inputsUnlisted;
-});
-
 function setSource(key: string, source_field: string) {
 	emit(
 		"update",
@@ -51,14 +44,14 @@ function setSource(key: string, source_field: string) {
 </script>
 
 <template>
-	<section class="flex flex-col gap-3">
+	<!-- Shown only when the entry screen declares inputs: the builder's "Prefill from template" adds them. -->
+	<section v-if="lines.length" class="flex flex-col gap-3">
 		<header class="flex flex-col gap-0.5">
 			<h4 class="text-sm-medium text-ink-gray-8">{{ chrome.inputsHeading }}</h4>
 			<p class="truncate text-p-sm text-ink-gray-6">
 				{{ referenceDoctype ? chrome.inputsHint : chrome.noReference }}
 			</p>
 		</header>
-		<p v-if="note" class="flex h-7 items-center text-sm text-ink-gray-6">{{ note }}</p>
 		<div
 			v-for="line in lines"
 			:key="line.key"

@@ -1,23 +1,31 @@
 import type { FieldNode, FormLayoutSchema, Section } from "@framework/ui/components/FormLayout";
 import FlowButtonEditor from "./FlowButtonEditor.vue";
+import FlowIconField from "./FlowIconField.vue";
 import TemplateBodyEditor from "./TemplateBodyEditor.vue";
 import TemplateVariablesField from "./TemplateVariablesField.vue";
 import { FLOW_BUTTON_CHROME, type FlowButtonChrome } from "./flowChrome";
 import type { FlowButtonEditorProps, TemplateButtonRow, TemplateController } from "./types";
 
-type FlowLinks = Pick<FlowButtonEditorProps, "onNewFlow" | "onEditFlow">;
+type FlowLinks = Pick<FlowButtonEditorProps, "onNewFlow" | "onManageFlows">;
 
 // Only documents a template can be sent from: child rows and singles have no record to bind to.
 const REFERENCE_FILTERS = { istable: 0, issingle: 0 };
 
 // Copy Code is not offered: `build_create_template_payload` drops it before the push.
-const BUTTON_COLUMNS: FieldNode[] = [
+const buttonColumns = (chrome: FlowButtonChrome): FieldNode[] => [
   {
     fieldname: "button_type",
     fieldtype: "Select",
     label: "Type",
     options: "Quick Reply\nURL\nPhone Number\nVoice Call\nFlow",
     reqd: true,
+  },
+  {
+    fieldname: "flow_icon",
+    fieldtype: "Select",
+    label: chrome.iconLabel,
+    dependsOn: 'eval:doc.button_type === "Flow"',
+    ui: { component: FlowIconField, props: { chrome } },
   },
   { fieldname: "button_text", fieldtype: "Data", label: "Text", reqd: true },
   {
@@ -188,7 +196,7 @@ export function templateLayout(
                   fieldname: "buttons",
                   fieldtype: "Table",
                   label: "Buttons",
-                  childFields: BUTTON_COLUMNS,
+                  childFields: buttonColumns({ ...FLOW_BUTTON_CHROME, ...flowChrome }),
                 },
               ],
             },

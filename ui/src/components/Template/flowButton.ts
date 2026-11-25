@@ -78,17 +78,17 @@ export function actionTarget(action: ResponseAction, referenceDoctype: string | 
   return action.action === "Create Document" ? action.doctype : referenceDoctype;
 }
 
-/** One line for a collapsed Response action: "Update CRM Deal · 3 fields · when …". */
+/** What a collapsed Response action shows: "Update CRM Deal", "3 fields". The condition shows on its own. */
 export function actionSummary(
   action: ResponseAction,
   referenceDoctype: string | undefined,
   chrome: FlowButtonChrome
-): string {
-  const parts = [kindSummary(action, referenceDoctype, chrome)];
+): { title: string; fields: string } {
   const count = action.fields.length;
-  if (count) parts.push(count === 1 ? chrome.oneField : format(chrome.manyFields, count));
-  if (action.condition?.trim()) parts.push(format(chrome.whenSummary, action.condition.trim()));
-  return parts.join(" · ");
+  return {
+    title: kindSummary(action, referenceDoctype, chrome),
+    fields: count === 1 ? chrome.oneField : count ? format(chrome.manyFields, count) : "",
+  };
 }
 
 function kindSummary(action: ResponseAction, referenceDoctype: string | undefined, chrome: FlowButtonChrome) {

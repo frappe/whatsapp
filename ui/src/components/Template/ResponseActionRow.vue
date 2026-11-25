@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Button, Select, TextInput, Tooltip } from "frappe-ui";
+import { Badge, Button, Select, TextInput, Tooltip } from "frappe-ui";
+import ConditionEditor from "./ConditionEditor.vue";
+import ConfirmDeleteButton from "../common/ConfirmDeleteButton.vue";
 import { Link } from "@framework/ui/components/Link";
 import ResponseMappings from "./ResponseMappings.vue";
 import { actionSummary, isStaleSource, RESPONSE_ACTION_KINDS } from "./flowButton";
+import { format } from "./flowChrome";
 import type { FlowButtonChrome } from "./flowChrome";
 import type { FlowOutline, ResponseAction, ResponseActionKind, TemplateController } from "./types";
 
@@ -22,6 +25,7 @@ const emit = defineEmits<{ toggle: []; remove: []; change: [] }>();
 const referenceDoctype = computed(() => props.controller.doc.reference_doctype);
 const isCreate = computed(() => props.action.action === "Create Document");
 const summary = computed(() => actionSummary(props.action, referenceDoctype.value, props.chrome));
+const condition = computed(() => props.action.condition?.trim() ?? "");
 const hasStale = computed(() =>
 	props.action.fields.some((field) => isStaleSource(field.source, props.outline))
 );
@@ -75,7 +79,17 @@ function setCondition(condition: string) {
 					:class="{ 'rotate-90': expanded }"
 					aria-hidden="true"
 				/>
-				<span class="truncate">{{ summary }}</span>
+				<span class="min-w-0 truncate">{{ summary.title }}</span>
+				<span v-if="summary.fields" class="shrink-0 text-ink-gray-5">{{ summary.fields }}</span>
+				<Badge
+					v-if="condition"
+					class="min-w-0 max-w-72"
+					variant="subtle"
+					theme="gray"
+					:title="format(chrome.whenSummary, condition)"
+				>
+					<span class="truncate font-mono">{{ condition }}</span>
+				</Badge>
 			</button>
 			<span class="flex w-4 shrink-0 justify-center">
 				<Tooltip v-if="hasStale" :text="chrome.hasStaleSource">
@@ -86,13 +100,12 @@ function setCondition(condition: string) {
 					/>
 				</Tooltip>
 			</span>
-			<Button
+			<ConfirmDeleteButton
 				class="shrink-0"
-				variant="ghost"
-				icon="lucide-trash-2"
-				:aria-label="chrome.removeAction"
+				:label="chrome.removeAction"
+				:confirm-label="chrome.confirmRemove"
 				:disabled="disabled"
-				@click="emit('remove')"
+				@confirm="emit('remove')"
 			/>
 		</div>
 
@@ -125,12 +138,12 @@ function setCondition(condition: string) {
 						/>
 					</div>
 					<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1.75rem] gap-x-3">
-						<TextInput
-							class="col-span-2 [&_input]:font-mono"
-							:label="chrome.conditionLabel"
-							:description="chrome.conditionHint"
+						<ConditionEditor
+							class="col-span-2"
 							:model-value="action.condition ?? ''"
-							placeholder="response.rating < 3"
+							:chrome="chrome"
+							:outline="outline"
+							:doc-fields="controller.fieldOptions"
 							:disabled="disabled"
 							@update:model-value="setCondition"
 						/>

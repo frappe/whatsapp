@@ -13,7 +13,7 @@ provide(CommitKey, NO_COMMIT);
 const layout = computed(() =>
 	templateLayout(props.controller, props.flowChrome, {
 		onNewFlow: props.onNewFlow,
-		onEditFlow: props.onEditFlow,
+		onManageFlows: props.onManageFlows,
 	})
 );
 

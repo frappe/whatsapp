@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { Badge, Button, Combobox, FormLabel, Select } from "frappe-ui";
 import FlowInputsEditor from "./FlowInputsEditor.vue";
+import FlowPreviewDialog from "../FlowBuilder/preview/FlowPreviewDialog.vue";
 import ResponseActionsEditor from "./ResponseActionsEditor.vue";
 import { FLOW_BUTTON_CHROME } from "./flowChrome";
 import { STATUS_THEME } from "../FlowBuilder/status";
@@ -35,9 +36,10 @@ const emptyOutline = computed(() => !!outline.value && !outline.value.screens.le
 const entryScreens = computed(() => Object.keys(outline.value?.entry_screens ?? {}));
 // Without an outline the saved screen is still the button's, so it stays shown.
 const screenOptions = computed(() =>
-	entryScreens.value.length || !props.button.flow_screen
+	(entryScreens.value.length || !props.button.flow_screen
 		? entryScreens.value
 		: [props.button.flow_screen]
+	).map((id) => ({ label: outline.value?.screen_titles?.[id] || id, value: id }))
 );
 // An empty screen opens the Flow's first entry screen; the server fills it in on save.
 const screen = computed(() => props.button.flow_screen || entryScreens.value[0] || "");
@@ -45,12 +47,7 @@ const declared = computed(() =>
 	outline.value?.screens.length ? outline.value.entry_screens[screen.value] ?? {} : null
 );
 
-const iconOptions = computed(() => [
-	{ value: "", label: chrome.value.iconNone },
-	{ value: "Document", label: chrome.value.iconDocument },
-	{ value: "Promotion", label: chrome.value.iconPromotion },
-	{ value: "Review", label: chrome.value.iconReview },
-]);
+const previewing = ref(false);
 const actionOptions = computed(() => [
 	{ value: "Navigate", label: chrome.value.actionNavigate },
 	{ value: "Data Exchange", label: chrome.value.actionDataExchange },
@@ -97,9 +94,9 @@ function setInputs(next: FlowInput[]) {
 	set({ flow_inputs: serializeInputs(next) });
 }
 
-function newFlow(closePicker: () => void) {
+function pick(closePicker: () => void, link: (() => void) | undefined) {
 	closePicker();
-	props.onNewFlow?.();
+	link?.();
 }
 
 function writeActions() {
@@ -111,38 +108,27 @@ function writeActions() {
 <template>
 	<div class="flex flex-col gap-8 text-ink-gray-8">
 		<section class="flex flex-col gap-3">
-			<h4 class="text-sm-medium text-ink-gray-8">{{ chrome.flowHeading }}</h4>
 			<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1.75rem] gap-x-3 gap-y-4">
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center justify-between gap-2">
 						<FormLabel :label="chrome.flowLabel" />
-						<div class="flex min-w-0 items-center gap-3">
-							<button
-								v-if="onEditFlow && button.flow"
-								type="button"
-								class="shrink-0 text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
-								@click="onEditFlow(button.flow)"
-							>
-								{{ chrome.editFlow }}
-							</button>
-							<button
+						<!-- Ghost buttons with the padding trimmed. Negative margins keep the label row as
+						     tall as the screen picker's. -->
+						<div class="flow-links -my-1.5 flex min-w-0 items-center gap-2">
+							<Button
 								v-if="flows?.error"
-								type="button"
-								class="truncate text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
+								variant="ghost"
+								size="sm"
+								:label="`${chrome.flowsError} · ${chrome.retry}`"
 								@click="flows.retry()"
-							>
-								{{ chrome.flowsError }} · {{ chrome.retry }}
-							</button>
-							<a
-								v-else-if="flow?.preview_url"
-								:href="flow.preview_url"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="flex items-center gap-1 text-sm leading-tighter text-ink-gray-7 hover:text-ink-gray-9"
-							>
-								{{ chrome.previewLabel }}
-								<span class="lucide-arrow-up-right size-3" aria-hidden="true" />
-							</a>
+							/>
+							<Button
+								v-else-if="button.flow"
+								variant="ghost"
+								size="sm"
+								:label="chrome.previewLabel"
+								@click="previewing = true"
+							/>
 						</div>
 					</div>
 					<Combobox
@@ -179,15 +165,24 @@ function writeActions() {
 							/>
 						</template>
 						<template
-							v-if="onNewFlow && controller.doc.whatsapp_account"
+							v-if="(onNewFlow && controller.doc.whatsapp_account) || onManageFlows"
 							#footer="{ close }"
 						>
 							<Button
+								v-if="onNewFlow && controller.doc.whatsapp_account"
 								variant="ghost"
 								class="w-full !justify-start"
 								icon-left="lucide-plus"
 								:label="chrome.newFlow"
-								@click="newFlow(close)"
+								@click="pick(close, onNewFlow)"
+							/>
+							<Button
+								v-if="onManageFlows"
+								variant="ghost"
+								class="w-full !justify-start"
+								icon-left="lucide-settings-2"
+								:label="chrome.manageFlows"
+								@click="pick(close, onManageFlows)"
 							/>
 						</template>
 						<template #empty>
@@ -212,13 +207,6 @@ function writeActions() {
 					@update:model-value="(value) => setScreen(String(value ?? ''))"
 				/>
 				<span />
-				<Select
-					:label="chrome.iconLabel"
-					:model-value="button.flow_icon ?? ''"
-					:options="iconOptions"
-					:disabled="disabled"
-					@update:model-value="(value) => set({ flow_icon: (value ?? '') as TemplateButtonRow['flow_icon'] })"
-				/>
 				<Transition name="fade">
 					<Select
 						v-if="flow?.endpoint_uri"
@@ -256,12 +244,18 @@ function writeActions() {
 			</p>
 		</section>
 
+		<FlowPreviewDialog
+			v-if="button.flow"
+			v-model:open="previewing"
+			:flow="button.flow"
+			:title="flow?.flow_name"
+		/>
+
 		<FlowInputsEditor
 			:controller="controller"
 			:chrome="chrome"
 			:inputs="inputs"
 			:declared="declared"
-			:has-flow="!!button.flow"
 			:pending="!!outlineState && !outline && !outlineState.error"
 			:disabled="disabled"
 			@update="setInputs"
@@ -286,5 +280,8 @@ function writeActions() {
 .fade-enter-from,
 .fade-leave-to {
 	opacity: 0;
+}
+.flow-links :deep(button) {
+	padding-inline: 0.25rem;
 }
 </style>

@@ -69,6 +69,8 @@ export interface FlowOutlineAnswer {
 /** What the server read out of a Flow's JSON. No `screens` means the JSON was missing or invalid. */
 export interface FlowOutline {
   screens: string[];
+  /** screen id -> its title; absent on outlines stored before titles were read */
+  screen_titles?: Record<string, string>;
   /** entry screen id -> declared data key -> declared type */
   entry_screens: Record<string, Record<string, string>>;
   answers: FlowOutlineAnswer[];
@@ -171,7 +173,7 @@ export interface TemplateFormProps {
   flowChrome?: Partial<FlowButtonChrome>;
   /** passed on to every Flow button's editor */
   onNewFlow?: () => void;
-  onEditFlow?: (flow: string) => void;
+  onManageFlows?: () => void;
 }
 
 /** Configures one Flow button row: its Flow, inputs and Response actions. Draws content, not its container. */
@@ -182,11 +184,11 @@ export interface FlowButtonEditorProps {
   disabled?: boolean;
   chrome?: Partial<FlowButtonChrome>;
   /**
-   * `@new-flow` shows "New flow" under the Flow picker's options; `@edit-flow` shows "Edit flow"
-   * beside its label once a Flow is chosen. Props, not emits, so each shows only when the host listens.
+   * `@new-flow` and `@manage-flows` show "New flow" and "Manage Flows" under the Flow picker's
+   * options. Props, not emits, so each shows only when the host listens.
    */
   onNewFlow?: () => void;
-  onEditFlow?: (flow: string) => void;
+  onManageFlows?: () => void;
 }
 
 /** The message as the contact will read it, with the variables' examples filled in. */

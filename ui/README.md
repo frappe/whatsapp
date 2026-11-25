@@ -367,21 +367,22 @@ popover, each with a Retry.
 other field. A mapping whose answer the current Flow no longer sends shows an amber warning on
 its line and on its collapsed row; the server warns about it too, without refusing the save.
 
-**Links to the Flow builder.** `@edit-flow="(flow) => …"` shows "Edit flow" beside the "Flow to
-open" label once a Flow is chosen, and `@new-flow="() => …"` shows "New flow" under the picker's
-options (only when the template has an account). The host opens its own builder dialog or
-`NewFlowDialog`; leave a listener off and its link is not drawn, so a host that can't create
-Flows passes no `@new-flow`. They are props (`onNewFlow`, `onEditFlow`), not emits, so the editor
-can tell whether anyone listens. `TemplateForm` takes the same two and passes them to every
-editor. After the builder closes, call `template.refreshFlows()`: it fetches the Flows and the
-outlines again in place, keeping each one's data until the answer comes and keeping the form's
-unsaved edits (`reload()` would drop them).
+**Links to the Flows.** `@new-flow="() => …"` shows "New flow" under the Flow picker's options
+(only when the template has an account), and `@manage-flows="() => …"` shows "Manage Flows" there
+too. The host opens `NewFlowDialog`, or takes the user to its Flows list. A published Flow can't be
+edited, so the editor has no link into the builder for the chosen Flow; "Preview" opens the
+Flow's phone preview in a dialog instead. Leave a listener off and its link is not drawn, so a
+host that can't create Flows passes no `@new-flow`. They are props (`onNewFlow`, `onManageFlows`),
+not emits, so the editor can tell whether anyone listens. `TemplateForm` takes the same two and
+passes them to every editor. After a Flow is created, call `template.refreshFlows()`: it fetches
+the Flows and the outlines again in place, keeping each one's data until the answer comes and
+keeping the form's unsaved edits (`reload()` would drop them).
 
 ```vue
 <TemplateForm
   :controller="template"
   @new-flow="creating = true"
-  @edit-flow="(flow) => (openFlow = flow)"
+  @manage-flows="showFlowsList"
 />
 ```
 
