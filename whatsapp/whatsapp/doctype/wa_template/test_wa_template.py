@@ -130,6 +130,41 @@ class IntegrationTestWATemplate(WithoutHostAccessGuards, IntegrationTestCase):
 		self.assertTrue(log_exists, "expected a success WhatsApp Log row for the template push")
 
 	@patch("whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp")
+	def test_image_template_uploads_sample_before_create(self, MockWhatsApp):
+		"""A media header is uploaded with the resumable API before Meta creates the template."""
+		MockWhatsApp.return_value.upload_template_sample.return_value = "4::sample"
+		MockWhatsApp.return_value.create_template.return_value = {
+			"id": "tmpl_img",
+			"status": "PENDING",
+		}
+		account = self._make_account()
+		uid = frappe.generate_hash(length=6)
+		sample = frappe.get_doc(
+			doctype="File",
+			file_name=f"sample_{uid}.png",
+			is_private=0,
+			content=b"png-bytes",
+		).insert(ignore_permissions=True)
+
+		doc = frappe.get_doc(
+			doctype="WA Template",
+			template_label=f"_Test Image {uid}",
+			template_name=f"_test_image_{uid}",
+			template_type="Marketing",
+			language="en_US",
+			message="See the picture",
+			header_type="Image",
+			header_media=sample.file_url,
+			whatsapp_account=account,
+		).insert()
+
+		self.assertEqual(doc.header_media_handle, "4::sample")
+		MockWhatsApp.return_value.upload_template_sample.assert_called_once()
+		payload = MockWhatsApp.return_value.create_template.call_args.args[0]
+		header = next(row for row in payload["components"] if row["type"] == "HEADER")
+		self.assertEqual(header["example"]["header_handle"], ["4::sample"])
+
+	@patch("whatsapp.whatsapp.doctype.wa_template.wa_template.WhatsApp")
 	def test_repush_of_a_local_template_does_not_update_in_meta(self, MockWhatsApp):
 		"""The save right after a re-push carries a freshly assigned id; Meta refuses an edit of
 		a pending template, so that save must not try one."""
