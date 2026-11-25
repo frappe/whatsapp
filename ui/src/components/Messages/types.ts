@@ -34,6 +34,14 @@ export interface WhatsAppReaction {
   direction: WhatsAppDirection;
 }
 
+/** `WA Flow.status`, as stored. */
+export type WhatsAppFlowStatus =
+  | "Draft"
+  | "Published"
+  | "Throttled"
+  | "Blocked"
+  | "Deprecated";
+
 /** Serves both a sent message's rendered buttons and an unsent template's preview. */
 export interface WhatsAppTemplateButton {
   button_type:
@@ -41,10 +49,31 @@ export interface WhatsAppTemplateButton {
     | "URL"
     | "Copy Code"
     | "Phone Number"
-    | "Voice Call";
+    | "Voice Call"
+    | "Flow";
   button_text: string;
   url?: string;
   phone_number?: string;
+  // —— `Flow` buttons only ——
+  /** the `WA Flow` docname, which is Meta's Flow ID */
+  flow?: string;
+  /** the entry screen the Flow opens on; empty means its first */
+  flow_screen?: string;
+  /** picks the button's icon; empty draws a generic form icon */
+  flow_icon?: "" | "Document" | "Promotion" | "Review";
+  flow_action?: "Navigate" | "Data Exchange";
+}
+
+/**
+ * One answer of a Flow response, labelled from the Flow's outline. `value` is the raw JSON
+ * value the customer submitted, and `null` when `masked`: a sensitive value never leaves the
+ * server.
+ */
+export interface WhatsAppFlowAnswer {
+  key: string;
+  label: string;
+  value: unknown;
+  masked: boolean;
 }
 
 /**
@@ -82,6 +111,10 @@ export interface WhatsAppMessage {
   /** set only on reaction rows; folded away into {@link reactions} by `get_messages` */
   reaction?: string;
   error_message?: string;
+  /** the `WA Flow` a Flow send opened, or a Flow response answered */
+  flow?: string;
+  /** label of a Flow send's button, as the contact saw it */
+  flow_cta?: string;
 
   // —— server-derived ——
   reactions?: WhatsAppReaction[];
@@ -101,6 +134,10 @@ export interface WhatsAppMessage {
   footer?: string;
   buttons?: WhatsAppTemplateButton[];
   template_name?: string;
+  /** `WA Flow.flow_name`, when {@link flow} is set */
+  flow_name?: string;
+  /** set on every Flow response, in the outline's order; empty when nothing was answered */
+  flow_answers?: WhatsAppFlowAnswer[];
 }
 
 /** Which reference-document field fills one `{{variable_name}}` in a template's text. */
@@ -208,6 +245,18 @@ export interface MessageListProps {
   yesterdayLabel?: string;
   /** default `["👍", "❤️", "😂", "😮", "😢", "🙏"]` */
   reactionEmojis?: string[];
+  /** default "Form submitted" — a Flow response with no answers */
+  flowSubmittedLabel?: string;
+  /** default "Hidden: the form marks this answer as sensitive" — tooltip on a masked answer */
+  flowSensitiveLabel?: string;
+  /** default "Yes" — a Flow answer that is `true` */
+  flowYesLabel?: string;
+  /** default "No" */
+  flowNoLabel?: string;
+  /** default "1 file" — a Flow answer holding one uploaded photo or document */
+  flowOneFileLabel?: string;
+  /** default "{0} files" — `{0}` is the count */
+  flowFilesLabel?: string;
 }
 
 /**
@@ -235,6 +284,42 @@ export interface MessageBubbleProps {
   replyingToLabel?: string;
   /** default "Failed to send message" */
   failedMessageLabel?: string;
+  /** default "Form submitted" — a Flow response with no answers */
+  flowSubmittedLabel?: string;
+  /** default "Hidden: the form marks this answer as sensitive" — tooltip on a masked answer */
+  flowSensitiveLabel?: string;
+  /** default "Yes" — a Flow answer that is `true` */
+  flowYesLabel?: string;
+  /** default "No" */
+  flowNoLabel?: string;
+  /** default "1 file" — a Flow answer holding one uploaded photo or document */
+  flowOneFileLabel?: string;
+  /** default "{0} files" — `{0}` is the count */
+  flowFilesLabel?: string;
+}
+
+/**
+ * A Flow response's answers, as label and value lines on the surface it is drawn on: no card,
+ * no borders. Labels sit in a fixed-width lane so values line up. Values are formatted for
+ * reading (lists joined, booleans as Yes/No, uploads counted); a masked one is a fixed row of
+ * dots with no reveal.
+ */
+export interface FlowAnswersProps {
+  answers?: WhatsAppFlowAnswer[];
+  /** a small heading above the answers; omitted when empty */
+  flowName?: string;
+  /** default "Form submitted" — shown when there are no answers */
+  submittedLabel?: string;
+  /** default "Hidden: the form marks this answer as sensitive" */
+  sensitiveLabel?: string;
+  /** default "Yes" */
+  yesLabel?: string;
+  /** default "No" */
+  noLabel?: string;
+  /** default "1 file" */
+  oneFileLabel?: string;
+  /** default "{0} files" — `{0}` is the count */
+  filesLabel?: string;
 }
 
 /**

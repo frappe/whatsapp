@@ -22,6 +22,12 @@ const props = withDefaults(defineProps<MessageListProps>(), {
 	todayLabel: "Today",
 	yesterdayLabel: "Yesterday",
 	reactionEmojis: () => REACTION_EMOJIS,
+	flowSubmittedLabel: "Form submitted",
+	flowSensitiveLabel: "Hidden: the form marks this answer as sensitive",
+	flowYesLabel: "Yes",
+	flowNoLabel: "No",
+	flowOneFileLabel: "1 file",
+	flowFilesLabel: "{0} files",
 });
 
 const emit = defineEmits<{
@@ -186,6 +192,12 @@ onBeforeUnmount(() => {
 						:reply-label="replyLabel"
 						:replying-to-label="replyingToLabel"
 						:failed-message-label="failedMessageLabel"
+						:flow-submitted-label="flowSubmittedLabel"
+						:flow-sensitive-label="flowSensitiveLabel"
+						:flow-yes-label="flowYesLabel"
+						:flow-no-label="flowNoLabel"
+						:flow-one-file-label="flowOneFileLabel"
+						:flow-files-label="flowFilesLabel"
 						@reply="emit('reply', $event)"
 						@jump-to="scrollToMessage"
 					>

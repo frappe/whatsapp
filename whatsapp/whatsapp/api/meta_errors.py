@@ -52,6 +52,9 @@ META_ERRORS = {
 	132012: _lt("A variable value has the wrong format."),
 	132015: _lt("Template paused for low quality. Edit and resubmit it."),
 	132016: _lt("Template disabled. Create a new one."),
+	# sending Flows
+	132068: _lt("Flow is blocked."),
+	132069: _lt("Flow is throttled: the limit of 10 messages an hour is reached."),
 	# creating templates (error_subcode)
 	2388019: _lt("Limit of 250 templates reached."),
 	2388039: _lt("Template under review or edited too often today."),

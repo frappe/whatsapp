@@ -23,6 +23,9 @@ from whatsapp.whatsapp.api.utils import (
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.wa_account.wa_account import WAAccount
 from whatsapp.whatsapp.doctype.wa_settings.wa_settings import WASettings
+from whatsapp.whatsapp.flows.template_button import button_view
+from whatsapp.whatsapp.flows.template_sync import prepare_flow_buttons
+from whatsapp.whatsapp.flows.template_validation import validate_flow_buttons
 
 EDITABLE_STATUSES = ("Approved", "Rejected")
 
@@ -157,6 +160,8 @@ class WATemplate(Document):
 		self._sync_template_variables()
 		self.validate_template_name()
 		self.validate_variable_examples()
+		if not self.flags.get("from_sync"):
+			validate_flow_buttons(self)
 
 	def validate_variable_examples(self) -> None:
 		"""Meta refuses a variable without an example, and the push in before_save runs before the mandatory check."""
@@ -515,7 +520,8 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			pv["variable_field"] = existing_variable_fields.get(pv["variable_name"], "")
 		doc.set("template_variables", parsed_variables)
 
-		doc.set("buttons", parsed.get("buttons", []))
+		prepare_flow_buttons(parsed["buttons"], account_name, doc.buttons)
+		doc.set("buttons", parsed["buttons"])
 		if whatsapp_template_id and not doc.whatsapp_template_id:
 			doc.whatsapp_template_id = whatsapp_template_id
 		doc.save()
@@ -529,6 +535,7 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 		)
 		return parsed["template_name"], False
 
+	prepare_flow_buttons(parsed["buttons"], account_name, [])
 	doc = frappe.get_doc(
 		{
 			"doctype": "WA Template",
@@ -546,9 +553,10 @@ def _upsert_template(template_data: dict, account_name: str) -> tuple[str, bool]
 			"footer": parsed.get("footer", ""),
 			"variable_format": parsed.get("variable_format", "Named"),
 			"template_variables": parsed.get("template_variables", []),
-			"buttons": parsed.get("buttons", []),
+			"buttons": parsed["buttons"],
 		}
 	)
+	doc.flags.from_sync = True
 	doc.insert()
 	log(
 		"Info",
@@ -769,17 +777,10 @@ def get_sendable_templates(
 	for row in frappe.get_all(
 		"WA Template Button",
 		filters={"parent": ["in", [t.name for t in sendable]], "parenttype": "WA Template"},
-		fields=["parent", "button_type", "button_text", "url", "phone_number"],
+		fields=["parent", "button_type", "button_text", "url", "phone_number", "flow_icon"],
 		order_by="idx asc",
 	):
-		buttons_by_template.setdefault(row.parent, []).append(
-			{
-				"button_type": row.button_type,
-				"button_text": row.button_text,
-				"url": row.url,
-				"phone_number": row.phone_number,
-			}
-		)
+		buttons_by_template.setdefault(row.parent, []).append(button_view(row))
 
 	for template in sendable:
 		template["template_variables"] = variables_by_template.get(template.name, [])

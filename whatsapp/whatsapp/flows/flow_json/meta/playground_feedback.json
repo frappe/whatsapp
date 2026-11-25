@@ -1,0 +1,195 @@
+{
+    "version": "7.3",
+    "screens": [
+        {
+            "id": "RECOMMEND",
+            "title": "Feedback 1 of 2",
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextSubheading",
+                                "text": "Would you recommend us to a friend?"
+                            },
+                            {
+                                "type": "RadioButtonsGroup",
+                                "label": "Choose one",
+                                "name": "Choose_one",
+                                "data-source": [
+                                    {
+                                        "id": "0_Yes",
+                                        "title": "Yes"
+                                    },
+                                    {
+                                        "id": "1_No",
+                                        "title": "No"
+                                    }
+                                ],
+                                "required": true
+                            },
+                            {
+                                "type": "TextSubheading",
+                                "text": "How could we do better?"
+                            },
+                            {
+                                "type": "TextArea",
+                                "label": "Leave a comment",
+                                "required": false,
+                                "name": "Leave_a_comment"
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "RATE"
+                                    },
+                                    "payload": {
+                                        "screen_0_Choose_one_0": "${form.Choose_one}",
+                                        "screen_0_Leave_a_comment_1": "${form.Leave_a_comment}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "RATE",
+            "title": "Feedback 2 of 2",
+            "data": {
+                "screen_0_Choose_one_0": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "screen_0_Leave_a_comment_1": {
+                    "type": "string",
+                    "__example__": "Example"
+                }
+            },
+            "terminal": true,
+            "success": true,
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextSubheading",
+                                "text": "Rate the following: "
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Purchase experience",
+                                "required": true,
+                                "name": "Purchase_experience",
+                                "data-source": [
+                                    {
+                                        "id": "0_Excellent",
+                                        "title": "★★★★★ • Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1_Good",
+                                        "title": "★★★★☆ • Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2_Average",
+                                        "title": "★★★☆☆ • Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3_Poor",
+                                        "title": "★★☆☆☆ • Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4_Very_Poor",
+                                        "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Delivery and setup",
+                                "required": true,
+                                "name": "Delivery_and_setup",
+                                "data-source": [
+                                    {
+                                        "id": "0_Excellent",
+                                        "title": "★★★★★ • Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1_Good",
+                                        "title": "★★★★☆ • Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2_Average",
+                                        "title": "★★★☆☆ • Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3_Poor",
+                                        "title": "★★☆☆☆ • Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4_Very_Poor",
+                                        "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Customer service",
+                                "required": true,
+                                "name": "Customer_service",
+                                "data-source": [
+                                    {
+                                        "id": "0_Excellent",
+                                        "title": "★★★★★ • Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1_Good",
+                                        "title": "★★★★☆ • Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2_Average",
+                                        "title": "★★★☆☆ • Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3_Poor",
+                                        "title": "★★☆☆☆ • Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4_Very_Poor",
+                                        "title": "★☆☆☆☆ • Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Done",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "screen_1_Purchase_experience_0": "${form.Purchase_experience}",
+                                        "screen_1_Delivery_and_setup_1": "${form.Delivery_and_setup}",
+                                        "screen_1_Customer_service_2": "${form.Customer_service}",
+                                        "screen_0_Choose_one_0": "${data.screen_0_Choose_one_0}",
+                                        "screen_0_Leave_a_comment_1": "${data.screen_0_Leave_a_comment_1}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
