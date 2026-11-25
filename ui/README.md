@@ -176,9 +176,9 @@ losing any behaviour.
 
 It calls `messages.send()` itself and emits `send` only **after** the send lands — that is a
 notification (scroll to the bottom, close a drawer), not a request to perform the call. The
-controller clears what the send consumed: a text send is a full `reset()`, a media send
-clears only the attachment and the reply, because its body was the caption and whatever is
-still typed in the box is a separate unsent message.
+controller clears what the send consumed as soon as the send starts: a text send clears the
+draft, the attachment and the reply, a media send only the attachment and the reply, because
+its body was the caption and whatever is still typed in the box is a separate unsent message.
 
 ### The account form
 
@@ -223,10 +223,11 @@ action row for such a doctype is then the host's on/off switch rather than a map
 does not run it, and the Append Actions table leaves it out, so `controller.managedDoctypes` is
 filtered from both the rows and the Append To choices. The row still saves with the account.
 
-The host draws the switch in the `settings` slot (scoped with `doc`), rendered under Auto Send
-Read Receipts. `useAppendToggle(controller, row)` is the switch's model: true while the account
-has a row for `row.append_to`, adding `row` when turned on and removing it when turned off. An
-existing row is kept as it is, so turning a setting on never overwrites saved mappings.
+The host draws the switch in the `settings` slot (scoped with `doc`), rendered as further fields of
+the Settings section, under Auto Send Read Receipts and spaced like its fields.
+`useAppendToggle(controller, row)` is the switch's model: true while the account has a row for
+`row.append_to`, adding `row` when turned on and removing it when turned off. An existing row is
+kept as it is, so turning a setting on never overwrites saved mappings.
 `defaults` sets what a new account starts with, and counts as its clean state. Helpdesk:
 
 ```vue
@@ -321,13 +322,14 @@ and shows under the fields like any other error.
 **The body is a tiptap editor, not a textarea.** WhatsApp bodies are plain text with `*bold*`,
 `_italic_` and `~strike~`, so the editor holds a paragraph-only document and `whatsappText.ts`
 translates both ways on every edit; `doc.message` is always the plain text Meta receives. Typing
-`{{` offers the fields of `doc.reference_doctype` (from `get_doctype_columns`) and inserts
+`{{` lists the fields of `doc.reference_doctype` by label (from `get_variable_fields`) and inserts
 `{{fieldname}}`; there is no free-form variable, because a variable is filled from that document
 at send time (see `DESIGN_DECISIONS.md`).
 
 **Variables follow the text.** The controller keeps one `template_variables` row per distinct
 `{{name}}` in the header and body, preserving the example typed for a name that is still there.
-The grid asks only for the example Meta reviews the template with; `variable_field` is set on
+`TemplateVariablesField` shows each one by its field label and asks only for the example Meta
+reviews the template with: rows are never added, removed or reordered by hand. `variable_field` is set on
 save to the variable's own name when it is a field of the reference DocType.
 
 **Preview.** `TemplatePreview` renders through `TemplateContent`, the component a sent template
@@ -338,58 +340,224 @@ it, and it is a view of its own rather than a split, so the form keeps its width
 header still needs a Meta upload handle to push, which only the sync path sets today, so a
 template created here with a media header will be refused by Meta until that lands.
 
+#### Flow buttons
+
+A button of type Flow gets a section of its own below the buttons grid, titled by the button's
+text, holding one `FlowButtonEditor`. The editor is a Part: it draws the three groups (the Flow,
+its Flow inputs, its Response actions) and no container, so a host that lays the template out
+differently mounts it wherever it likes:
+
+```vue
+<FlowButtonEditor :controller="template" :button="row" :disabled="!template.editable" />
+```
+
+It writes to the row in place, as a grid cell does: `flow`, `flow_screen`, `flow_icon`,
+`flow_action`, and `flow_inputs` and `flow_response_actions` as JSON strings in the shapes the
+server validates. Nothing else is written.
+
+**Everything it lists comes from the controller.** `template.flows` is the Flows of the account's WhatsApp Business Account,
+`template.outline(flow)` one Flow's screens and answers, and `template.inputSourceFields()` and
+`template.mappableFields()` the field pickers (`get_input_source_fields` and
+`get_mappable_fields` in `whatsapp/mapping.py`). Each is a `Loaded` value cached per key, so
+switching between Flow buttons or rows does not fetch again. `reload()` clears these caches, so a
+reloaded form shows freshly synced Flows. A failed load stays where it
+happened: the Flow list and the outline say so in the Flow group, a field picker inside its
+popover, each with a Retry.
+
+**Errors from save** come back through `template.save()` and show under the form, as for every
+other field. A mapping whose answer the current Flow no longer sends shows an amber warning on
+its line and on its collapsed row; the server warns about it too, without refusing the save.
+
+**Links to the Flows.** `@new-flow="() => …"` shows "New flow" under the Flow picker's options
+(only when the template has an account), and `@manage-flows="() => …"` shows "Manage Flows" there
+too. The host opens `NewFlowDialog`, or takes the user to its Flows list. A published Flow can't be
+edited, so the editor has no link into the builder for the chosen Flow; "Preview" opens the
+Flow's phone preview in a dialog instead. Leave a listener off and its link is not drawn, so a
+host that can't create Flows passes no `@new-flow`. They are props (`onNewFlow`, `onManageFlows`),
+not emits, so the editor can tell whether anyone listens. `TemplateForm` takes the same two and
+passes them to every editor. After a Flow is created, call `template.refreshFlows()`: it fetches
+the Flows and the outlines again in place, keeping each one's data until the answer comes and
+keeping the form's unsaved edits (`reload()` would drop them).
+
+```vue
+<TemplateForm
+  :controller="template"
+  @new-flow="creating = true"
+  @manage-flows="showFlowsList"
+/>
+```
+
+**Chrome** is one `chrome` prop (`FLOW_BUTTON_CHROME` lists every key and its English default),
+not a prop per string: the editor has some sixty strings. `TemplateForm` passes its own
+`flowChrome` prop on to every editor.
+
+### The Flow builder
+
+Three Parts and two controllers, in `components/FlowBuilder` (also exported as
+`@whatsapp/ui/FlowBuilder`). They call the methods in `whatsapp/flows/builder_reads.py`,
+`authoring.py` and `manage.py` through `frappeFlowApi`; pass your own `api` to either
+controller to point them elsewhere.
+
+```vue
+<script setup>
+import { FlowList, NewFlowDialog, FlowBuilder, useFlowList, useFlowBuilder } from "@whatsapp/ui"
+
+const flows = useFlowList({ account: "Sales Line" })   // get_flow_list, create_flow, delete_flow, sync_flows
+const builder = useFlowBuilder({ name: flowName, canWrite })  // get_flow_for_builder, save_flow, publish_flow, copy_flow
+</script>
+
+<FlowList :controller="flows" can-write @new="creating = true" @open="openBuilder" />
+<NewFlowDialog v-model:open="creating" :controller="flows" account="Sales Line" @created="openBuilder" />
+
+<Dialog size="6xl" bare :dismissible="false">
+  <div class="h-[calc(100vh-6rem)]">
+    <FlowBuilder :controller="builder" @close="closeBuilder" @copied="openBuilder" />
+  </div>
+</Dialog>
+```
+
+- **`FlowList`** draws the title, the table, its skeleton, its empty state and a load error with
+  Retry. It emits `open(name)` and `new`. With `can-write` it also draws New flow (in the header
+  and the empty state), Sync from WhatsApp (when the controller has an account), and Delete on
+  each Draft row: Delete asks with `dialog.danger`, calls `delete_flow` and reloads the list. A
+  refusal, such as templates still using the Flow, shows as a toast. Without `can-write` the list
+  is read only. The host decides `can-write` from the user's permission; the server checks it again.
+  With `hide-header`, the title, description, New flow and Sync are left out, for a host that puts
+  them in its own header (the controller's `sync()` and `syncing` drive a host's Sync button).
+- **`NewFlowDialog`** asks for the name, the categories and a starting point (Blank, or a copy
+  of a listed Flow, which is `create_flow` with `clone_from`). `FlowNameError` and
+  `FlowCategoriesError` show on their field; other errors under the form. It emits
+  `created(name)`.
+- **`FlowBuilder`** fills the box the host gives it with Meta's playground layout: our header
+  (the "Flows" breadcrumb, the name, status and save state; the problem count and Publish on the right), then two equal
+  columns. On the left, **Screens** (the list order is the journey; drag by the grip, ✕ with
+  Undo in a toast, "+ Add new", Opt-in "Read more" screens indented under their parent) and
+  **Edit content** (an accordion: Screen title, the components, Button; "Add content ▾" with
+  Meta's groups). On the right, the preview column. It emits `close` from the "Flows"
+  breadcrumb or Escape, after it saves what is pending (it asks only when that save fails), and
+  `copied(name)` (after "Make a copy" on a read-only Flow). It needs
+  frappe-ui's `<Dialogs />` and `<ToastProvider />` mounted.
+
+**Navigation is the list order**, as in Meta's playground: each screen's button goes to the next
+screen and the last one finishes the form. Adding, moving and deleting screens rewires the
+buttons (`addScreenInJourney`, `moveScreenInJourney`, `deleteScreenInJourney`). A Flow whose JSON
+says otherwise (jumps, more than one ending, navigation in Advanced blocks or a
+`routing_model`) is kept exactly as written; its Button rows say where they go, read only.
+
+**The controller owns the state.** `useFlowBuilder` returns a `BuilderSession`: `model`,
+`dirty`, `saveState` (`saved`, `saving`, `failed`, `conflict`), `problems` (the model's rules,
+run 300 ms after an edit stops, plus Meta's `validation_errors` located on the blocks),
+`errorCount` (Publish waits for it to be 0), `selection` and `readOnly` (any status but Draft,
+or `canWrite: false`).
+
+**A user without write permission sees every Flow read only.** Pass `canWrite: false` to
+`useFlowBuilder` when the user can read `WA Flow` but not write it (it defaults to `true`). The
+builder then never saves, has no Publish and no "Make a copy", and a Draft shows "You can view
+this Flow, but you don't have permission to change it." in place of the status banner. The
+server refuses the writes anyway; this keeps the user from editing into a save that fails.
+
+**Escape** closes the builder even when the host's Dialog marks the key handled (a
+non-dismissible frappe-ui Dialog prevents every Escape). It is ignored while a dialog, menu or
+listbox opened after the builder is open; a host dialog under the builder, such as CRM's
+Settings, does not count. Escape in a text field does not close the builder.
+
+**It saves by itself.** 1500 ms after the last edit the session calls `save_flow`, which stores
+the Flow and uploads it to Meta. One save runs at a time; edits made during it are saved once
+more after it. Each save sends the `modified` it holds and keeps the one that comes back. Meta's
+validation errors are a normal save result, not a failure. A `TimestampMismatchError` sets
+`conflict`, stops saving and shows "Changed in WhatsApp Manager" with Reload. Any other failure
+shows "Couldn't save · Retry"; `save()` retries at once, and the next edit saves again. A
+read-only Flow is never saved. `flush()` saves what is pending at once and resolves to `true`
+when everything is saved; Publish, closing, "Make a copy" and Edit JSON's Apply wait for it.
+When the host unmounts the builder without closing it, the session starts the pending save and
+does not wait for it. To block navigation until it is saved, `await controller.flush()` in a
+route-leave guard.
+Publish is the one primary button: it is off while there are errors, and it saves, confirms,
+then publishes. Every edit replaces `model` through the model's pure
+operations, so the session is plain TypeScript and is tested without a DOM.
+
+**Asks before it changes a template's mapping.** Renaming an answer key that `used_keys` lists,
+and turning off prefill on a key in `used_inputs`, ask first. A question's answer key follows
+its text while the key is still the generated one and no template maps it.
+
+**Chrome** is one `chrome` prop on each Part; `FLOW_BUILDER_CHROME` lists every key with its
+English default. "This field cannot be empty" is in the chrome; other problem messages come
+from the model's rules and are English only.
+
+**The preview** is a WhatsApp-like phone in WhatsApp's own colours (one token map,
+`preview/phoneTokens.ts`), not the host's theme. It shows the selected screen and catches up
+300 ms after typing stops. `${data.x}` text shows the screen's `__example__`, `${form.x}` the
+answer or `[its label]`. Clicking a component opens its row on the left; the row being edited
+gets a gray ring. The toolbar has Copy Flow JSON (works with problems too) and ⚙: Interactive
+mode, Theme (Light, Dark, the phone only) and Edit JSON (a dialog;
+Apply parses, and a parse error keeps it open at its line). The settings are
+`session.preview` / `session.setPreview()`. Interactive mode is `PreviewRun`
+(`preview/interactive.ts`, plain TypeScript): the screen, the answers, what each button
+passed on; required questions gate the button; the last screen shows "Sent" with Restart.
+Below 720 px of builder width the preview leaves the columns and opens from a Preview button
+over them.
+
+Not built yet: renaming the Flow (its name in the header is read only), undo beyond a deleted
+screen.
+
 ### Sending a template
 
-There is no template picker in this package. `useTemplates()` fetches the sendable templates
-and sends one; `TemplateContent` draws one; **where they are shown is the host's decision** —
-a dialog, a sidebar, a dropdown, a slash-command menu. Search, the grid and the "create a
-template" affordance are all host chrome.
+`TemplateSelector` is the picker: a search, a category filter, a grid of the approved templates
+and a Send button. It fetches, previews and sends by itself, and emits `sent` with the new
+message's docname. It draws no dialog or title, so wrap it in your own.
 
 ```vue
 <script setup lang="ts">
-import { TemplateContent, useTemplates } from "@whatsapp/ui";
-
-const templates = useTemplates({
-  referenceDoctype: () => props.doctype,
-  referenceDocname: () => props.docname,
-  to: () => props.phone,
-});
-
-async function send(templateName: string) {
-  // The two controllers are independent, so a template send does not refresh the
-  // conversation by itself. (With a socket wired up the realtime event does it for you.)
-  if (await templates.sendTemplate(templateName)) messages.reload();
-}
+import { TemplateSelector } from "@whatsapp/ui";
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-    <div
-      v-for="template in templates.templates"
-      :key="template.name"
-      class="flex h-56 cursor-pointer flex-col gap-2 rounded-lg border p-3 hover:bg-surface-gray-2"
-      @click="send(template.name)"
-    >
-      <div class="truncate border-b pb-2 text-base-semibold">{{ template.name }}</div>
-      <TemplateContent
-        class="min-h-0 flex-1 text-sm text-ink-gray-5"
-        :header="template.header_text"
-        :body="template.message"
-        :footer="template.footer"
-        :buttons="template.buttons"
-        body-class="min-h-0 flex-1 overflow-y-auto"
-      />
-    </div>
-  </div>
+  <Dialog v-model:open="show" title="WhatsApp Templates" size="4xl">
+    <template #default>
+      <TemplateSelector
+        reference-doctype="HD Ticket"
+        :reference-docname="ticket.name"
+        :to="phone"
+        :filters="{ name: ['in', allowed] }"
+        @sent="show = false; messages.reload()"
+      >
+        <template #actions><!-- sits right of the search and filter --></template>
+        <template #empty><!-- replaces "No approved templates" --></template>
+      </TemplateSelector>
+    </template>
+  </Dialog>
 </template>
 ```
 
+- **`reference-docname`** fills each card's mapped variables from that document on the server,
+  as the sent message will be. Unmapped ones stay as `{{1}}`.
+- **`to`** is the recipient: a `WA Profile` name or a phone number. Pass the profile when you
+  have one, such as the sender of the conversation's last incoming message. A profile is one
+  contact on one business number, so it is used as is. A phone number is matched only against
+  the default account's profiles, and a new profile is created there when none matches, so with
+  more than one business number it can land on the wrong one. While `to` is empty, Send is
+  disabled and the footer says "Add a phone number to send a template."
+- **`#actions`** sits right of the search and the category filter, for a host's own buttons
+  such as Create. **`#empty`** replaces the state shown when no template is approved yet; a
+  search or filter with no match keeps the built-in "No matching templates".
+- The search box takes focus when the selector mounts, so opening its dialog lets you type.
+- **`filters`** narrows the templates in the query. It cannot bring back what the reference
+  doctype or the Approved status leave out.
+- The two controllers are independent, so a send does not refresh the conversation by itself.
+  (With a socket wired up the realtime event does it for you.)
+
+For a picker of your own, `useTemplates()` fetches and sends, and `TemplateContent` draws one
+template, as each card of the selector does.
+
+A template's buttons can include **Flow** buttons. `TemplateButtons` picks a Flow button's icon
+from `flow_icon` (Document, Promotion or Review), or draws a form icon when it is empty.
+
 `TemplateContent` is the template-side counterpart of `MessageBubble`, and the bubble's own
 template branch renders through it — so a preview cannot drift from the message it becomes.
-Feed it a `WhatsAppTemplate`'s `header_text`/`message`/`footer` as above, or a sent
+Feed it a `WhatsAppTemplate`'s `header_text`/`message`/`footer`, or a sent
 `WhatsAppMessage`'s `header`/`template`/`footer`.
 
-`body-class` exists for the fixed-height card above: only the body scrolls, so the footer and
+`body-class` is for a fixed-height card of your own: only the body scrolls, so the footer and
 buttons stay pinned rather than being clipped by a long body.
 
 ### Roll your own input
@@ -448,6 +616,22 @@ The empty-send guard applies to whichever body wins, so an attachment with no ca
 sends and a bare empty text send still returns `null`. `buildPayload(overrides?)` exposes the
 same assembly if you want to inspect what would go out; it never sends.
 
+### Flows
+
+`MessageBubble` draws two more kinds of Message, from fields `get_messages` already returns:
+
+- A **Flow send** (`flow` on an outgoing, non-template Message) is its body plus the button the
+  contact saw (`flow_cta`), drawn by `TemplateButtons`. The Flow's name (`flow_name`) is in the
+  footer, outside the body.
+- A **Flow response** (`flow_answers` set) draws the answers through the `FlowAnswers` Part, as
+  label and value lines in a fixed label lane, with `flow_name` as a heading. The Quote of its
+  send shows even when the response arrived without a context id, because the server falls
+  back to the send it was matched to.
+
+The new Chrome is `flowSubmittedLabel`, `flowSensitiveLabel`, `flowYesLabel`, `flowNoLabel`,
+`flowOneFileLabel` and `flowFilesLabel` (`{0}` is the count), on `MessageList` and
+`MessageBubble`. `FlowAnswers` takes the same strings without the `flow` prefix.
+
 ### `useMessages`
 
 ```ts
@@ -486,8 +670,13 @@ const messages = useMessages({ references, to: () => props.phone });
 `messages` is sorted oldest-first across every reference: each one is read by its own query,
 so the rows arrive grouped, and a conversation is one chronological run through all of them.
 
-`sending` is true while a send is in flight, and `canSend` is false for its duration — which is
-what stops a second enter during the round trip from posting the same draft twice.
+A send is optimistic. The message joins `messages` at once with a Sent tick, and the composer
+is cleared, so the next message can be typed and sent straight away; `sending` is true until
+every send in flight has landed. Sends go out one at a time, in the order they were made. When
+a send lands, the reload replaces the placeholder with the real row, so its later Delivered and
+Read ticks, or a Failed state with WhatsApp's error, arrive the way they do for any other
+message. Only a request that fails outright drops the placeholder: the error is on `error`,
+and a text send goes back in the box if the box is still empty.
 
 `serviceWindow` is Meta's 24-hour customer service window, `{ status, expiresAt }`, worked
 out from the latest message in the loaded conversation, `null` until it has loaded, and
@@ -510,8 +699,9 @@ errors.
 ```ts
 const templates = useTemplates({
   referenceDoctype, // decides which templates are offered
-  referenceDocname, // optional: the document a sent template attaches to
+  referenceDocname, // optional: the document a sent template attaches to and fills from
   to, // optional: default recipient for sendTemplate()
+  filters, // optional: frappe.get_all filters that narrow the offering
 });
 
 // controller (a reactive object):
@@ -679,7 +869,7 @@ send_template(template, to, reference_doctype, reference_docname)
 From `whatsapp.whatsapp.doctype.wa_template.wa_template`:
 
 ```
-get_sendable_templates(reference_doctype)
+get_sendable_templates(reference_doctype, reference_docname, filters)
 create_template_and_push(doc_data, account_name)
 ```
 
@@ -814,6 +1004,7 @@ blanket rule is what kept this package fetch-free for longer than it should have
 From `@whatsapp/ui` (or the `./Messages` subpath): `WhatsAppMessage`, `WhatsAppTemplate`,
 `WhatsAppReaction`, `WhatsAppTemplateButton`, `WhatsAppDirection`, `WhatsAppStatus`,
 `WhatsAppContentType`, `MediaFile`, `MessageReference`, `SendMessagePayload`, `ReactPayload`,
+`WhatsAppFlowAnswer`, `WhatsAppFlowStatus`, `FlowAnswersProps`,
 `UseMessagesOptions`, `MessagesController`, `UseTemplatesOptions`, `TemplatesController`,
 `SendTemplateOverrides`, `MessageListProps`, `MessageBubbleProps`, `MessageInputProps`,
 `TemplateContentProps`, `TemplateButtonsProps`.
@@ -821,7 +1012,9 @@ From `@whatsapp/ui` (or the `./Messages` subpath): `WhatsAppMessage`, `WhatsAppT
 From `./Account`: `WhatsAppAccount`, `AppendAction`, `AccountController`, `UseAccountOptions`,
 `AccountFormProps`. From `./Template`: `WhatsAppTemplateDoc`, `TemplateVariableRow`,
 `TemplateButtonRow`, `TemplateController`, `TemplateIndicator`, `UseTemplateOptions`,
-`TemplateFormProps`, `TemplatePreviewProps`, `TemplateBodyEditorProps`.
+`TemplateFormProps`, `TemplatePreviewProps`, `TemplateBodyEditorProps`, `FlowButtonEditorProps`,
+`FlowButtonChrome`, `FlowInput`, `ResponseAction`, `ResponseActionKind`, `ResponseMapping`,
+`FlowOutline`, `FlowOutlineAnswer`, `WhatsAppFlowOption`, `Loaded`.
 
 The generic helper components live beside them, under `./common`: `MediaPreviewDialogProps`,
 `ReactionPickerProps`. `MediaKind` and `MediaAttachment` come from the package root.

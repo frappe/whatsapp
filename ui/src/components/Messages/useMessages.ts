@@ -6,7 +6,7 @@ import {
   toValue,
   watch,
 } from "vue";
-import { createResource, dayjsLocal } from "frappe-ui";
+import { createResource, dayjs, dayjsLocal, getConfig } from "frappe-ui";
 import { getSocketInstance, subscribeToDoc } from "@framework/ui/socket";
 import type {
   CustomerServiceWindow,
@@ -21,6 +21,21 @@ import type {
 
 const API = "whatsapp.whatsapp.api.messages";
 const CUSTOMER_SERVICE_WINDOW_HOURS = 24;
+
+// Only the prefix matters: `contentTypeFromMime` picks the renderer from it.
+const PLACEHOLDER_MIME: Record<WhatsAppContentType, string | undefined> = {
+  text: undefined,
+  image: "image/*",
+  video: "video/*",
+  audio: "audio/*",
+  document: "application/octet-stream",
+};
+
+/** Now as `creation` is stored: naive, in the site's timezone, which `dayjsLocal` assumes. */
+function systemNow(): string {
+  const timezone = getConfig("systemTimezone");
+  return (timezone ? dayjs().tz(timezone) : dayjs()).format("YYYY-MM-DD HH:mm:ss");
+}
 
 /**
  * The conversation controller: the messages attached to a set of reference documents, what
@@ -50,11 +65,15 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
 
   // `get_messages` reads each reference with its own query, so rows arrive grouped by
   // reference. `creation` is an ISO-ish stamp, so it compares correctly as a string.
-  const messages = computed<WhatsAppMessage[]>(() =>
-    [...((list.data as WhatsAppMessage[]) ?? [])].sort((a, b) =>
+  // Sends shown before the server has answered. They always go last, so the browser's
+  // clock never has to agree with the server's.
+  const placeholders = ref<WhatsAppMessage[]>([]);
+  const messages = computed<WhatsAppMessage[]>(() => [
+    ...[...((list.data as WhatsAppMessage[]) ?? [])].sort((a, b) =>
       (a.creation ?? "") < (b.creation ?? "") ? -1 : 1
-    )
-  );
+    ),
+    ...placeholders.value,
+  ]);
   const loading = computed<boolean>(() => Boolean(list.loading));
 
   // `now` is only bumped at the expiry instant, so a tab left open across the boundary
@@ -123,13 +142,12 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     pendingType.value = "document";
   }
 
-  // Guards the double-send: `send()` awaits, and without this a second enter during the
-  // round trip posts the same draft twice.
-  const sending = ref(false);
+  const inFlight = ref(0);
+  const sending = computed(() => inFlight.value > 0);
 
-  const canSend = computed(
-    () => !sending.value && Boolean(draft.value.trim() || pendingMedia.value)
-  );
+  // The composer is cleared the moment a send starts, so a second enter has nothing to post
+  // twice and the next message can be sent before the last one lands.
+  const canSend = computed(() => Boolean(draft.value.trim() || pendingMedia.value));
 
   /**
    * `overrides.message` supplies a body from outside the draft — a caption typed in the
@@ -155,11 +173,13 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     replyTo.value = null;
   }
 
+  // Sends go out one at a time, so they reach WhatsApp in the order they were typed.
+  let sendQueue: Promise<unknown> = Promise.resolve();
+  let placeholderCount = 0;
+
   async function send(
     overrides?: Pick<SendMessagePayload, "message">
   ): Promise<string | null> {
-    // Read before any await: dismissing the media preview clears the attachment, and that
-    // happens while this call is in flight.
     const payload = buildPayload(overrides);
     if (!payload) return null;
 
@@ -173,11 +193,13 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
     }
 
     const [referenceDoctype, referenceDocname] = references()[0] ?? [];
+    const repliedTo = replyTo.value;
+    const placeholder = placeholderFor(payload, repliedTo);
+    placeholders.value.push(placeholder);
+    consume(payload);
 
-    let name: string | null = null;
-    sending.value = true;
-    try {
-      name = (await sendResource.submit({
+    const request = sendQueue.then(() =>
+      sendResource.submit({
         to,
         message: payload.message,
         attach: payload.attach,
@@ -185,23 +207,62 @@ export function useMessages(options: UseMessagesOptions): MessagesController {
         reply_to: payload.replyTo,
         reference_doctype: referenceDoctype,
         reference_docname: referenceDocname,
-      })) as string;
+      })
+    );
+    sendQueue = request.catch(() => {});
+
+    inFlight.value++;
+    try {
+      const name = (await request) as string;
+      // A send WhatsApp refuses still returns a name: the reload brings its Failed row.
+      await reload();
+      return name;
     } catch {
-      // reported through `error`; the draft survives so the send can be retried
+      // reported through `error`
+      restore(payload, repliedTo);
       return null;
     } finally {
-      sending.value = false;
+      placeholders.value = placeholders.value.filter((m) => m.name !== placeholder.name);
+      inFlight.value--;
     }
+  }
 
+  /** A text send takes the draft; a media send's body is the caption, so the draft stays. */
+  function consume(payload: SendMessagePayload) {
     if (payload.attach) {
       clearAttachment();
       clearReply();
     } else {
       reset();
     }
+  }
 
-    await reload();
-    return name;
+  /** Put a failed text send back in the box, unless the next message is already in it. */
+  function restore(payload: SendMessagePayload, repliedTo: WhatsAppMessage | null) {
+    if (payload.attach || draft.value || replyTo.value) return;
+    draft.value = payload.message;
+    replyTo.value = repliedTo;
+  }
+
+  function placeholderFor(
+    payload: SendMessagePayload,
+    repliedTo: WhatsAppMessage | null
+  ): WhatsAppMessage {
+    const attachment = pendingMedia.value;
+    return {
+      name: `placeholder-${++placeholderCount}`,
+      direction: "Outgoing",
+      creation: systemNow(),
+      message: payload.message,
+      status: "Sent",
+      media_url: payload.attach,
+      mime_type: attachment ? PLACEHOLDER_MIME[payload.contentType] : undefined,
+      file_name: attachment?.file_name,
+      file_size: attachment?.file_size,
+      reply_to: repliedTo?.name,
+      reply_message: repliedTo?.is_template ? repliedTo.template : repliedTo?.message,
+      reply_to_direction: repliedTo?.direction,
+    };
   }
 
   async function react(

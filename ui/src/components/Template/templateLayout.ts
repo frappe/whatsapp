@@ -1,29 +1,31 @@
-import type { FieldNode, FormLayoutSchema } from "@framework/ui/components/FormLayout";
+import type { FieldNode, FormLayoutSchema, Section } from "@framework/ui/components/FormLayout";
+import FlowButtonEditor from "./FlowButtonEditor.vue";
+import FlowIconField from "./FlowIconField.vue";
 import TemplateBodyEditor from "./TemplateBodyEditor.vue";
-import type { TemplateController } from "./types";
+import TemplateVariablesField from "./TemplateVariablesField.vue";
+import { FLOW_BUTTON_CHROME, type FlowButtonChrome } from "./flowChrome";
+import type { FlowButtonEditorProps, TemplateButtonRow, TemplateController } from "./types";
+
+type FlowLinks = Pick<FlowButtonEditorProps, "onNewFlow" | "onManageFlows">;
 
 // Only documents a template can be sent from: child rows and singles have no record to bind to.
 const REFERENCE_FILTERS = { istable: 0, issingle: 0 };
 
-const VARIABLE_COLUMNS: FieldNode[] = [
-  { fieldname: "variable_name", fieldtype: "Data", label: "Variable", readOnly: true },
-  {
-    fieldname: "variable_example",
-    fieldtype: "Data",
-    label: "Example",
-    reqd: true,
-    placeholder: "Meta reviews the template with this value",
-  },
-];
-
 // Copy Code is not offered: `build_create_template_payload` drops it before the push.
-const BUTTON_COLUMNS: FieldNode[] = [
+const buttonColumns = (chrome: FlowButtonChrome): FieldNode[] => [
   {
     fieldname: "button_type",
     fieldtype: "Select",
     label: "Type",
-    options: "Quick Reply\nURL\nPhone Number\nVoice Call",
+    options: "Quick Reply\nURL\nPhone Number\nVoice Call\nFlow",
     reqd: true,
+  },
+  {
+    fieldname: "flow_icon",
+    fieldtype: "Select",
+    label: chrome.iconLabel,
+    dependsOn: 'eval:doc.button_type === "Flow"',
+    ui: { component: FlowIconField, props: { chrome } },
   },
   { fieldname: "button_text", fieldtype: "Data", label: "Text", reqd: true },
   {
@@ -42,7 +44,11 @@ const BUTTON_COLUMNS: FieldNode[] = [
   },
 ];
 
-export function templateLayout(controller: TemplateController): FormLayoutSchema {
+export function templateLayout(
+  controller: TemplateController,
+  flowChrome: Partial<FlowButtonChrome> = {},
+  flowLinks: FlowLinks = {}
+): FormLayoutSchema {
   const { isNew, doc, editable } = controller;
   const schema: FormLayoutSchema = [
     {
@@ -59,14 +65,6 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
                   label: "Template label",
                   reqd: true,
                   placeholder: "Order shipped",
-                },
-                {
-                  fieldname: "template_name",
-                  fieldtype: "Data",
-                  label: "Template name",
-                  readOnly: true,
-                  placeholder: "Derived from the label on save",
-                  description: "Shared by every language variant of this template",
                 },
                 {
                   fieldname: "whatsapp_account",
@@ -164,11 +162,6 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
         {
           hideLabel: true,
           hideBorder: true,
-          columns: [{ fields: [{ fieldname: "footer", fieldtype: "Data", label: "Footer" }] }],
-        },
-        {
-          hideLabel: true,
-          hideBorder: true,
           columns: [
             {
               fields: [
@@ -176,12 +169,22 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
                   fieldname: "template_variables",
                   fieldtype: "Table",
                   label: "Variables",
+                  description: "Meta reviews the template with these example values",
+                  placeholder: "Example value",
                   hidden: doc.template_variables.length === 0,
-                  childFields: VARIABLE_COLUMNS,
+                  ui: {
+                    component: TemplateVariablesField,
+                    props: { fields: () => controller.fieldOptions },
+                  },
                 },
               ],
             },
           ],
+        },
+        {
+          hideLabel: true,
+          hideBorder: true,
+          columns: [{ fields: [{ fieldname: "footer", fieldtype: "Data", label: "Footer" }] }],
         },
         {
           hideLabel: true,
@@ -193,16 +196,44 @@ export function templateLayout(controller: TemplateController): FormLayoutSchema
                   fieldname: "buttons",
                   fieldtype: "Table",
                   label: "Buttons",
-                  childFields: BUTTON_COLUMNS,
+                  childFields: buttonColumns({ ...FLOW_BUTTON_CHROME, ...flowChrome }),
                 },
               ],
             },
           ],
         },
+        ...flowButtonSections(controller, flowChrome, flowLinks),
       ],
     },
   ];
   return editable ? schema : lockFields(schema);
+}
+
+// A Flow button's settings don't fit a grid row, so each gets a section of its own below the grid.
+function flowButtonSections(
+  controller: TemplateController,
+  chrome: Partial<FlowButtonChrome>,
+  links: FlowLinks
+): Section[] {
+  const untitled = chrome.untitledButton ?? FLOW_BUTTON_CHROME.untitledButton;
+  return controller.doc.buttons
+    .map((button, index) => ({ button, key: buttonKey(button, index) }))
+    .filter(({ button }) => button.button_type === "Flow")
+    .map(({ button, key }) => ({
+      name: `flow-button:${key}`,
+      label: button.button_text || untitled,
+      collapsible: false,
+      columns: [],
+      part: {
+        name: "flow-button",
+        component: FlowButtonEditor,
+        props: { controller, button, chrome, disabled: !controller.editable, ...links },
+      },
+    }));
+}
+
+function buttonKey(button: TemplateButtonRow, index: number): string {
+  return String(button.name ?? button.__row_id ?? index);
 }
 
 function lockFields(schema: FormLayoutSchema): FormLayoutSchema {

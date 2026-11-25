@@ -1,0 +1,82 @@
+{
+	"version": "7.1",
+	"screens": [
+		{
+			"id": "A",
+			"title": "A",
+			"data": {
+				"x": {
+					"type": "string"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Footer",
+						"label": "Next",
+						"on-click-action": {
+							"name": "navigate",
+							"next": {
+								"type": "screen",
+								"name": "B"
+							},
+							"payload": {
+								"x": "${data.x}"
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "B",
+			"title": "B",
+			"terminal": true,
+			"data": {
+				"x": {
+					"type": "string"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "NavigationList",
+						"name": "choices",
+						"list-items": [
+							{
+								"id": "back",
+								"main-content": {
+									"title": "Back"
+								},
+								"on-click-action": {
+									"name": "navigate",
+									"next": {
+										"type": "screen",
+										"name": "A"
+									},
+									"payload": {
+										"x": "${data.x}"
+									}
+								}
+							},
+							{
+								"id": "finish",
+								"main-content": {
+									"title": "Finish"
+								},
+								"on-click-action": {
+									"name": "complete",
+									"payload": {
+										"x": "${data.x}"
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}

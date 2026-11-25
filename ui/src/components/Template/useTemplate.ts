@@ -1,17 +1,19 @@
 import { computed, reactive, ref, toValue, watch } from "vue";
 import { call } from "frappe-ui";
 import { variableNames } from "./variables";
+import { useFlowOptions } from "./useFlowOptions";
 import type {
   TemplateController,
   TemplateIndicator,
   TemplateStatus,
   UseTemplateOptions,
+  VariableItem,
   WhatsAppTemplateDoc,
 } from "./types";
 
 const DOCTYPE = "WA Template";
-const COLUMNS_API =
-  "whatsapp.whatsapp.doctype.wa_template.wa_template.get_doctype_columns";
+const FIELDS_API =
+  "whatsapp.whatsapp.doctype.wa_template.wa_template.get_variable_fields";
 
 const STATUS_THEME: Record<TemplateStatus, TemplateIndicator["theme"]> = {
   Pending: "amber",
@@ -45,7 +47,9 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
   const loading = ref(false);
   const saving = ref(false);
   const error = ref<unknown>(null);
-  const fieldOptions = ref<string[]>([]);
+  const fieldOptions = ref<VariableItem[]>([]);
+  const flowOptions = useFlowOptions();
+  const flows = computed(() => flowOptions.flowsFor(doc.value.whatsapp_account));
 
   const isNew = computed(() => !docName.value);
   const isDirty = computed(() => JSON.stringify(doc.value) !== loadedJson.value);
@@ -68,6 +72,7 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
   }
 
   async function reload() {
+    flowOptions.clear();
     if (!docName.value) {
       adopt(emptyTemplate());
       return;
@@ -117,7 +122,8 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
 
   // Done at save rather than in a watcher so a loaded document is not dirtied by it.
   function mapVariablesToFields() {
-    const isField = (name?: string) => !!name && fieldOptions.value.includes(name);
+    const isField = (name?: string) =>
+      !!name && fieldOptions.value.some((field) => field.value === name);
     for (const row of doc.value.template_variables) {
       if (isField(row.variable_field)) continue;
       row.variable_field = isField(row.variable_name) ? row.variable_name : "";
@@ -130,8 +136,8 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
       return;
     }
     try {
-      const columns = await call<string[]>(COLUMNS_API, { doctype });
-      if (doc.value.reference_doctype === doctype) fieldOptions.value = columns;
+      const fields = await call<VariableItem[]>(FIELDS_API, { doctype });
+      if (doc.value.reference_doctype === doctype) fieldOptions.value = fields;
     } catch (e) {
       error.value = e;
     }
@@ -180,5 +186,10 @@ export function useTemplate(options: UseTemplateOptions = {}): TemplateControlle
     fieldOptions,
     save,
     reload,
+    flows,
+    refreshFlows: flowOptions.refreshFlows,
+    outline: flowOptions.outline,
+    inputSourceFields: flowOptions.inputSourceFields,
+    mappableFields: flowOptions.mappableFields,
   }) as TemplateController;
 }

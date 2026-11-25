@@ -23,6 +23,10 @@ from whatsapp.whatsapp.doctype.wa_profile.wa_profile import (
 	get_or_create_profile,
 	resolve_profile_by_phone,
 )
+from whatsapp.whatsapp.flows.answers import FlowAnswers, response_outline
+from whatsapp.whatsapp.flows.outline import FlowOutline
+from whatsapp.whatsapp.flows.send import interactive_flow_screen, parse_flow_data
+from whatsapp.whatsapp.flows.template_button import button_view
 
 MESSAGE_FIELDS = [
 	"name",
@@ -35,6 +39,7 @@ MESSAGE_FIELDS = [
 	"whatsapp_template",
 	"message_id",
 	"context_message_id",
+	"reply_to_message",
 	"creation",
 	"message",
 	"status",
@@ -44,6 +49,11 @@ MESSAGE_FIELDS = [
 	"template_header_parameters",
 	"reaction",
 	"error_message",
+	"flow",
+	"flow_cta",
+	"flow_template",
+	"flow_response",
+	"flow_sensitive_keys",
 ]
 
 
@@ -77,6 +87,7 @@ def get_messages(references: str) -> list[dict]:
 
 	messages = _fold_reactions(messages)
 	_render_templates(messages)
+	_describe_flows(messages)
 	_resolve_replies(messages)
 	_attach_file_details(messages)
 
@@ -105,14 +116,7 @@ def send_message(
 	# a message with no body and no media.
 	file_docname = _resolve_attachment(attach) if attach else None
 
-	profile_name = _resolve_to_profile(to, create_if_missing=True)
-	if not profile_name:
-		frappe.throw(
-			_(
-				"Could not resolve recipient '{0}' to a WhatsApp Profile. "
-				"Please ensure a default WhatsApp account is configured."
-			).format(to)
-		)
+	profile_name = _resolve_recipient(to)
 
 	doc = frappe.new_doc("WA Message")
 	doc.update(
@@ -193,14 +197,7 @@ def send_template(
 	_validate_template_for_reference(template, reference_doctype)
 	_validate_template_is_approved(template)
 
-	profile_name = _resolve_to_profile(to, create_if_missing=True)
-	if not profile_name:
-		frappe.throw(
-			_(
-				"Could not resolve recipient '{0}' to a WhatsApp Profile. "
-				"Please ensure a default WhatsApp account is configured."
-			).format(to)
-		)
+	profile_name = _resolve_recipient(to)
 
 	doc = frappe.new_doc("WA Message")
 	doc.update(
@@ -216,6 +213,52 @@ def send_template(
 	doc.insert(ignore_permissions=True)
 
 	_submit(doc, f"Failed to send template {template} to {profile_name}")
+	return doc.name
+
+
+@frappe.whitelist(methods=["POST"])
+def send_flow(
+	flow: str,
+	to: str,
+	body: str,
+	cta: str = "Open",
+	screen: str | None = None,
+	data: str | None = None,
+	mode: str = "published",
+	reference_doctype: str | None = None,
+	reference_docname: str | None = None,
+) -> str:
+	"""Send an interactive Flow message and return the created WhatsApp Message's name.
+
+	`screen` defaults to the Flow's first entry screen, and `mode="draft"` sends a Draft Flow for testing.
+	"""
+	run_access_guards()
+
+	_validate_send_scope(reference_doctype, reference_docname)
+	if not (body or "").strip():
+		frappe.throw(_("A Flow message needs a body."))
+	screen = interactive_flow_screen(flow, screen, mode)
+	action_data = parse_flow_data(data)
+
+	profile_name = _resolve_recipient(to)
+
+	doc = frappe.new_doc("WA Message")
+	doc.update(
+		{
+			"reference_doctype": reference_doctype,
+			"reference_docname": reference_docname,
+			"message": body,
+			"flow": flow,
+			"flow_cta": cta,
+			"flow_screen": screen,
+			"flow_action_data": action_data,
+			"flow_mode": mode.title(),
+			"to": profile_name,
+		}
+	)
+	doc.insert(ignore_permissions=True)  # nosemgrep: frappe-ignore-permissions -- scope, Flow checked above
+
+	_submit(doc, f"Failed to send Flow {flow} to {profile_name}")
 	return doc.name
 
 
@@ -333,15 +376,36 @@ def _render_templates(messages: list[dict]) -> None:
 			template.header_text, _parsed_parameters(message.get("template_header_parameters"))
 		)
 		message["footer"] = template.footer
-		message["buttons"] = [
-			{
-				"button_type": button.button_type,
-				"button_text": button.button_text,
-				"url": button.url,
-				"phone_number": button.phone_number,
-			}
-			for button in (template.buttons or [])
-		]
+		message["buttons"] = [button_view(button) for button in (template.buttons or [])]
+
+
+def _describe_flows(messages: list[dict]) -> None:
+	"""Name each message's Flow, and turn each Flow response into labelled answers.
+
+	The stored response never leaves the server: sensitive values are masked here.
+	"""
+	flows = _flows_by_name({message["flow"] for message in messages if message.get("flow")})
+	for message in messages:
+		flow = flows.get(message.get("flow"))
+		if flow:
+			message["flow_name"] = flow.flow_name
+		response = message.pop("flow_response", None)
+		flow_template = message.pop("flow_template", None)
+		sensitive = frappe.parse_json(message.pop("flow_sensitive_keys", None)) or []
+		if response is not None:
+			outline = response_outline(flow, flow_template)
+			message["flow_answers"] = FlowAnswers(
+				frappe.parse_json(response) or {}, outline, sensitive
+			).rows()
+
+
+def _flows_by_name(names: set[str]) -> dict:
+	if not names:
+		return {}
+	flows = frappe.get_all(
+		"WA Flow", filters={"name": ["in", list(names)]}, fields=["name", "flow_name", "outline"]
+	)
+	return {flow.name: flow for flow in flows}
 
 
 def _parsed_parameters(stored: str | None):
@@ -361,9 +425,12 @@ def _resolve_replies(messages: list[dict]) -> None:
 	its own rendered `header` and `footer`.
 	"""
 	by_message_id = {m["message_id"]: m for m in messages if m.get("message_id")}
+	by_name = {m["name"]: m for m in messages}
 
 	for message in messages:
-		replied = by_message_id.get(message.get("context_message_id"))
+		# A Flow response matched by its token can arrive without a `context`.
+		reply_to_message = message.pop("reply_to_message", None)
+		replied = by_message_id.get(message.get("context_message_id")) or by_name.get(reply_to_message)
 		if not replied:
 			continue
 		message["reply_message"] = (
@@ -445,6 +512,18 @@ def _resolve_attachment(file_url: str) -> str:
 		)
 
 	return file_docname
+
+
+def _resolve_recipient(to: str) -> str:
+	profile_name = _resolve_to_profile(to, create_if_missing=True)
+	if not profile_name:
+		frappe.throw(
+			_(
+				"Could not resolve recipient '{0}' to a WhatsApp Profile. "
+				"Please ensure a default WhatsApp account is configured."
+			).format(to)
+		)
+	return profile_name
 
 
 def _get_default_whatsapp_account() -> str | None:

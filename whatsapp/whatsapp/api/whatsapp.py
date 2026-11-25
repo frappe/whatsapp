@@ -1,10 +1,13 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 # See license.txt
 
+import json
 import logging
 
 import frappe
 import requests
+
+from whatsapp.whatsapp.api.meta_errors import describe_meta_error
 
 
 class WhatsApp:
@@ -19,10 +22,9 @@ class WhatsApp:
 
 	def _request(self, method, endpoint, **kwargs):
 		url = f"{self.base_url}/{self.api_version}/{endpoint}"
-		headers = {
-			"Authorization": f"Bearer {self.access_token}",
-			"Content-Type": "application/json",
-		}
+		headers = {"Authorization": f"Bearer {self.access_token}"}
+		if "files" not in kwargs:
+			headers["Content-Type"] = "application/json"
 		if "headers" in kwargs:
 			headers.update(kwargs.pop("headers"))
 		resp = requests.request(method, url, headers=headers, **kwargs)
@@ -40,9 +42,7 @@ class WhatsApp:
 		self._log_api_success(method, url, kwargs.get("json"), result)
 		return result
 
-	def _log_api_error(
-		self, method: str, url: str, payload: dict | None, resp: requests.Response
-	) -> None:
+	def _log_api_error(self, method: str, url: str, payload: dict | None, resp: requests.Response) -> None:
 		try:
 			event_type = "API"
 			if "message_templates" in url or "/templates" in url:
@@ -104,6 +104,58 @@ class WhatsApp:
 	def delete_template(self, template_id):
 		return self._request("DELETE", f"{template_id}")
 
+	def get_flows(self) -> list[dict]:
+		flows, params = [], {}
+		while True:
+			result = self._request("GET", f"{self.business_id}/flows", params=params)
+			flows.extend(result.get("data", []))
+			paging = result.get("paging", {})
+			if not paging.get("next"):
+				return flows
+			params = {"after": paging["cursors"]["after"]}
+
+	def get_flow(self, flow_id: str) -> dict:
+		fields = "id,name,status,categories,validation_errors,json_version,endpoint_uri,preview"
+		return self._request("GET", flow_id, params={"fields": fields})
+
+	def create_flow(
+		self,
+		name: str,
+		categories: list[str],
+		flow_json: str | None = None,
+		clone_flow_id: str | None = None,
+	) -> dict:
+		optional = {"flow_json": flow_json, "clone_flow_id": clone_flow_id}
+		payload = {"name": name, "categories": categories}
+		payload.update({key: value for key, value in optional.items() if value})
+		return self._request("POST", f"{self.business_id}/flows", json=payload)
+
+	def delete_flow(self, flow_id: str) -> dict:
+		return self._request("DELETE", flow_id)
+
+	def get_flow_assets(self, flow_id: str) -> dict:
+		return self._request("GET", f"{flow_id}/assets")
+
+	def download_flow_json(self, download_url: str) -> str:
+		# Meta's CDN URL is pre-signed, so the access token must not go with it.
+		resp = requests.get(download_url, timeout=30)
+		resp.raise_for_status()
+		return resp.text
+
+	def update_flow_json(self, flow_id: str, flow_json: str) -> dict:
+		files = {
+			"file": ("flow.json", flow_json, "application/json"),
+			"name": (None, "flow.json"),
+			"asset_type": (None, "FLOW_JSON"),
+		}
+		return self._request("POST", f"{flow_id}/assets", files=files)
+
+	def publish_flow(self, flow_id: str) -> dict:
+		return self._request("POST", f"{flow_id}/publish")
+
+	def deprecate_flow(self, flow_id: str) -> dict:
+		return self._request("POST", f"{flow_id}/deprecate")
+
 	def get_subscribed_apps(self) -> dict:
 		return self._request("GET", f"{self.business_id}/subscribed_apps")
 
@@ -125,6 +177,12 @@ class WhatsApp:
 		}
 		return self._request("POST", f"{self.phone_number_id}/messages", json=payload)
 
+	def block_user(self, user: str) -> dict:
+		return self._request("POST", f"{self.phone_number_id}/block_users", json=_block_users_payload(user))
+
+	def unblock_user(self, user: str) -> dict:
+		return self._request("DELETE", f"{self.phone_number_id}/block_users", json=_block_users_payload(user))
+
 	def upload_media(self, file_content: bytes, mime_type: str, file_name: str) -> dict:
 		url = f"{self.base_url}/{self.api_version}/{self.phone_number_id}/media"
 		headers = {"Authorization": f"Bearer {self.access_token}"}
@@ -144,17 +202,57 @@ class WhatsApp:
 		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, result)
 		return result
 
+	def upload_template_sample(self, file_content: bytes, mime_type: str, file_name: str) -> str:
+		"""Upload a template header sample and return Meta's approval handle.
+
+		This is the resumable upload on the app id. ``upload_media`` is a different
+		call: it returns an id for sending a chat message, and Meta will not accept
+		that id as ``example.header_handle`` when the template is created.
+		"""
+		if not self.app_id:
+			raise requests.HTTPError("WhatsApp App ID is required to upload a template sample")
+
+		session = self._request(
+			"POST",
+			f"{self.app_id}/uploads",
+			params={
+				"file_name": file_name,
+				"file_length": len(file_content),
+				"file_type": mime_type,
+			},
+		)
+		session_id = session.get("id")
+		if not session_id:
+			raise requests.HTTPError("Meta did not return an upload session for the template sample")
+
+		url = f"{self.base_url}/{self.api_version}/{session_id}"
+		headers = {
+			"Authorization": f"OAuth {self.access_token}",
+			"file_offset": "0",
+			"Content-Type": "application/octet-stream",
+		}
+		resp = requests.post(url, headers=headers, data=file_content)
+		try:
+			resp.raise_for_status()
+		except requests.HTTPError:
+			error_msg = _extract_meta_error(resp.text)
+			self._log_api_error("POST", url, {"file": file_name, "type": mime_type}, resp)
+			raise requests.HTTPError(error_msg)
+		result = resp.json()
+		handle = result.get("h")
+		if not handle:
+			raise requests.HTTPError("Meta did not return a template sample handle")
+		self._log_api_success("POST", url, {"file": file_name, "type": mime_type}, {"h": handle})
+		return handle
+
 
 def _extract_meta_error(body: str) -> str:
 	try:
-		data = requests.json_decoder.decode(body)
-		error = data.get("error", {})
-		if error.get("error_user_msg"):
-			return error["error_user_msg"]
-		if error.get("error_user_title"):
-			return error["error_user_title"]
-		if error.get("message"):
-			return f"Code {error['code']}: {error['message']}"
-	except Exception:
-		pass
-	return body
+		error = json.loads(body).get("error")
+	except ValueError, AttributeError:
+		return body
+	return describe_meta_error(error) or body
+
+
+def _block_users_payload(user: str) -> dict:
+	return {"messaging_product": "whatsapp", "block_users": [{"user": user}]}

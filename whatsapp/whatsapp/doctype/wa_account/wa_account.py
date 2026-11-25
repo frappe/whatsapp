@@ -8,6 +8,7 @@ from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.utils import get_managed_doctypes, log
 from whatsapp.whatsapp.doctype.wa_message.wa_message import _get_whatsapp_client
+from whatsapp.whatsapp.mapping import field_options, validate_list_doctype, validate_mapped_field
 
 # Which fieldtypes can hold the value an append action writes into each mapping slot.
 # Drives both the pickers in the grid and the check on save.
@@ -54,12 +55,7 @@ class WAAccount(Document):
 		"""
 		for action in self.append_actions:
 			target_meta = frappe.get_meta(action.append_to)
-			if target_meta.istable or target_meta.issingle:
-				frappe.throw(
-					_("Row #{0}: cannot append to {1}; a child table or single has no list to add to").format(
-						action.idx, action.append_to
-					)
-				)
+			validate_list_doctype(target_meta, _("Row #{0}").format(action.idx))
 			for slot in APPEND_FIELD_TYPES:
 				_validate_mapped_field(action, slot, target_meta)
 
@@ -107,27 +103,13 @@ class WAAccount(Document):
 
 
 def _validate_mapped_field(action, slot: str, target_meta) -> None:
-	"""Throw unless the field mapped into `slot` exists on the target and can hold the value."""
-	fieldname = action.get(slot)
-	if not fieldname:
-		return
-
-	label = _(frappe.get_meta(action.doctype).get_label(slot))
-	df = target_meta.get_field(fieldname)
-
-	if not df:
-		frappe.throw(
-			_("Row #{0}: {1} '{2}' does not exist on {3}").format(
-				action.idx, label, fieldname, action.append_to
-			)
-		)
-
-	fieldtypes = APPEND_FIELD_TYPES[slot]
-	if df.fieldtype not in fieldtypes:
-		frappe.throw(
-			_("Row #{0}: {1} '{2}' is a {3} field; {1} must be one of {4}").format(
-				action.idx, label, fieldname, df.fieldtype, ", ".join(fieldtypes)
-			)
+	if fieldname := action.get(slot):
+		validate_mapped_field(
+			target_meta,
+			fieldname,
+			APPEND_FIELD_TYPES[slot],
+			where=_("Row #{0}").format(action.idx),
+			label=_(frappe.get_meta(action.doctype).get_label(slot)),
 		)
 
 
@@ -144,19 +126,7 @@ def get_append_field_options(target_doctype: str = "", slot: str = "", txt: str 
 		return []
 
 	frappe.has_permission(target_doctype, "read", throw=True)
-
-	fieldtypes = APPEND_FIELD_TYPES[slot]
-	txt = (txt or "").lower()
-
-	return [
-		{
-			"value": df.fieldname,
-			"label": df.fieldname,
-			"description": f"{_(df.label)} ({df.fieldtype})" if df.label else df.fieldtype,
-		}
-		for df in frappe.get_meta(target_doctype).fields
-		if df.fieldtype in fieldtypes and (txt in df.fieldname.lower() or txt in (df.label or "").lower())
-	]
+	return field_options(target_doctype, APPEND_FIELD_TYPES[slot], txt)
 
 
 @frappe.whitelist()

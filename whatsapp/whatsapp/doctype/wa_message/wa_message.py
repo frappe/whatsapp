@@ -17,11 +17,24 @@ from whatsapp.whatsapp.api.utils import (
 	build_reaction_message_payload,
 	build_template_message_payload,
 	build_text_message_payload,
+	get_header_media_file,
 	get_managed_doctypes,
 	log,
 )
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.wa_profile.wa_profile import lock_profile
+from whatsapp.whatsapp.flows.response_actions import run_response_actions
+from whatsapp.whatsapp.flows.send import (
+	assign_flow_token,
+	flow_button_components,
+	interactive_flow_payload,
+	validate_flow_inputs_reference,
+	validate_sendable_flows,
+	validate_update_reference_permission,
+)
+
+# Meta keeps uploaded media for 30 days.
+SEND_MEDIA_ID_TTL = 25 * 24 * 60 * 60
 
 
 class WAMessage(Document):
@@ -39,6 +52,16 @@ class WAMessage(Document):
 		direction: DF.Literal["Outgoing", "Incoming"]
 		error_code: DF.Data | None
 		error_message: DF.LongText | None
+		flow: DF.Link | None
+		flow_action_data: DF.JSON | None
+		flow_button_index: DF.Int
+		flow_cta: DF.Data | None
+		flow_mode: DF.Literal["Published", "Draft"]
+		flow_response: DF.JSON | None
+		flow_screen: DF.Data | None
+		flow_sensitive_keys: DF.JSON | None
+		flow_template: DF.Link | None
+		flow_token: DF.Data | None
 		is_template: DF.Check
 		media_id: DF.Data | None
 		media_url: DF.Data | None
@@ -71,6 +94,7 @@ class WAMessage(Document):
 			self._set_from_number()
 			self._resolve_reply_to_context()
 			self._validate_interactive()
+			assign_flow_token(self)
 			if self.is_template and self.reference_docname:
 				self._populate_template_parameters()
 
@@ -82,6 +106,10 @@ class WAMessage(Document):
 		if self.direction == "Outgoing" and self.status == "Sent":
 			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
+		elif self.direction == "Incoming" and self.flow_response:
+			# Frappe runs Notifications, Webhooks and Server Scripts after this, so they see the actions' writes.
+			run_response_actions(self)
+			self.run_notifications("on_flow_response")
 
 	def on_trash(self) -> None:
 		frappe.db.delete(
@@ -152,6 +180,8 @@ class WAMessage(Document):
 		if template.template_variables:
 			if not self.reference_docname:
 				frappe.throw(_("Reference Document is required when template has variables"))
+		validate_flow_inputs_reference(self, template)
+		validate_update_reference_permission(self, template)
 
 	def _populate_template_parameters(self) -> None:
 		template = frappe.get_cached_doc("WA Template", self.whatsapp_template)
@@ -199,67 +229,16 @@ class WAMessage(Document):
 		return mime_map.get(ext, "application/octet-stream")
 
 	def _send(self) -> None:
+		validate_sendable_flows(self)
 		account = frappe.get_doc("WA Account", self.whatsapp_account)
 		settings = frappe.get_single("WA Settings")
 		client = _get_whatsapp_client(account, settings)
 
 		if self.attach and not self.is_template:
-			file_doc = frappe.get_doc("File", self.attach)
-			file_content = file_doc.get_content()
-			file_name = file_doc.file_name
-			mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
-			try:
-				media_result = client.upload_media(file_content, mime_type, file_name)
-				self.media_id = media_result.get("id")
-				self.mime_type = mime_type
-			except requests.HTTPError as e:
-				self.status = "Failed"
-				self.error_message = str(e)
-				log(
-					"Error",
-					"Message",
-					f"Media upload failed for {self.to}: {e}",
-					account=self.whatsapp_account,
-					reference_doctype="WA Message",
-					reference_docname=self.name,
-					traceback=frappe.get_traceback(),
-				)
-				self.db_set("status", "Failed")
-				self.db_set("error_message", str(e))
-				self.run_notifications("on_send_failed")
-				frappe.throw(_("Failed to upload media: {0}").format(str(e)))
+			self._upload_attachment(client)
 
-		if self.is_template and self.whatsapp_template:
-			template_doc = frappe.get_doc("WA Template", self.whatsapp_template)
-			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media:
-				if not template_doc.header_media_handle:
-					file_doc = frappe.get_doc("File", template_doc.header_media)
-					file_content = file_doc.get_content()
-					file_name = file_doc.file_name
-					mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_name)
-					try:
-						media_result = client.upload_media(file_content, mime_type, file_name)
-						handle = media_result.get("id")
-						frappe.db.set_value("WA Template", template_doc.name, "header_media_handle", handle)
-						template_doc.header_media_handle = handle
-						template_doc.mime_type = mime_type
-						frappe.db.set_value("WA Template", template_doc.name, "mime_type", mime_type)
-					except requests.HTTPError as e:
-						self.status = "Failed"
-						self.error_message = str(e)
-						log(
-							"Error",
-							"Message",
-							f"Template header media upload failed for {self.to}: {e}",
-							account=self.whatsapp_account,
-							reference_doctype="WA Message",
-							reference_docname=self.name,
-							traceback=frappe.get_traceback(),
-						)
-						self.db_set("status", "Failed")
-						self.db_set("error_message", str(e))
-						self.run_notifications("on_send_failed")
-						frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
+		if self.is_template and self.whatsapp_template and not self.template_header_parameters:
+			self._upload_template_header(client)
 
 		payload = self._build_payload()
 		try:
@@ -306,6 +285,65 @@ class WAMessage(Document):
 			self.run_notifications("on_send_failed")
 			frappe.throw(_("Failed to send message: {0}").format(str(e)))
 
+	def _upload_attachment(self, client: WhatsApp) -> None:
+		file_doc = frappe.get_doc("File", self.attach)
+		self.mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_doc.file_name)
+		try:
+			self.media_id = client.upload_media(
+				file_doc.get_content(), self.mime_type, file_doc.file_name
+			).get("id")
+		except requests.HTTPError as e:
+			self._fail_send(str(e), f"Media upload failed for {self.to}: {e}")
+			frappe.throw(_("Failed to upload media: {0}").format(str(e)))
+
+	def _upload_template_header(self, client: WhatsApp) -> None:
+		template_doc = frappe.get_doc("WA Template", self.whatsapp_template)
+		if template_doc.header_type not in MEDIA_HEADER_TYPES or not template_doc.header_media:
+			return
+
+		file_doc = get_header_media_file(template_doc.header_media)
+		if not file_doc:
+			self._fail_missing_header_file(template_doc.header_media)
+
+		self.mime_type = getattr(file_doc, "content_type", None) or self._get_mime_type(file_doc.file_name)
+		cache_key = f"wa_template_header_media:{self.whatsapp_account}:{file_doc.name}"
+		self.media_id = frappe.cache.get_value(cache_key)
+		if self.media_id:
+			return
+
+		try:
+			content = file_doc.get_content()
+		except OSError:
+			self._fail_missing_header_file(template_doc.header_media)
+
+		try:
+			self.media_id = client.upload_media(content, self.mime_type, file_doc.file_name).get("id")
+		except requests.HTTPError as e:
+			self._fail_send(str(e), f"Template header media upload failed for {self.to}: {e}")
+			frappe.throw(_("Failed to upload template header media: {0}").format(str(e)))
+		frappe.cache.set_value(cache_key, self.media_id, expires_in_sec=SEND_MEDIA_ID_TTL)
+
+	def _fail_missing_header_file(self, header_media: str) -> None:
+		error = _("The template sample file {0} is missing.").format(header_media)
+		self._fail_send(error, f"Template header file {header_media} missing for {self.to}")
+		frappe.throw(error)
+
+	def _fail_send(self, error: str, log_message: str) -> None:
+		self.status = "Failed"
+		self.error_message = error
+		log(
+			"Error",
+			"Message",
+			log_message,
+			account=self.whatsapp_account,
+			reference_doctype="WA Message",
+			reference_docname=self.name,
+			traceback=frappe.get_traceback(),
+		)
+		self.db_set("status", "Failed")
+		self.db_set("error_message", error)
+		self.run_notifications("on_send_failed")
+
 	def _build_payload(self) -> dict:
 		profile = frappe.get_cached_doc("WA Profile", self.to)
 		to_phone = profile.phone_number
@@ -319,6 +357,9 @@ class WAMessage(Document):
 				message_id=self.context_message_id,
 				emoji=self.reaction or None,
 			)
+
+		if self.flow and not self.is_template:
+			return interactive_flow_payload(self, to_phone)
 
 		if buttons and not self.is_template:
 			return build_interactive_buttons_payload(
@@ -349,15 +390,15 @@ class WAMessage(Document):
 			body_params = json.loads(self.template_body_parameters or "{}")
 
 			header_params = self.template_header_parameters
-			if template_doc.header_type in MEDIA_HEADER_TYPES and template_doc.header_media_handle:
-				if not header_params:
-					header_params = json.dumps({"id": template_doc.header_media_handle})
+			if template_doc.header_type in MEDIA_HEADER_TYPES and self.media_id and not header_params:
+				header_params = json.dumps({"id": self.media_id})
 
 			payload = build_template_message_payload(
 				to=to_phone,
 				template_doc=template_doc,
 				body_parameters=body_params,
 				header_parameters=header_params,
+				button_components=flow_button_components(self, template_doc),
 			)
 		else:
 			payload = build_text_message_payload(to=to_phone, text=self.message or "")

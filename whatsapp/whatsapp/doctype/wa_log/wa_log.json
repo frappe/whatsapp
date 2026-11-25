@@ -1,7 +1,5 @@
 {
  "actions": [],
- "allow_bulk_edit": 1,
- "allow_rename": 1,
  "autoname": "hash",
  "creation": "2026-05-27 12:00:00.000000",
  "doctype": "DocType",
@@ -29,7 +27,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Level",
-   "options": "Info\nWarning\nError\nDebug"
+   "options": "Info\nWarning\nError\nDebug",
+   "read_only": 1
   },
   {
    "fieldname": "event_type",
@@ -37,13 +36,15 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Event Type",
-   "options": "\nWebhook\nTemplate\nMessage\nAPI\nSystem"
+   "options": "\nWebhook\nTemplate\nMessage\nAPI\nSystem\nFlow",
+   "read_only": 1
   },
   {
    "fieldname": "timestamp",
    "fieldtype": "Datetime",
    "in_list_view": 1,
-   "label": "Timestamp"
+   "label": "Timestamp",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_identity",
@@ -54,19 +55,22 @@
    "fieldtype": "Link",
    "in_standard_filter": 1,
    "label": "Account",
-   "options": "WA Account"
+   "options": "WA Account",
+   "read_only": 1
   },
   {
    "fieldname": "reference_doctype",
    "fieldtype": "Link",
    "label": "Reference DocType",
-   "options": "DocType"
+   "options": "DocType",
+   "read_only": 1
   },
   {
    "fieldname": "reference_docname",
    "fieldtype": "Dynamic Link",
    "label": "Reference Document",
-   "options": "reference_doctype"
+   "options": "reference_doctype",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_message",
@@ -78,12 +82,14 @@
    "fieldtype": "Text",
    "in_list_view": 1,
    "label": "Message",
+   "read_only": 1,
    "reqd": 1
   },
   {
    "fieldname": "traceback",
    "fieldtype": "Code",
-   "label": "Traceback"
+   "label": "Traceback",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_data",
@@ -93,18 +99,21 @@
   {
    "fieldname": "request_data",
    "fieldtype": "Code",
-   "label": "Request Data"
+   "label": "Request Data",
+   "read_only": 1
   },
   {
    "fieldname": "response_data",
    "fieldtype": "Code",
-   "label": "Response Data"
+   "label": "Response Data",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
+ "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-28 16:41:37.000000",
+ "modified": "2026-11-17 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Log",
@@ -112,16 +121,13 @@
  "owner": "Administrator",
  "permissions": [
   {
-   "create": 1,
    "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
+   "role": "System Manager"
   }
  ],
  "row_format": "Dynamic",

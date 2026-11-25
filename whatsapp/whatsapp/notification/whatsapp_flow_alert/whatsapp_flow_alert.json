@@ -1,0 +1,32 @@
+{
+ "attach_print": 0,
+ "channel": "System Notification",
+ "creation": "2026-11-17 16:00:00.000000",
+ "days_in_advance": 0,
+ "docstatus": 0,
+ "doctype": "Notification",
+ "document_type": "WA Flow",
+ "enabled": 1,
+ "event": "Method",
+ "idx": 0,
+ "is_standard": 1,
+ "message": "{{ doc.status }} · {{ doc.whatsapp_account }} · see the WhatsApp Log of this Flow for details",
+ "message_type": "HTML",
+ "method": "on_flow_alert",
+ "minutes_offset": 0,
+ "modified": "2026-11-17 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "WhatsApp",
+ "name": "WhatsApp Flow Alert",
+ "notification_message": "{{ doc.status }} · {{ doc.whatsapp_account }} · see the WhatsApp Log of this Flow for details",
+ "notification_title": "Flow {{ doc.flow_name or doc.name }} needs attention",
+ "owner": "Administrator",
+ "recipients": [
+  {
+   "receiver_by_role": "System Manager"
+  }
+ ],
+ "send_system_notification": 0,
+ "send_to_all_assignees": 0,
+ "subject": "Flow {{ doc.flow_name or doc.name }} needs attention"
+}

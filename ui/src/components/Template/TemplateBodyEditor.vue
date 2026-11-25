@@ -42,8 +42,7 @@ const variables = SuggestionExtension.configure<VariableItem>({
 		const needle = query.trim().toLowerCase();
 		return props
 			.fields()
-			.filter((fieldname) => fieldname.includes(needle))
-			.map((value) => ({ value }));
+			.filter((field) => field.label.toLowerCase().includes(needle) || field.value.includes(needle));
 	},
 	command: ({ editor, range, item }) =>
 		editor.chain().focus().deleteRange(range).insertContent(`{{${item.value}}} `).run(),
@@ -78,6 +77,7 @@ const toolbar = [Bold, Italic, Strike];
 <template>
 	<div class="flex flex-col gap-1.5">
 		<FormLabel v-if="field.label" :label="field.label" :required="field.reqd" />
+		<p v-if="field.description" class="text-p-xs text-ink-gray-5">{{ field.description }}</p>
 		<Editor
 			v-model="content"
 			format="json"
@@ -99,6 +99,5 @@ const toolbar = [Bold, Italic, Strike];
 				/>
 			</div>
 		</Editor>
-		<p v-if="field.description" class="text-p-xs text-ink-gray-5">{{ field.description }}</p>
 	</div>
 </template>
