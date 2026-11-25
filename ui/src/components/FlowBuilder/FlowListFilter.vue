@@ -27,13 +27,13 @@ function clear() {
 <template>
 	<Popover align="end">
 		<template #trigger>
+			<!-- One Button whose props change: swapping it for another would drop the popover's anchor. -->
 			<Button
-				v-if="activeCount"
-				icon-left="lucide-list-filter"
-				:label="String(activeCount)"
+				:icon="activeCount ? undefined : 'lucide-list-filter'"
+				:icon-left="activeCount ? 'lucide-list-filter' : undefined"
+				:label="activeCount ? String(activeCount) : undefined"
 				:aria-label="chrome.filter"
 			/>
-			<Button v-else icon="lucide-list-filter" :aria-label="chrome.filter" />
 		</template>
 		<div class="flex flex-col gap-3 p-3">
 			<div class="grid grid-cols-2 gap-x-4">
