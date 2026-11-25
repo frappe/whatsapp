@@ -21,13 +21,18 @@ export function useTemplates(
   const referenceDoctype = () => toValue(options.referenceDoctype) ?? "";
   const referenceDocname = () => toValue(options.referenceDocname) ?? "";
   const recipient = () => toValue(options.to) ?? "";
+  const filters = () => toValue(options.filters);
 
   // Failures a resource cannot hold: the guards applied before calling one.
   const guardError = ref<unknown>(null);
 
   const list = createResource({
     url: `${TEMPLATE_API}.get_sendable_templates`,
-    makeParams: () => ({ reference_doctype: referenceDoctype() }),
+    makeParams: () => ({
+      reference_doctype: referenceDoctype(),
+      reference_docname: referenceDocname() || undefined,
+      filters: filters(),
+    }),
   });
 
   const sendResource = createResource({ url: `${MESSAGES_API}.send_template` });
@@ -99,8 +104,12 @@ export function useTemplates(
     }
   }
 
-  // A DocType change replaces the whole offering.
-  watch(referenceDoctype, () => reload(), { immediate: true });
+  // Any of these changes the offering or its filled previews.
+  watch(
+    () => [referenceDoctype(), referenceDocname(), JSON.stringify(filters() ?? {})],
+    () => reload(),
+    { immediate: true }
+  );
 
   // `reactive`, not a plain object: `v-bind` does not unwrap nested refs but `reactive`
   // does, so each member binds as a live value.

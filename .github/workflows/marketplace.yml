@@ -1,0 +1,26 @@
+name: Advertise releases in the marketplace
+
+# The release commit semantic-release pushes to main (on_release.yml) is advertised
+# in frappe/marketplace as main's stable release.
+
+on:
+  push:
+    branches: [main]
+
+# Release PRs edit the same marketplace entry, so run one at a time.
+concurrency:
+  group: marketplace-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  marketplace:
+    name: Open the marketplace release PR
+    if: startsWith(github.event.head_commit.message, 'chore(release):')
+    uses: frappe/marketplace/.github/workflows/publish-release.yml@main
+    with:
+      app: whatsapp
+      branch: main
+      commit: ${{ github.sha }}
+      channel: stable
+    secrets:
+      registry_token: ${{ secrets.MARKETPLACE_PR_TOKEN }}

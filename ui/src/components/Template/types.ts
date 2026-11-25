@@ -211,3 +211,15 @@ export interface VariableItem {
   value: string;
   label: string;
 }
+
+/** `TemplateSelector`: the approved templates a document can send, as a searchable grid with Send. */
+export interface TemplateSelectorProps {
+  /** offers the templates bound to it, plus unbound ones with no variables */
+  referenceDoctype: string;
+  /** the sent template attaches to it, and the cards preview its values */
+  referenceDocname?: string;
+  /** recipient: a `WA Profile` name, or a phone number matched on the default account; Send is off and a hint shows while empty */
+  to?: string;
+  /** `frappe.get_all` filters that narrow the templates offered */
+  filters?: Record<string, unknown>;
+}

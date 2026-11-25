@@ -164,6 +164,8 @@ export interface WhatsAppTemplate {
   reference_doctype?: string;
   /** Meta language code, e.g. `en_US`. One template name has one record per language. */
   language?: string;
+  /** Meta's category */
+  template_type?: "Utility" | "Marketing" | "Authentication";
   /** child table, so it needs its own query — optional for a host supplying its own list */
   buttons?: WhatsAppTemplateButton[];
   /** lets a host preview the body with the reference document's values before sending */
@@ -419,10 +421,12 @@ export interface MessagesController {
 export interface UseTemplatesOptions {
   /** decides which templates are offered: those bound to it, plus unbound ones with no variables */
   referenceDoctype: MaybeRefOrGetter<string | undefined>;
-  /** document a sent template attaches to */
+  /** document a sent template attaches to; when set, mapped variables come back filled from it */
   referenceDocname?: MaybeRefOrGetter<string | undefined>;
   /** recipient — a `WhatsApp Profile` name or a phone number; required to send */
   to?: MaybeRefOrGetter<string | undefined>;
+  /** `frappe.get_all` filters that narrow the offering; they cannot widen it */
+  filters?: MaybeRefOrGetter<Record<string, unknown> | undefined>;
 }
 
 /** Per-call overrides for {@link TemplatesController.sendTemplate}. */
