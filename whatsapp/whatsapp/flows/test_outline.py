@@ -27,6 +27,18 @@ class TestFlowOutline(UnitTestCase):
 			outline["entry_screens"], {"WELCOME": {"customer_name": "string", "product": "string"}}
 		)
 
+	def test_screen_titles_are_read_by_id_so_pickers_need_not_show_ids(self):
+		flow = {"version": "7.3", "screens": [screen("WELCOME", [], title="Hello"), screen("DONE", [], title="")]}
+
+		outline = FlowOutline.from_flow_json(flow).as_dict()
+
+		self.assertEqual(outline["screen_titles"], {"WELCOME": "Hello"})
+
+	def test_an_outline_stored_before_titles_were_read_still_loads(self):
+		outline = FlowOutline.from_dict({"screens": ["A"], "entry_screens": {}, "answers": [], "sensitive": []})
+
+		self.assertEqual(outline.screen_titles, {})
+
 	def test_a_navigate_inside_an_if_branch_still_rules_out_its_target_as_an_entry(self):
 		outline = FlowOutline.from_flow_json(LEAD_QUALIFICATION).as_dict()
 

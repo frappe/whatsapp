@@ -22,8 +22,17 @@ ANSWER_TYPES = {
 class FlowOutline:
 	"""What the app reads out of a Flow's JSON. The only place Flow JSON is parsed."""
 
-	def __init__(self, screens: list, entry_screens: dict, answers: list, sensitive: list):
+	def __init__(
+		self,
+		screens: list,
+		entry_screens: dict,
+		answers: list,
+		sensitive: list,
+		screen_titles: dict | None = None,
+	):
 		self.screens = screens
+		# Absent from outlines stored before titles were read.
+		self.screen_titles = screen_titles or {}
 		self.entry_screens = entry_screens
 		self.answers = answers
 		self.sensitive = sensitive
@@ -35,6 +44,11 @@ class FlowOutline:
 		answers = flow.answers()
 		return cls(
 			screens=flow.screen_ids,
+			screen_titles={
+				screen_id: title
+				for screen_id, screen in flow.screens.items()
+				if isinstance(title := screen.get("title"), str) and title
+			},
 			entry_screens={screen_id: flow.declared_data(screen_id) for screen_id in flow.entry_screen_ids()},
 			answers=[answer for answer, _ in answers],
 			sensitive=[answer["key"] for answer, is_sensitive in answers if is_sensitive],
@@ -47,6 +61,7 @@ class FlowOutline:
 	def as_dict(self) -> dict:
 		return {
 			"screens": self.screens,
+			"screen_titles": self.screen_titles,
 			"entry_screens": self.entry_screens,
 			"answers": self.answers,
 			"sensitive": self.sensitive,
