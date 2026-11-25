@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="whatsapp/public/images/logo.svg" height="80" alt="WhatsApp logo">
+  <img src="whatsapp/public/images/logo.svg" width="96" height="96" alt="WhatsApp logo">
   <h1>WhatsApp</h1>
 </div>
 
