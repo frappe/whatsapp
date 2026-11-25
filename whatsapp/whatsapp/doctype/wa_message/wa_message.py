@@ -55,6 +55,7 @@ class WAMessage(Document):
 		flow_mode: DF.Literal["Published", "Draft"]
 		flow_response: DF.JSON | None
 		flow_screen: DF.Data | None
+		flow_sensitive_keys: DF.JSON | None
 		flow_template: DF.Link | None
 		flow_token: DF.Data | None
 		is_template: DF.Check

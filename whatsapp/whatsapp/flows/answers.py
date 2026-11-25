@@ -12,12 +12,14 @@ SUMMARY_SEPARATOR = " · "
 
 
 class FlowAnswers:
-	"""A Flow response's answers, labelled from the Flow's outline, with sensitive values masked."""
+	"""A Flow response's answers, labelled from the Flow's outline, with sensitive values masked.
 
-	def __init__(self, response: dict, outline: FlowOutline | None):
+	`sensitive` is stored with the response, so a later edit of the Flow never unmasks it."""
+
+	def __init__(self, response: dict, outline: FlowOutline | None, sensitive: list[str]):
 		self.values = dict(flatten(response))
 		self.labels = {answer["key"]: answer["label"] for answer in outline.answers} if outline else {}
-		self.sensitive = set(outline.sensitive) if outline else set()
+		self.sensitive = set(sensitive)
 
 	def rows(self) -> list[dict]:
 		"""Answers in the outline's order, then the keys the outline does not know. A masked value is None."""

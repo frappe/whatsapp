@@ -37,6 +37,7 @@
   "flow_screen",
   "flow_action_data",
   "flow_response",
+  "flow_sensitive_keys",
   "section_break_delivery",
   "status",
   "message_id",
@@ -252,6 +253,16 @@
     "read_only": 1
    },
    {
+    "description": "The answers the Flow marked sensitive when the response arrived",
+    "fieldname": "flow_sensitive_keys",
+    "fieldtype": "JSON",
+    "hidden": 1,
+    "label": "Flow Sensitive Keys",
+    "no_copy": 1,
+    "permlevel": 1,
+    "read_only": 1
+   },
+   {
     "fieldname": "section_break_delivery",
     "fieldtype": "Section Break",
     "label": "Delivery Info"
@@ -379,7 +390,7 @@
    "link_fieldname": "reference_docname"
   }
  ],
- "modified": "2026-11-17 19:00:00.000000",
+ "modified": "2026-11-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Message",

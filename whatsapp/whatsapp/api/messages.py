@@ -53,6 +53,7 @@ MESSAGE_FIELDS = [
 	"flow_cta",
 	"flow_template",
 	"flow_response",
+	"flow_sensitive_keys",
 ]
 
 
@@ -255,7 +256,7 @@ def send_flow(
 			"to": profile_name,
 		}
 	)
-	doc.insert(ignore_permissions=True)
+	doc.insert(ignore_permissions=True)  # nosemgrep: frappe-ignore-permissions -- scope, Flow checked above
 
 	_submit(doc, f"Failed to send Flow {flow} to {profile_name}")
 	return doc.name
@@ -390,9 +391,12 @@ def _describe_flows(messages: list[dict]) -> None:
 			message["flow_name"] = flow.flow_name
 		response = message.pop("flow_response", None)
 		flow_template = message.pop("flow_template", None)
+		sensitive = frappe.parse_json(message.pop("flow_sensitive_keys", None)) or []
 		if response is not None:
 			outline = response_outline(flow, flow_template)
-			message["flow_answers"] = FlowAnswers(frappe.parse_json(response) or {}, outline).rows()
+			message["flow_answers"] = FlowAnswers(
+				frappe.parse_json(response) or {}, outline, sensitive
+			).rows()
 
 
 def _flows_by_name(names: set[str]) -> dict:

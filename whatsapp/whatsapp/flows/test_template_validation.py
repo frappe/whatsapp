@@ -1,6 +1,7 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
+import json
 from unittest.mock import patch
 
 import frappe
@@ -61,6 +62,27 @@ class IntegrationTestFlowButtonValidation(FlowMetaCase):
 		with self.assertRaisesRegex(frappe.ValidationError, "Copy Code"):
 			template.insert(ignore_permissions=True)
 		self.meta.client.create_template.assert_not_called()
+
+	def test_a_synced_template_with_copy_code_and_a_flow_button_is_not_pushed(self):
+		"""Its push would drop the Copy Code on Meta and move the Flow button's index."""
+		template = self._synced(
+			[{"button_type": "Copy Code", "button_text": "Copy"}, flow_button(self.feedback)]
+		)
+		template.buttons[1].flow_response_actions = json.dumps(
+			[create_document("ToDo", ("comment", "description"))]
+		)
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Copy Code"):
+			template.save(ignore_permissions=True)
+		self.meta.client.update_template.assert_not_called()
+
+	def test_adding_copy_code_to_a_template_with_a_flow_button_is_refused(self):
+		template = self._synced([flow_button(self.feedback)])
+		template.append("buttons", {"button_type": "Copy Code", "button_text": "Copy"})
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Copy Code"):
+			template.save(ignore_permissions=True)
+		self.meta.client.update_template.assert_not_called()
 
 	def test_a_button_without_a_flow_is_refused(self):
 		self._assert_refused(flow_button(""), r"Button #1 \(Give feedback\): choose the Flow")
@@ -225,6 +247,19 @@ class IntegrationTestFlowButtonValidation(FlowMetaCase):
 
 	def _save(self, button: dict, **fields):
 		return template_doc(self.account, [button], **fields).insert(ignore_permissions=True)
+
+	def _synced(self, buttons: list[dict]):
+		uid = frappe.generate_hash(length=6)
+		template = template_doc(
+			self.account,
+			buttons,
+			template_name=f"_test_synced_{uid}",
+			whatsapp_template_id=f"tmpl_{uid}",
+			status="Approved",
+		)
+		template.flags.from_sync = True
+		template.insert(ignore_permissions=True)
+		return frappe.get_doc("WA Template", template.name)
 
 	def _assert_refused(self, button: dict, message: str, **fields) -> None:
 		with self.assertRaisesRegex(frappe.ValidationError, message):

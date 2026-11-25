@@ -36,6 +36,14 @@ def _handle_status_change(business_id: str, value: dict) -> None:
 		_update_status(frappe.get_doc("WA Flow", flow_id), value)
 		return
 
+	if not str(flow_id or "").isdigit():
+		log(
+			"Warning",
+			"Flow",
+			f"Ignored a Flow webhook event for invalid Flow ID {flow_id}",
+			response_data=value,
+		)
+		return
 	account = _account_for(business_id, value)
 	if account:
 		sync_flow(account, flow_id)

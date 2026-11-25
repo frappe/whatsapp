@@ -9,6 +9,7 @@ from frappe import _
 
 from whatsapp.whatsapp.api.utils import log
 from whatsapp.whatsapp.flows.answers import FlowAnswers, response_outline
+from whatsapp.whatsapp.flows.outline import FlowOutline
 from whatsapp.whatsapp.flows.send import template_flow_buttons
 from whatsapp.whatsapp.flows.token import FlowToken
 
@@ -39,7 +40,10 @@ class FlowResponse:
 		fields = {"flow_response": json.dumps(self.answers)}
 		if self.send:
 			fields.update(self._inherited())
-		fields["message"] = self._summary(fields) if self.send else _("Form submitted")
+		outline = self._outline(fields)
+		sensitive = outline.sensitive if outline else []
+		fields["flow_sensitive_keys"] = json.dumps(sensitive)
+		fields["message"] = self._summary(outline, sensitive) if self.send else _("Form submitted")
 		return fields
 
 	@cached_property
@@ -118,10 +122,12 @@ class FlowResponse:
 		self._warn(f"Flow response {self.msg.get('id')} is not valid JSON. Its answers are stored as {{}}.")
 		return {}
 
-	def _summary(self, fields: dict) -> str:
+	def _outline(self, fields: dict) -> FlowOutline | None:
 		flow = fields.get("flow")
-		outline = response_outline(flow and frappe.get_doc("WA Flow", flow), fields.get("flow_template"))
-		return FlowAnswers(self.answers, outline).summary() or self.reply.get("body") or ""
+		return response_outline(flow and frappe.get_doc("WA Flow", flow), fields.get("flow_template"))
+
+	def _summary(self, outline: FlowOutline | None, sensitive: list[str]) -> str:
+		return FlowAnswers(self.answers, outline, sensitive).summary() or self.reply.get("body") or ""
 
 	def _warn(self, message: str) -> None:
 		log("Warning", "Flow", message, account=self.account, request_data=self.msg)

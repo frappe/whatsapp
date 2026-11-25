@@ -69,7 +69,7 @@ Open **WA Settings** in Desk.
 | Field | Value |
 |---|---|
 | Webhook Verify Token | Any string you choose. You repeat it on Meta in the next step. |
-| Webhook Secret | The **App Secret** from the app's **App Settings > Basic** page. Every webhook delivery is checked against it with HMAC-SHA256. If left blank, deliveries are accepted unverified. |
+| Webhook Secret | The **App Secret** from the app's **App Settings > Basic** page. Every webhook delivery is checked against it with HMAC-SHA256. If left blank, deliveries are accepted unverified, but Flow status events are ignored. |
 | API Url | Defaults to `https://graph.facebook.com`. |
 | API Version | Defaults to `v23.0`. |
 
@@ -252,6 +252,8 @@ There are two ways to send a Flow:
 1. In the Meta App Dashboard, open **WhatsApp > Configuration** and subscribe to the `flows`
    webhook field, next to `messages`. The app cannot check this, because Meta's API does not
    report the subscribed fields. **Check Webhook Subscription** does not cover it.
+   Set the **Webhook Secret** in WA Settings too. Without it, the app ignores `flows` events
+   and writes a Warning to WA Log, because anyone could send them unsigned.
 2. Get your business verified on Meta. Meta sends Flows only for a verified business.
 3. Sync the Flows:
    - The scheduler syncs the Flows of every active account daily.
@@ -290,7 +292,9 @@ Meta. Meta keeps JSON with errors as a draft, so the save succeeds and the form 
 validation errors with their line and column. An edit to a Published Flow can move it back to
 Draft on Meta, and the status follows.
 
-Status changes arrive on the `flows` webhook. Health alerts, version-expiry warnings and a change
+Status changes arrive on the `flows` webhook, which the app accepts only when a **Webhook Secret**
+is set. Without it, the daily sync keeps the statuses current. A status change for an unknown Flow
+syncs that Flow from Meta. Health alerts, version-expiry warnings and a change
 to Throttled or Blocked go to WA Log and fire the **WhatsApp Flow Alert** notification.
 
 ### Flow builder
@@ -331,7 +335,8 @@ their content on the left, and a WhatsApp phone preview on the right.
 
 Add a button of type **Flow** to a WA Template, next to its other buttons. A template can have
 more than one Flow button, but no Copy Code button: the push to Meta leaves Copy Code out, which
-changes the index Meta gives each Flow button. The label can have at most 25 characters.
+changes the index Meta gives each Flow button. A template synced from Meta with both cannot be
+saved here, as its push would remove the Copy Code on Meta. The label can have at most 25 characters.
 
 | Field | Details |
 |---|---|
@@ -466,7 +471,9 @@ not its Flow. It runs no Response actions, and WA Log gets a Warning.
 A Flow marks an answer as sensitive in a screen's `sensitive` list. Password and passcode text
 inputs are always sensitive. The conversation shows a sensitive answer as masked, and the summary leaves
 it out. When the response knows its template but not its Flow, every key that any Flow button of
-the template marks as sensitive is masked.
+the template marks as sensitive is masked. The app stores the sensitive keys on the WA Message
+(`flow_sensitive_keys`) when the response arrives, so a later edit of the Flow does not unmask
+older answers.
 
 `flow_response` has permission level 1, and only System Manager can read that level. Other Desk
 and REST users do not get the raw answers. Server code, such as Response actions and

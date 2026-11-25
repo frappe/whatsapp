@@ -83,8 +83,16 @@ def _receive() -> str:
 				_handle_messages(value)
 			elif field == "message_template_status_update":
 				_handle_template_status(value)
-			elif field == "flows":
+			elif field == "flows" and secret:
 				handle_flow_event(entry.get("id"), value)
+			elif field == "flows":
+				# Unsigned, anyone could change a Flow's status; the daily Flow sync keeps it current.
+				log(
+					"Warning",
+					"Flow",
+					"Ignored a Flow webhook event: Flow events need the Webhook Secret in WA Settings",
+					response_data=value,
+				)
 
 	frappe.response.http_status_code = 200
 	frappe.response["content_type"] = "text/plain"

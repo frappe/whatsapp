@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # See license.txt
 
+import hashlib
+import hmac
 import json
 from unittest.mock import MagicMock, call, patch
 
@@ -18,18 +20,27 @@ from whatsapp.whatsapp.flows.meta_fixtures import (
 from whatsapp.whatsapp.webhook import handler
 
 NOTIFY = "whatsapp.whatsapp.doctype.wa_flow.wa_flow.WAFlow.run_notifications"
+SECRET = "flow_webhook_secret"
+
+
+def _digest(raw: str) -> str:
+	return hmac.new(SECRET.encode(), raw.encode(), hashlib.sha256).hexdigest()
 
 
 class IntegrationTestFlowWebhook(FlowMetaCase):
 	def setUp(self):
 		super().setUp()
-		frappe.db.set_single_value("WA Settings", "webhook_secret", "")
+		frappe.db.set_single_value("WA Settings", "webhook_secret", SECRET)
 		self.business_id = business_id(self.account)
 		self.notify = self.start_patch(NOTIFY)
 
 	def deliver(self, value: dict, business_id: str | None = None) -> str:
-		frappe.local.form_dict = frappe._dict(webhook_payload(business_id or self.business_id, value))
+		payload = webhook_payload(business_id or self.business_id, value)
+		raw = json.dumps(payload)
+		frappe.local.form_dict = frappe._dict(payload)
 		frappe.local.request = MagicMock(method="POST")
+		frappe.local.request.get_data.return_value = raw
+		frappe.local.request.headers = {"X-Hub-Signature-256": f"sha256={_digest(raw)}"}
 		self.addCleanup(
 			lambda: delattr(frappe.local, "request") if hasattr(frappe.local, "request") else None
 		)
@@ -48,6 +59,35 @@ class IntegrationTestFlowWebhook(FlowMetaCase):
 			filters={"reference_doctype": "WA Flow", "reference_docname": flow_id, "event_type": "Flow"},
 			fields=["level", "message", "response_data"],
 			order_by="creation desc",
+		)
+
+	def test_flow_events_are_ignored_with_a_warning_without_a_webhook_secret(self):
+		frappe.db.set_single_value("WA Settings", "webhook_secret", "")
+		self.make_flow("3011")
+		self.meta.add("3012", "Created on Meta", status="DRAFT")
+
+		self.assertEqual(self.deliver(status_change("3011", "PUBLISHED")), "ok")
+		self.deliver(status_change("3012", "DRAFT", old_status=None))
+
+		self.assertEqual(frappe.db.get_value("WA Flow", "3011", "status"), "Draft")
+		self.assertFalse(frappe.db.exists("WA Flow", "3012"))
+		self.notify.assert_not_called()
+		self.meta.client.get_flow.assert_not_called()
+		self.assertEqual(
+			frappe.db.count(
+				"WA Log", {"level": "Warning", "event_type": "Flow", "message": ("like", "%Webhook Secret%")}
+			),
+			2,
+		)
+
+	def test_a_status_change_for_a_flow_id_that_is_not_a_number_is_ignored_with_a_warning(self):
+		self.deliver(status_change("../3013", "DRAFT", old_status=None))
+
+		self.meta.client.get_flow.assert_not_called()
+		self.assertTrue(
+			frappe.db.exists(
+				"WA Log", {"level": "Warning", "event_type": "Flow", "message": ("like", "%../3013%")}
+			)
 		)
 
 	def test_a_status_change_updates_a_known_flow(self):

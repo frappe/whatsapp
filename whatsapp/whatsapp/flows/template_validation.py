@@ -27,6 +27,7 @@ def validate_flow_buttons(template) -> None:
 	"""Check each Flow button of a template, and default its screen to the Flow's first entry screen."""
 	types = {button.button_type for button in template.buttons}
 	# The push leaves Copy Code out, so Meta would index the Flow buttons differently from the send.
+	# This holds for templates synced with both too: their next push would drop the Copy Code on Meta.
 	if {"Flow", "Copy Code"} <= types:
 		frappe.throw(_("A template with a Flow button cannot have a Copy Code button."))
 	for button in template.buttons:

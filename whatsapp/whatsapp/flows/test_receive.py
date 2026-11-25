@@ -9,7 +9,7 @@ import frappe
 
 from whatsapp.whatsapp.api.messages import get_messages, send_flow, send_template
 from whatsapp.whatsapp.doctype.wa_message.wa_message import WAMessage
-from whatsapp.whatsapp.flows.flow_json_fixtures import LEAD_QUALIFICATION
+from whatsapp.whatsapp.flows.flow_json_fixtures import DEAL_FEEDBACK, LEAD_QUALIFICATION
 from whatsapp.whatsapp.flows.meta_fixtures import messages_payload, nfm_reply
 from whatsapp.whatsapp.flows.template_fixtures import flow_button, template_doc
 from whatsapp.whatsapp.flows.test_send import FlowSendCase
@@ -296,6 +296,18 @@ class IntegrationTestFlowResponseDisplay(FlowResponseCase):
 		)
 		self.assertNotIn("flow_response", rows[response.name])
 		self.assertNotIn("1234", json.dumps(rows, default=str))
+
+	def test_answers_stay_masked_after_the_flow_stops_marking_them_sensitive(self):
+		send = self.send_flow(LEAD_QUALIFICATION)
+		response = self.respond(LEAD_ANSWERS, token=send.flow_token)
+		flow = frappe.get_doc("WA Flow", send.flow)
+		flow.flow_json = json.dumps(DEAL_FEEDBACK)
+		flow.flags.from_sync = True
+		flow.save()
+
+		masked = {row["key"] for row in self.answers_of(response, ["User", self.user.name]) if row["masked"]}
+
+		self.assertEqual(masked, {"budget", "passcode"})
 
 	def test_a_response_matched_only_by_its_token_quotes_the_send(self):
 		send = self.send_flow()

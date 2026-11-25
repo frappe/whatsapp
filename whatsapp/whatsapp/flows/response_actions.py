@@ -9,7 +9,6 @@ import frappe
 from frappe.utils import get_datetime
 
 from whatsapp.whatsapp.api.utils import log
-from whatsapp.whatsapp.flows.answers import response_outline
 from whatsapp.whatsapp.flows.field_values import UnconvertibleValue, to_field_value
 from whatsapp.whatsapp.flows.send import template_flow_buttons
 
@@ -133,10 +132,8 @@ class ResponseSources:
 		return frappe.get_cached_doc("WA Profile", self.message.to)
 
 	def _without_sensitive(self) -> dict:
-		flow = frappe.get_doc("WA Flow", self.message.flow) if self.message.flow else None
-		outline = response_outline(flow, self.message.flow_template)
 		answers = copy.deepcopy(self.answers)
-		for path in outline.sensitive if outline else []:
+		for path in frappe.parse_json(self.message.flow_sensitive_keys) or []:
 			*parents, key = path.split(".")
 			parent = answers
 			for name in parents:
