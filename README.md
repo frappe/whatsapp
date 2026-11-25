@@ -1,4 +1,7 @@
-# WhatsApp
+<div align="center">
+  <img src="whatsapp/public/images/logo.svg" height="80" alt="WhatsApp logo">
+  <h1>WhatsApp</h1>
+</div>
 
 Official WhatsApp integration for Frappe apps, built on Meta's WhatsApp Business Cloud API.
 
