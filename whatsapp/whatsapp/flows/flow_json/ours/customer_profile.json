@@ -1,0 +1,112 @@
+{
+	"version": "7.1",
+	"screens": [
+		{
+			"id": "CONTACT",
+			"title": "Contact",
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "TextInput",
+						"name": "full_name",
+						"label": "Full name"
+					},
+					{
+						"type": "TextInput",
+						"name": "city",
+						"label": "City"
+					},
+					{
+						"type": "TextInput",
+						"name": "zip",
+						"label": "ZIP",
+						"input-type": "number"
+					},
+					{
+						"type": "CheckboxGroup",
+						"name": "interests",
+						"label": "Interests",
+						"data-source": [
+							{
+								"id": "1",
+								"title": "One"
+							},
+							{
+								"id": "2",
+								"title": "Two"
+							}
+						]
+					},
+					{
+						"type": "Footer",
+						"label": "Next",
+						"on-click-action": {
+							"name": "navigate",
+							"next": {
+								"type": "screen",
+								"name": "CONSENT"
+							},
+							"payload": {
+								"full_name": "${form.full_name}"
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "CONSENT",
+			"title": "Consent",
+			"terminal": true,
+			"data": {
+				"full_name": {
+					"type": "string",
+					"__example__": "Asha"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "PhotoPicker",
+						"name": "photo",
+						"label": "Your photo"
+					},
+					{
+						"type": "OptIn",
+						"name": "agree",
+						"label": "I agree to the terms"
+					},
+					{
+						"type": "EmbeddedLink",
+						"text": "Skip for now",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"skipped": true
+							}
+						}
+					},
+					{
+						"type": "Footer",
+						"label": "Done",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"name": "${screen.CONSENT.data.full_name}",
+								"address": {
+									"city": "${screen.CONTACT.form.city}",
+									"zip": "${screen.CONTACT.form.zip}"
+								},
+								"interests": "${screen.CONTACT.form.interests}",
+								"agree": "${form.agree}",
+								"photo": "${form.photo}"
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}

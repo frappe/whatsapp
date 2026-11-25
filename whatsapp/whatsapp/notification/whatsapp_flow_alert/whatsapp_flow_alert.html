@@ -1,0 +1,22 @@
+<h4>{{ _("WhatsApp Flow Alert") }}</h4>
+
+<table style="margin-bottom: 1rem; width: 70%">
+    <tr>
+        <td style="font-weight:bold; width: 30%">{{ _("Flow") }}</td>
+        <td>{{ doc.flow_name or doc.name }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Status") }}</td>
+        <td>{{ doc.status }}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold">{{ _("Account") }}</td>
+        <td>{{ doc.whatsapp_account }}</td>
+    </tr>
+</table>
+
+<p>{{ _("Meta reported a problem with this Flow. The WhatsApp Log of the Flow has the details.") }}</p>
+
+<p class="text-muted text-small" style="margin-top: 16px;">
+    {{ _("This is an automated notification from {0}").format(frappe.utils.get_host_name()) }}.
+</p>

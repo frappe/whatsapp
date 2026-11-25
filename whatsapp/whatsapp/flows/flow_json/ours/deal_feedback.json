@@ -1,0 +1,139 @@
+{
+	"version": "7.1",
+	"screens": [
+		{
+			"id": "WELCOME",
+			"title": "Welcome",
+			"data": {
+				"customer_name": {
+					"type": "string",
+					"__example__": "Asha"
+				},
+				"product": {
+					"type": "string",
+					"__example__": "CRM Pro"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "TextHeading",
+						"text": "Hi ${data.customer_name}"
+					},
+					{
+						"type": "TextBody",
+						"text": "Tell us about ${data.product}"
+					},
+					{
+						"type": "Footer",
+						"label": "Start",
+						"on-click-action": {
+							"name": "navigate",
+							"next": {
+								"type": "screen",
+								"name": "RATE"
+							},
+							"payload": {
+								"customer_name": "${data.customer_name}"
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+			"id": "RATE",
+			"title": "Rate",
+			"data": {
+				"customer_name": {
+					"type": "string",
+					"__example__": "Asha"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "Form",
+						"name": "rate_form",
+						"children": [
+							{
+								"type": "RadioButtonsGroup",
+								"name": "rating",
+								"label": "Rate us",
+								"data-source": [
+									{
+										"id": "1",
+										"title": "One"
+									},
+									{
+										"id": "2",
+										"title": "Two"
+									}
+								],
+								"required": true
+							},
+							{
+								"type": "TextArea",
+								"name": "comment",
+								"label": "Comments"
+							},
+							{
+								"type": "Footer",
+								"label": "Next",
+								"on-click-action": {
+									"name": "navigate",
+									"next": {
+										"type": "screen",
+										"name": "DONE"
+									},
+									"payload": {
+										"rating": "${form.rating}",
+										"comment": "${form.comment}"
+									}
+								}
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"id": "DONE",
+			"title": "Done",
+			"terminal": true,
+			"success": true,
+			"data": {
+				"rating": {
+					"type": "string",
+					"__example__": "1"
+				},
+				"comment": {
+					"type": "string",
+					"__example__": "Great"
+				}
+			},
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "TextBody",
+						"text": "Thanks!"
+					},
+					{
+						"type": "Footer",
+						"label": "Send",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"rating": "${data.rating}",
+								"comment": "${data.comment}"
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}

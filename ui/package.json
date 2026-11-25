@@ -21,6 +21,10 @@
       "import": "./src/components/Template/index.ts",
       "types": "./src/components/Template/index.ts"
     },
+    "./FlowBuilder": {
+      "import": "./src/components/FlowBuilder/index.ts",
+      "types": "./src/components/FlowBuilder/index.ts"
+    },
     "./common": {
       "import": "./src/components/common/index.ts",
       "types": "./src/components/common/index.ts"
@@ -50,7 +54,9 @@
     "dompurify": "^3.4.0"
   },
   "peerDependencies": {
+    "@codemirror/view": "^6.0.0",
     "@framework/ui": "*",
+    "@vueuse/core": ">=10.4.1",
     "frappe-ui": ">=1.0.0-rc.2",
     "vue": ">=3.3.0"
   }

@@ -148,6 +148,142 @@ A Part draws content, never its container. `MessageBubble` draws one Message and
 Host layout. `TemplateSelectorDialog` broke that rule — it shipped a Dialog, a
 search box and a grid to deliver one renderer — and was removed for it.
 
+**Flow**:
+A form defined on Meta and synced here as one `WA Flow` document. A contact opens it from
+a button and fills it in inside WhatsApp. A Flow is not a **Render kind**: Render kind comes
+from the MIME type alone, and a Flow message has none.
+_Avoid_: "form" alone in code (fine in Chrome, where the contact's word is the right one),
+"survey".
+
+**Flow send**:
+An outgoing Message that opens a Flow: a body plus one button, drawn like a **Template**'s
+buttons and just as inert, because it is the button the contact saw. The Flow's name is
+agent-facing, so it sits in the **Bubble**'s footer rather than in the body. A **Template**
+with a Flow button is a Template send, not a Flow send.
+_Avoid_: "Flow message" (it names a send and a response alike).
+
+**Flow response**:
+The incoming Message that carries what a contact submitted. Its Bubble draws the
+**Flow answer**s in place of the body text, under the **Quote** of the send it answers.
+"Form submitted" stands in when it carries no answers.
+_Avoid_: "submission", "reply" (a Flow response does quote its send, but "reply" is any Message
+with a Quote).
+
+**Flow answer**:
+One label and value line of a Flow response, labelled and masked by the server. The Bubble
+formats the value for reading (lists joined, booleans as Yes or No, uploads counted) and never
+parses the stored response. A masked answer is a fixed row of dots with no reveal: the value
+never reaches the client.
+_Avoid_: "field" (that is the reference document's), "response" for one line.
+
+**Flow button**:
+A **Template** button of type Flow. It names the Flow, the entry screen it opens on and its icon,
+and it owns its **Flow inputs** and **Response action**s. Its settings don't fit a grid row, so
+`TemplateForm` draws one `FlowButtonEditor` per Flow button in a section of its own below the
+buttons grid, titled by the button's text.
+_Avoid_: "Flow" for the button (the Flow is the form it opens), "form button".
+
+**Flow inputs**:
+The data a **Flow button** sends to the Flow's first screen: one line per key that screen
+declares, each filled from a field of the template's reference document when the message is
+sent. Stored on the button as `[{key, source_field}]`. Nobody types a key: the lines come from the
+Flow's outline.
+_Avoid_: "variables" (those fill the Template's text), "prefill", "initial data".
+
+**Response action**:
+One thing a **Flow button** does with a **Flow response**: update the reference document, or
+create a document, under an optional condition, through a map from answers and message details
+to fields. Stored on the button as `[{action, doctype, condition, fields: [{source, target_field}]}]`.
+A mapping whose source the current Flow no longer sends is a warning, not an error, because
+older Flow versions on customers' phones still answer with it.
+_Avoid_: "automation", "rule", "Append Action" (that adds every Message to a document; a
+Response action acts on one Flow response).
+
+### Flow builder
+
+The visual editor for a Flow's JSON. Its core is a pure model in
+`components/FlowBuilder/model` (`parse`, `serialize`, operations, `problems`).
+
+**Screen**:
+One page of a Flow, as the contact sees it: a title, Blocks, and one footer button. The first
+Screen is the entry screen, the only one a **Template** can prefill.
+_Avoid_: "page", "step".
+
+**Block**:
+One component on a Screen that the builder edits: a text, a question, a file picker, an image
+or a link. The footer is not a Block; it is the Screen's button.
+_Avoid_: "component" in product words (it is Meta's word), "field".
+
+**Advanced block**:
+A component the builder does not model (`If`, `Switch`, `NavigationList`, anything with a
+`data_exchange` action, an unknown type). It is kept exactly as written and can be moved and
+deleted, but only edited in JSON. This is how the builder never limits a Flow.
+_Avoid_: "unsupported", "raw".
+
+**Ending**:
+A Screen whose button finishes the form (`terminal`, a `complete` action). A Flow can have
+several.
+_Avoid_: "terminal screen" in product words, "submit screen".
+
+**Answer key**:
+The name a question's answer is stored under: the component `name`, and the key in each
+Ending's payload. Generated from the question ("Full name" → `full_name`) and unique in the Flow.
+This is what **Flow answer**s and **Response action**s refer to.
+_Avoid_: "field name", "variable".
+
+**Custom answers**:
+An Ending whose `complete` payload is not what the builder would write, because someone
+changed it in JSON. The builder keeps it as written and never rewrites it. Otherwise the builder
+writes the payload itself: every question on the paths into the Ending.
+_Avoid_: "custom payload", "manual answers".
+
+**Problem**:
+One thing wrong with a Flow, shown on the field it is about ("This field cannot be empty"), as
+a warning icon on its row and Screen, and in the header's problem count: an error (blocks Publish) or a warning. It comes from the model's rules, as you type, or
+from Meta's `validation_errors` after a save, which Meta also stores on the WA Flow.
+_Avoid_: "validation error" for the local ones (that is Meta's name for its own), "lint".
+
+**Journey**:
+The order a contact goes through the Screens. As in Meta's playground it is the order of the
+Screens list: each button goes to the next Screen and the last one is the Ending. A Flow whose
+JSON branches keeps its own navigation, shown read only.
+_Avoid_: "route", "path" (a JSON path is something else).
+
+**Read more screen**:
+A Screen an Opt-in links to for its full terms. It has one text and no button, sits outside the
+Journey, and goes and comes back with the Screen that holds the Opt-in.
+_Avoid_: "sub-screen" in product words, "terms page".
+
+**Row**:
+One line of the builder's "Edit content" accordion: Screen title, a Block, or Button. A collapsed
+Row reads "Type · summary"; several can be open at once.
+_Avoid_: "item", "card".
+
+**Preview**:
+The phone on the right of the builder, drawn as WhatsApp draws a Flow: the sheet with its title
+bar, the components, the button and "Managed by the business". It shows the selected Screen,
+with sample values in place of `${data.…}` and `${form.…}` text. It draws WhatsApp on Android.
+Its Theme (Light, Dark) changes only the phone.
+_Avoid_: "canvas", "simulator".
+
+**Interactive mode**:
+The Preview run as a contact would: answers can be typed, the button stays off until every
+required question has one, moves along the Journey, and the last Screen ends in the "Sent" chat.
+The Screens list follows the phone, and Screens can't be added, moved or deleted meanwhile.
+_Avoid_: "test mode", "play mode".
+
+**Builder session**:
+One Flow open in the builder: its model, the `modified` token the next save sends, the save
+state and the Problems. It saves by itself once edits pause (**Autosave**); there is no Save
+button. `useFlowBuilder` returns it; it is the builder's **Controller**.
+_Avoid_: "editor state", "draft" (Draft is a Flow status).
+
+**Autosave**:
+The builder saving a Flow by itself: 1500 ms after the last edit, and at once before Publish,
+closing, "Make a copy" or Edit JSON's Apply. A save uploads to Meta, so Meta's validation errors
+come back with it. The header says "Saving…" while a save is pending and "Couldn't save · Retry" after a failure; a saved Flow shows nothing.
+_Avoid_: "Save button" (there is none), "sync" (Sync from WhatsApp pulls Flows from Meta).
+
 **Chrome**:
 User-facing English strings the library renders — placeholders, button labels,
 empty states. Every one is exposed with an English default so a Host can pass its

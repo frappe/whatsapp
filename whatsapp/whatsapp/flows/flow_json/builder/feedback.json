@@ -1,0 +1,75 @@
+{
+	"version": "7.3",
+	"screens": [
+		{
+			"id": "FEEDBACK",
+			"title": "Feedback",
+			"terminal": true,
+			"layout": {
+				"type": "SingleColumnLayout",
+				"children": [
+					{
+						"type": "RadioButtonsGroup",
+						"name": "how_was_it",
+						"label": "How was it?",
+						"data-source": [
+							{
+								"id": "option_1",
+								"title": "Option 1"
+							},
+							{
+								"id": "option_2",
+								"title": "Option 2"
+							}
+						]
+					},
+					{
+						"type": "CheckboxGroup",
+						"name": "what_did_you_like",
+						"label": "What did you like?",
+						"data-source": [
+							{
+								"id": "option_1",
+								"title": "Option 1"
+							},
+							{
+								"id": "option_2",
+								"title": "Option 2"
+							}
+						]
+					},
+					{
+						"type": "DatePicker",
+						"name": "visit_date",
+						"label": "Visit date"
+					},
+					{
+						"type": "TextInput",
+						"name": "member_pin",
+						"label": "Member PIN",
+						"input-type": "passcode"
+					},
+					{
+						"type": "OptIn",
+						"name": "consent",
+						"label": "You may contact me"
+					},
+					{
+						"type": "Footer",
+						"label": "Continue",
+						"on-click-action": {
+							"name": "complete",
+							"payload": {
+								"how_was_it": "${form.how_was_it}",
+								"what_did_you_like": "${form.what_did_you_like}",
+								"visit_date": "${form.visit_date}",
+								"member_pin": "${form.member_pin}",
+								"consent": "${form.consent}"
+							}
+						}
+					}
+				]
+			}
+		}
+	]
+}

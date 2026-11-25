@@ -15,7 +15,13 @@ class WATemplateButton(Document):
 		from frappe.types import DF
 
 		button_text: DF.Data
-		button_type: DF.Literal["Quick Reply", "Copy Code", "URL", "Voice Call", "Phone Number"]
+		button_type: DF.Literal["Quick Reply", "Copy Code", "URL", "Voice Call", "Phone Number", "Flow"]
+		flow: DF.Link | None
+		flow_action: DF.Literal["Navigate", "Data Exchange"]
+		flow_icon: DF.Literal["", "Document", "Promotion", "Review"]
+		flow_inputs: DF.JSON | None
+		flow_response_actions: DF.JSON | None
+		flow_screen: DF.Data | None
 		parent: DF.Data
 		parentfield: DF.Data
 		parenttype: DF.Data

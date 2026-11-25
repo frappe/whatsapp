@@ -10,14 +10,22 @@
   "button_type",
   "button_text",
   "phone_number",
-  "url"
+  "url",
+  "flow_section",
+  "flow",
+  "flow_screen",
+  "flow_icon",
+  "column_break_flow",
+  "flow_action",
+  "flow_inputs",
+  "flow_response_actions"
  ],
  "fields": [
   {
    "fieldname": "button_type",
    "fieldtype": "Select",
    "label": "Button Type",
-   "options": "Quick Reply\nCopy Code\nURL\nVoice Call\nPhone Number",
+   "options": "Quick Reply\nCopy Code\nURL\nVoice Call\nPhone Number\nFlow",
    "reqd": 1
   },
   {
@@ -41,13 +49,66 @@
    "label": "Phone Number",
    "mandatory_depends_on": "eval:doc.button_type === \"Phone Number\"",
    "options": "Phone"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "fieldname": "flow_section",
+   "fieldtype": "Section Break",
+   "label": "Flow"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "fieldname": "flow",
+   "fieldtype": "Link",
+   "label": "Flow",
+   "mandatory_depends_on": "eval:doc.button_type === \"Flow\"",
+   "options": "WA Flow"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "description": "The entry screen the Flow opens on. Defaults to the first entry screen.",
+   "fieldname": "flow_screen",
+   "fieldtype": "Data",
+   "label": "Flow Screen"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "fieldname": "flow_icon",
+   "fieldtype": "Select",
+   "label": "Flow Icon",
+   "options": "\nDocument\nPromotion\nReview"
+  },
+  {
+   "fieldname": "column_break_flow",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Navigate",
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "description": "Data Exchange is for Flows that call your own endpoint.",
+   "fieldname": "flow_action",
+   "fieldtype": "Select",
+   "label": "Flow Action",
+   "options": "Navigate\nData Exchange"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "fieldname": "flow_inputs",
+   "fieldtype": "JSON",
+   "label": "Flow Inputs"
+  },
+  {
+   "depends_on": "eval:doc.button_type === \"Flow\"",
+   "fieldname": "flow_response_actions",
+   "fieldtype": "JSON",
+   "label": "Response Actions"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-28 16:41:37.000000",
+ "modified": "2026-11-17 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "WhatsApp",
  "name": "WA Template Button",

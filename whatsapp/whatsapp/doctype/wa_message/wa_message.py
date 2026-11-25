@@ -22,6 +22,15 @@ from whatsapp.whatsapp.api.utils import (
 )
 from whatsapp.whatsapp.api.whatsapp import WhatsApp
 from whatsapp.whatsapp.doctype.wa_profile.wa_profile import lock_profile
+from whatsapp.whatsapp.flows.response_actions import run_response_actions
+from whatsapp.whatsapp.flows.send import (
+	assign_flow_token,
+	flow_button_components,
+	interactive_flow_payload,
+	validate_flow_inputs_reference,
+	validate_sendable_flows,
+	validate_update_reference_permission,
+)
 
 
 class WAMessage(Document):
@@ -39,6 +48,16 @@ class WAMessage(Document):
 		direction: DF.Literal["Outgoing", "Incoming"]
 		error_code: DF.Data | None
 		error_message: DF.LongText | None
+		flow: DF.Link | None
+		flow_action_data: DF.JSON | None
+		flow_button_index: DF.Int
+		flow_cta: DF.Data | None
+		flow_mode: DF.Literal["Published", "Draft"]
+		flow_response: DF.JSON | None
+		flow_screen: DF.Data | None
+		flow_sensitive_keys: DF.JSON | None
+		flow_template: DF.Link | None
+		flow_token: DF.Data | None
 		is_template: DF.Check
 		media_id: DF.Data | None
 		media_url: DF.Data | None
@@ -71,6 +90,7 @@ class WAMessage(Document):
 			self._set_from_number()
 			self._resolve_reply_to_context()
 			self._validate_interactive()
+			assign_flow_token(self)
 			if self.is_template and self.reference_docname:
 				self._populate_template_parameters()
 
@@ -82,6 +102,10 @@ class WAMessage(Document):
 		if self.direction == "Outgoing" and self.status == "Sent":
 			process_append_actions(self, trigger_on="Outgoing")
 			self.run_notifications("on_send")
+		elif self.direction == "Incoming" and self.flow_response:
+			# Frappe runs Notifications, Webhooks and Server Scripts after this, so they see the actions' writes.
+			run_response_actions(self)
+			self.run_notifications("on_flow_response")
 
 	def on_trash(self) -> None:
 		frappe.db.delete(
@@ -152,6 +176,8 @@ class WAMessage(Document):
 		if template.template_variables:
 			if not self.reference_docname:
 				frappe.throw(_("Reference Document is required when template has variables"))
+		validate_flow_inputs_reference(self, template)
+		validate_update_reference_permission(self, template)
 
 	def _populate_template_parameters(self) -> None:
 		template = frappe.get_cached_doc("WA Template", self.whatsapp_template)
@@ -199,6 +225,7 @@ class WAMessage(Document):
 		return mime_map.get(ext, "application/octet-stream")
 
 	def _send(self) -> None:
+		validate_sendable_flows(self)
 		account = frappe.get_doc("WA Account", self.whatsapp_account)
 		settings = frappe.get_single("WA Settings")
 		client = _get_whatsapp_client(account, settings)
@@ -320,6 +347,9 @@ class WAMessage(Document):
 				emoji=self.reaction or None,
 			)
 
+		if self.flow and not self.is_template:
+			return interactive_flow_payload(self, to_phone)
+
 		if buttons and not self.is_template:
 			return build_interactive_buttons_payload(
 				to=to_phone,
@@ -358,6 +388,7 @@ class WAMessage(Document):
 				template_doc=template_doc,
 				body_parameters=body_params,
 				header_parameters=header_params,
+				button_components=flow_button_components(self, template_doc),
 			)
 		else:
 			payload = build_text_message_payload(to=to_phone, text=self.message or "")

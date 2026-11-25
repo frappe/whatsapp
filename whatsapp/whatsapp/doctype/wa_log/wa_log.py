@@ -16,7 +16,7 @@ class WALog(Document):
 		from frappe.types import DF
 
 		account: DF.Link | None
-		event_type: DF.Literal["", "Webhook", "Template", "Message", "API", "System"]
+		event_type: DF.Literal["", "Webhook", "Template", "Message", "API", "System", "Flow"]
 		level: DF.Literal["Info", "Warning", "Error", "Debug"]
 		message: DF.Text
 		reference_docname: DF.DynamicLink | None
