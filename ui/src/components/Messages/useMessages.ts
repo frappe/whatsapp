@@ -7,7 +7,7 @@ import {
   watch,
 } from "vue";
 import { createResource, dayjs, dayjsLocal, getConfig } from "frappe-ui";
-import { getSocketInstance, subscribeToDoc } from "@framework/ui/socket";
+import { getSocketInstance, subscribeToDoc } from "@framework/ui";
 import type {
   CustomerServiceWindow,
   MediaFile,
