@@ -110,6 +110,11 @@ class WAProfile(Document):
 				reference_doctype=self.doctype,
 				reference_docname=self.name,
 			)
+			frappe.msgprint(
+				_("Unblocked here, but WhatsApp could not unblock this contact: {0}").format(str(e)),
+				indicator="orange",
+				alert=True,
+			)
 
 	def _validate_unique_phone_per_account(self) -> None:
 		if not self.phone_number or not self.whatsapp_account:

@@ -314,6 +314,7 @@ class IntegrationTestWAProfileStatus(IntegrationTestCase):
 		import requests
 
 		self.profile.db_set("status", "Blocked")
+		frappe.clear_messages()
 		with patch(META_REQUEST, side_effect=requests.HTTPError("user is not blocked")):
 			self._set_status("Active")
 
@@ -324,6 +325,7 @@ class IntegrationTestWAProfileStatus(IntegrationTestCase):
 				{"level": "Warning", "message": ["like", "%could not unblock%user is not blocked%"]},
 			)
 		)
+		self.assertTrue(any("user is not blocked" in str(m) for m in frappe.message_log))
 
 	def test_blocked_profile_cannot_be_disabled(self):
 		from unittest.mock import patch
