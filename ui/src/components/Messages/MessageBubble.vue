@@ -175,10 +175,11 @@ function nameFor(direction?: WhatsAppDirection) {
 				Beside the coloured body and centred on it, so the pair tracks the bubble rather
 				than the taller body-plus-footer column. Revealed by focus as well as hover, and
 				inert to the pointer until then: an invisible button must not be clickable, but
-				must still be reachable by keyboard.
+				must still be reachable by keyboard. Replies and reactions point at WhatsApp's id for
+				the message, so a message WhatsApp has not taken yet has none.
 			-->
 			<div
-				v-if="message.status != 'Failed'"
+				v-if="message.message_id"
 				class="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-hover/bubble:pointer-events-auto group-hover/bubble:opacity-100 group-focus-within/bubble:pointer-events-auto group-focus-within/bubble:opacity-100"
 			>
 				<Button
