@@ -2,10 +2,8 @@
 import { computed } from "vue";
 import { Select } from "frappe-ui";
 import type { FieldMeta } from "@framework/ui/components/FormLayout";
+import { FLOW_ICONS } from "../Messages/flowIcons";
 import type { FlowButtonChrome } from "./flowChrome";
-
-// Lucide stand-ins for the three icons WhatsApp draws on a Flow button.
-const ICONS = { Document: "lucide-file-text", Promotion: "lucide-tag", Review: "lucide-star" };
 
 const props = defineProps<{
 	field: FieldMeta;
@@ -17,9 +15,9 @@ const emit = defineEmits<{ "update:modelValue": [value: string]; change: [value:
 
 const options = computed(() => [
 	{ value: "", label: props.chrome.iconNone },
-	{ value: "Document", label: props.chrome.iconDocument, icon: ICONS.Document },
-	{ value: "Promotion", label: props.chrome.iconPromotion, icon: ICONS.Promotion },
-	{ value: "Review", label: props.chrome.iconReview, icon: ICONS.Review },
+	{ value: "Document", label: props.chrome.iconDocument, icon: FLOW_ICONS.Document },
+	{ value: "Promotion", label: props.chrome.iconPromotion, icon: FLOW_ICONS.Promotion },
+	{ value: "Review", label: props.chrome.iconReview, icon: FLOW_ICONS.Review },
 ]);
 
 function set(value: unknown) {

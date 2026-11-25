@@ -458,7 +458,7 @@ server refuses the writes anyway; this keeps the user from editing into a save t
 **Escape** closes the builder even when the host's Dialog marks the key handled (a
 non-dismissible frappe-ui Dialog prevents every Escape). It is ignored while a dialog, menu or
 listbox opened after the builder is open; a host dialog under the builder, such as CRM's
-Settings, does not count.
+Settings, does not count. Escape in a text field does not close the builder.
 
 **It saves by itself.** 1500 ms after the last edit the session calls `save_flow`, which stores
 the Flow and uploads it to Meta. One save runs at a time; edits made during it are saved once
@@ -468,6 +468,9 @@ validation errors are a normal save result, not a failure. A `TimestampMismatchE
 shows "Couldn't save · Retry"; `save()` retries at once, and the next edit saves again. A
 read-only Flow is never saved. `flush()` saves what is pending at once and resolves to `true`
 when everything is saved; Publish, closing, "Make a copy" and Edit JSON's Apply wait for it.
+When the host unmounts the builder without closing it, the session starts the pending save and
+does not wait for it. To block navigation until it is saved, `await controller.flush()` in a
+route-leave guard.
 Publish is the one primary button: it is off while there are errors, and it saves, confirms,
 then publishes. Every edit replaces `model` through the model's pure
 operations, so the session is plain TypeScript and is tested without a DOM.

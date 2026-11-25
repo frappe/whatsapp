@@ -23,6 +23,7 @@ export {
 export {
   answerKey,
   uniqueAnswerKey,
+  answerKeyTaken,
   renameAnswerKey,
   setSensitive,
   isSensitive,
@@ -40,6 +41,7 @@ export {
   addScreenInJourney,
   moveScreenInJourney,
   deleteScreenInJourney,
+  canRestore,
   restoreScreens,
   addReadMore,
   removeReadMore,

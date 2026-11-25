@@ -71,6 +71,14 @@ async function deleteFlow(row: FlowListRow) {
 		toast.error(serverErrorMessage(e));
 	}
 }
+
+async function sync() {
+	try {
+		await props.controller.sync();
+	} catch (e) {
+		toast.error(serverErrorMessage(e));
+	}
+}
 </script>
 
 <template>
@@ -111,7 +119,7 @@ async function deleteFlow(row: FlowListRow) {
 				icon-left="lucide-refresh-cw"
 				:label="chrome.syncFlows"
 				:loading="controller.syncing"
-				@click="controller.sync()"
+				@click="sync"
 			/>
 		</div>
 

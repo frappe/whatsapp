@@ -1,4 +1,6 @@
+import { answerKeys } from "./answers";
 import { addBlock } from "./blocks";
+import { isQuestion } from "./catalogue";
 import { blockOf, edit, objects, screenOf } from "./edit";
 import { footerTarget, isEnding, navigateTarget } from "./endings";
 import { addScreen, setFooter } from "./screens";
@@ -78,7 +80,19 @@ export function deleteScreenInJourney(
   return { model: linear ? linkInOrder(changed) : changed, removed };
 }
 
+/** False once another screen took a removed screen's id, or another question one of its answer keys. */
+export function canRestore(model: FlowModel, removed: RemovedScreens): boolean {
+  const ids = new Set(model.screens.map((screen) => screen.props.id));
+  const keys = answerKeys(model);
+  return removed.screens.every(
+    ({ screen }) =>
+      !ids.has(screen.props.id) &&
+      screen.blocks.every((block) => !isQuestion(block) || !keys.has(String(block.component.name)))
+  );
+}
+
 export function restoreScreens(model: FlowModel, removed: RemovedScreens): FlowModel {
+  if (!canRestore(model, removed)) throw new Error("A removed screen's id or answer key is taken");
   const linear = followsListOrder(model);
   const restored = edit(model, (draft) => {
     for (const { screen, index } of [...removed.screens].sort((a, b) => a.index - b.index))

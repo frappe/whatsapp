@@ -19,9 +19,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
-// The WA Message fields a condition is likely to test; `message` is the whole row.
+// The WA Message fields a condition is likely to test; `message` is the whole row. Not `from`:
+// a Python keyword, so `message.from` doesn't compile.
 const MESSAGE_FIELDS = [
-	"from",
 	"to",
 	"whatsapp_account",
 	"reference_doctype",

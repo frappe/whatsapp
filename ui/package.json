@@ -54,6 +54,7 @@
     "dompurify": "^3.4.0"
   },
   "peerDependencies": {
+    "@codemirror/view": "^6.0.0",
     "@framework/ui": "*",
     "@vueuse/core": ">=10.4.1",
     "frappe-ui": ">=1.0.0-rc.2",

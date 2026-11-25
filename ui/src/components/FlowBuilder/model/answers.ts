@@ -16,8 +16,16 @@ export function uniqueAnswerKey(model: FlowModel, text: string): string {
   return unique(answerKey(text), answerKeys(model));
 }
 
+/** Renaming onto another question's key would move its references too, and renaming back can't split them. */
+export function answerKeyTaken(model: FlowModel, uid: string, key: string): boolean {
+  return model.screens.some((screen) =>
+    screen.blocks.some((block) => block.uid !== uid && isQuestion(block) && block.component.name === key)
+  );
+}
+
 /** References to the old key follow it. Custom answers keep their own payload keys. */
 export function renameAnswerKey(model: FlowModel, uid: string, key: string): FlowModel {
+  if (answerKeyTaken(model, uid, key)) throw new Error(`Another question answers to ${key}`);
   return edit(model, (draft) => {
     const { screen, block } = editableQuestion(draft, uid);
     const old = String(block.component.name);
@@ -132,7 +140,7 @@ export function unique(base: string, taken: Set<string>): string {
   return value;
 }
 
-function answerKeys(model: FlowModel): Set<string> {
+export function answerKeys(model: FlowModel): Set<string> {
   return new Set(
     model.screens.flatMap((screen) =>
       screen.blocks.filter(isQuestion).map((block) => String(block.component.name))

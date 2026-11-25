@@ -28,6 +28,7 @@ export const FLOW_BUTTON_CHROME = {
   inputsHint: "Filled from the reference document before the customer sees them",
   noReference: "Set a Reference DocType above to choose what fills them",
   fieldPlaceholder: "Choose a field",
+  cantPrefill: "Can't be prefilled",
 
   actionsHeading: "Response actions",
   actionsHint: "What happens with the answers when a customer submits the Flow",

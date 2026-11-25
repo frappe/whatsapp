@@ -1,6 +1,7 @@
 import { dialog } from "frappe-ui";
 import {
   answerKey,
+  answerKeyTaken,
   clearPrefill,
   kindOf,
   prefillKey,
@@ -38,13 +39,20 @@ export class BlockActions {
     this.session.apply(model);
   }
 
-  /** Templates that map the old key would warn about it, so ask first. */
-  renameKey(block: Block, key: string, onCancel: () => void) {
+  /** Templates that map the old key would warn about it, so ask first. Returns why it is refused. */
+  renameKey(block: Block, key: string, onCancel: () => void): string | undefined {
     const old = String(block.component.name);
-    if (!key || key === old) return onCancel();
+    if (!key || key === old) {
+      onCancel();
+      return;
+    }
+    if (answerKeyTaken(this.session.model!, block.uid, key)) return format(this.chrome().answerKeyTaken, key);
     const rename = () => this.session.apply(renameAnswerKey(this.session.model!, block.uid, key));
     const used = this.session.usedKey(old);
-    if (!used.length) return rename();
+    if (!used.length) {
+      rename();
+      return;
+    }
     dialog.confirm({
       title: this.chrome().renameKeyTitle,
       message: format(this.chrome().renameKeyMessage, templates(used), old, key),

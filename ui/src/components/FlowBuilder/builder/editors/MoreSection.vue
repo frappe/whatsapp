@@ -27,7 +27,9 @@ const question = computed(() => !!kindOf(props.block)?.question);
 const options = computed(() => component.value["data-source"] as JsonObject[] | undefined);
 const key = computed(() => value("name"));
 const draftKey = ref(key.value);
+const keyError = ref<string>();
 watch(key, (next) => (draftKey.value = next));
+watch(draftKey, () => (keyError.value = undefined));
 
 const usedBy = computed(() => session.usedKey(key.value).length);
 const keyDescription = computed(() => {
@@ -40,7 +42,11 @@ const firstScreen = computed(() => session.model!.screens[0]?.uid === props.scre
 const prefilled = computed(() => !!prefillKey(props.screen, props.block));
 
 function commitKey() {
-	actions.renameKey(props.block, draftKey.value.trim(), () => (draftKey.value = key.value));
+	keyError.value = actions.renameKey(
+		props.block,
+		draftKey.value.trim(),
+		() => (draftKey.value = key.value)
+	);
 }
 </script>
 
@@ -50,7 +56,8 @@ function commitKey() {
 			<TextInput
 				v-model="draftKey"
 				:label="chrome.answerKeyLabel"
-				:description="keyDescription"
+				:description="keyError ? undefined : keyDescription"
+				:error="keyError"
 				:disabled="session.readOnly"
 				@blur="commitKey"
 				@keydown.enter="($event.target as HTMLInputElement).blur()"

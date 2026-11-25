@@ -49,7 +49,7 @@ function scrollToBlock(uid: string) {
 		class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[14px] bg-[var(--wa-sheet)]"
 	>
 		<PhoneHeader
-			:title="phone.text(screenTitle(phone.screen, phone.model))"
+			:title="phone.text(screenTitle(phone.screen, phone.model, chrome))"
 			:back="back"
 			:progress="progress"
 			@back="interactive && phone.run.back()"

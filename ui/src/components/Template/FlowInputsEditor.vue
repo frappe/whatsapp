@@ -19,6 +19,9 @@ const emit = defineEmits<{ update: [inputs: FlowInput[]] }>();
 
 const referenceDoctype = computed(() => props.controller.doc.reference_doctype);
 
+// No document field holds a list or an object, so the server offers nothing to fill these from.
+const UNFILLABLE = ["object", "array"];
+
 // Until the outline says what the screen declares, the saved keys hold the lines' places.
 const lines = computed(() => {
 	if (!props.declared) {
@@ -68,9 +71,13 @@ function setSource(key: string, source_field: string) {
 			<FieldPicker
 				:model-value="line.source_field"
 				:options="
-					pending ? null : controller.inputSourceFields(referenceDoctype, line.type)
+					pending || UNFILLABLE.includes(line.type)
+						? null
+						: controller.inputSourceFields(referenceDoctype, line.type)
 				"
-				:placeholder="chrome.fieldPlaceholder"
+				:placeholder="
+					UNFILLABLE.includes(line.type) ? chrome.cantPrefill : chrome.fieldPlaceholder
+				"
 				:disabled="disabled || !referenceDoctype"
 				:aria-label="line.key"
 				:error-label="chrome.loadError"

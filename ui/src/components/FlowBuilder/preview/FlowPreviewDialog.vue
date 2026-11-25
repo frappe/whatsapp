@@ -25,12 +25,15 @@ const error = shallowRef<unknown>(null);
 
 watch(
 	() => open.value && props.flow,
-	async (flow) => {
+	async (flow, _, onCleanup) => {
 		if (!flow) return;
+		let stale = false;
+		onCleanup(() => (stale = true));
 		model.value = null;
 		error.value = null;
 		try {
 			const { flow_json } = await frappeFlowApi.get(flow);
+			if (stale) return;
 			const json = typeof flow_json === "string" ? JSON.parse(flow_json) : flow_json;
 			const parsed = markRaw(json ? parse(json) : createFlow());
 			const next = reactive(new PreviewRun(parsed)) as PreviewRun;
@@ -38,7 +41,7 @@ watch(
 			model.value = parsed;
 			run.value = next;
 		} catch (e) {
-			error.value = e;
+			if (!stale) error.value = e;
 		}
 	},
 	{ immediate: true }

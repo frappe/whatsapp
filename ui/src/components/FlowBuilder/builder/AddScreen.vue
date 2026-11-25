@@ -44,7 +44,7 @@ function add() {
 					v-focus
 					class="flex items-start gap-2 px-1 pt-1"
 					@submit.prevent="add"
-					@keydown.esc="open = false"
+					@keydown.esc.stop="open = false"
 				>
 					<TextInput
 						v-model="name"

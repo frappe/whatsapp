@@ -45,6 +45,8 @@ export class BuilderSession {
   metaFound: Problem[] = [];
   selection: Selection = { screen: null, block: null };
   preview: PreviewSettings = { interactive: false, theme: "light" };
+  /** Bumped when a load or the JSON tab replaces the model, so an Undo from before can tell. */
+  generation = 0;
   private savedJson = "";
   private timer: ReturnType<typeof setTimeout> | undefined;
   private running: Promise<void> | null = null;
@@ -93,6 +95,7 @@ export class BuilderSession {
       this.saveError = null;
       this.metaFound = metaProblems(model, flow.validation_errors ?? []);
       this.setSaved(model);
+      this.generation++;
       this.selection = { screen: model.screens[0]?.uid ?? null, block: null };
     } catch (e) {
       this.loadError = e;
@@ -131,8 +134,9 @@ export class BuilderSession {
     return !this.dirty;
   }
 
+  /** A host that unmounts without close() still gets its last edits saved; a failure is on `saveError`. */
   dispose() {
-    clearTimeout(this.timer);
+    void this.save();
   }
 
   /** Throws Meta's refusal, so the confirm dialog can show it. */
@@ -153,6 +157,7 @@ export class BuilderSession {
     const model = parse(read.json);
     if (text(model) === text(this.model!)) return null;
     this.apply(model);
+    this.generation++;
     this.selection = { screen: model.screens[Math.max(screenIndex, 0)]?.uid ?? null, block: null };
     return null;
   }

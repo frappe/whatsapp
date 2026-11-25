@@ -2,11 +2,13 @@
 import { computed } from "vue";
 import { Button, toast } from "frappe-ui";
 import {
+	canRestore,
 	deleteScreenInJourney,
 	journeyScreens,
 	moveScreenInJourney,
 	readMoreParent,
 	restoreScreens,
+	type RemovedScreens,
 	type Screen,
 } from "../model";
 import { format } from "../chrome";
@@ -46,15 +48,22 @@ function select(screen: Screen) {
 
 /** No confirm, as in Meta; the toast can put the screen back. */
 function remove(screen: Screen) {
-	const title = screenTitle(screen, model.value);
+	const title = screenTitle(screen, model.value, chrome.value);
 	const { model: without, removed } = deleteScreenInJourney(model.value, screen.uid);
 	edit(() => without);
+	const generation = session.generation;
 	toast(format(chrome.value.screenDeleted, title), {
-		action: {
-			label: chrome.value.undo,
-			onClick: () => edit((current) => restoreScreens(current, removed)),
-		},
+		action: { label: chrome.value.undo, onClick: () => undo(removed, generation) },
 	});
+}
+
+/** A reload or Edit JSON since the delete renumbers the model, so the old screens can't go back. */
+function undo(removed: RemovedScreens, generation: number) {
+	if (generation !== session.generation || !canRestore(model.value, removed)) {
+		toast.error(chrome.value.cantUndoDelete);
+		return;
+	}
+	edit((current) => restoreScreens(current, removed));
 }
 
 function added(uid: string) {
@@ -120,7 +129,7 @@ function added(uid: string) {
 							class="min-w-0 flex-1 truncate text-left"
 							@click.stop="select(screen)"
 						>
-							{{ screenTitle(screen, model) }}
+							{{ screenTitle(screen, model, chrome) }}
 						</button>
 						<span class="flex w-6 shrink-0 justify-center">
 							<span

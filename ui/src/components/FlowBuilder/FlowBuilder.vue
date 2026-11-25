@@ -94,12 +94,19 @@ async function close() {
 }
 
 /**
- * Escape closes the builder unless it belongs to a dialog or menu open above it. `defaultPrevented`
- * is not checked: a non-dismissible host Dialog prevents every Escape.
+ * Escape closes the builder unless it belongs to a field or to a dialog or menu open above it.
+ * `defaultPrevented` is not checked: a non-dismissible host Dialog prevents every Escape.
  */
 function closeOnEscape(event: KeyboardEvent) {
-	if (event.key !== "Escape" || overlayAbove()) return;
+	if (event.key !== "Escape" || inField(event.target) || overlayAbove()) return;
 	close();
+}
+
+function inField(target: EventTarget | null): boolean {
+	return (
+		target instanceof HTMLElement &&
+		(target.isContentEditable || !!target.closest("input, textarea, select"))
+	);
 }
 
 /** Overlays open later are later in the DOM, so a host dialog under the builder doesn't count. */
@@ -117,11 +124,17 @@ function overlayAbove(): boolean {
 
 useEventListener(window, "keydown", closeOnEscape);
 
+/** The rules run now, not after their debounce, so a refusal can't come from a problem they'd find. */
 async function publish() {
 	publishing.value = true;
 	const saved = await session.flush();
 	publishing.value = false;
-	if (!saved || session.errorCount) return;
+	if (!saved) return;
+	session.checkRules();
+	if (session.errorCount) {
+		const errors = session.problems.filter((problem) => problem.severity === "error");
+		return rows.revealProblem(firstProblem(session.model!, errors)!);
+	}
 	dialog.confirm({
 		title: chrome.value.publishTitle,
 		message: chrome.value.publishMessage,
@@ -130,17 +143,13 @@ async function publish() {
 	});
 }
 
-/** A refusal closes the confirm: problems it reveals are shown to fix, anything else offers Try again. */
+/** A refusal closes the confirm and offers Try again. */
 async function runPublish(close: () => void) {
 	publishing.value = true;
 	try {
 		await session.publish();
 	} catch (e) {
 		close();
-		if (session.errorCount) {
-			rows.revealProblem(firstProblem(session.model!, session.problems)!);
-			return;
-		}
 		dialog.confirm({
 			title: chrome.value.publishFailedTitle,
 			message: serverErrorMessage(e),

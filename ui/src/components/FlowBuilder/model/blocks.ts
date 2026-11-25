@@ -8,6 +8,7 @@ import {
 } from "./answers";
 import { BLOCK_KINDS, TEXT_TYPES, isAdvanced } from "./catalogue";
 import { assign, blockOf, edit, landsInForm, newUid, screenOf } from "./edit";
+import { removeReadMore } from "./journey";
 import type { Added, Block, FlowModel, Json, JsonObject, Screen } from "./types";
 
 /** Questions get an answer key from their text, unique in the Flow. */
@@ -74,8 +75,9 @@ export function optionsOf(component: JsonObject): JsonObject[] {
   return Array.isArray(source) ? (source as JsonObject[]) : [];
 }
 
+/** An Opt-in's "Read more" screen goes with it. */
 export function deleteBlock(model: FlowModel, uid: string): FlowModel {
-  return edit(model, (draft) => {
+  return edit(removeReadMore(model, uid), (draft) => {
     const { screen, block, index } = blockOf(draft, uid);
     detachAnswer(draft, screen, block);
     removeBlock(screen, index);

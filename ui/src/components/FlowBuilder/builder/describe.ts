@@ -31,9 +31,11 @@ export function blockSummary(block: Block, chrome: FlowBuilderChrome): string {
   return typeof text === "string" ? text : "";
 }
 
-export function screenTitle(screen: Screen, model: FlowModel): string {
+export function screenTitle(screen: Screen, model: FlowModel, chrome: FlowBuilderChrome): string {
   const title = screen.props.title;
-  return typeof title === "string" && title.trim() ? title : `Screen ${model.screens.indexOf(screen) + 1}`;
+  return typeof title === "string" && title.trim()
+    ? title
+    : format(chrome.untitledScreen, model.screens.indexOf(screen) + 1);
 }
 
 /** Where a button goes when the Flow JSON, not the list order, decides it. */
@@ -41,7 +43,7 @@ export function setInJson(screen: Screen, model: FlowModel, chrome: FlowBuilderC
   if (isEnding(screen)) return chrome.endsForm;
   const target = footerTarget(screen);
   const next = model.screens.find((each) => each.props.id === target);
-  return format(chrome.goesTo, next ? screenTitle(next, model) : target || "?");
+  return format(chrome.goesTo, next ? screenTitle(next, model, chrome) : target || "?");
 }
 
 export function text(value: unknown): string {
