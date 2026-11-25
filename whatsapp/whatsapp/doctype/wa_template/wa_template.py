@@ -6,12 +6,15 @@ from collections.abc import Iterator
 from typing import cast
 
 import frappe
+import requests
 from frappe import _
 from frappe.model.document import Document
 
 from whatsapp.whatsapp.api.languages import SUPPORTED_LANGUAGES
 from whatsapp.whatsapp.api.utils import (
+	MEDIA_HEADER_TYPES,
 	build_create_template_payload,
+	get_header_media_file,
 	log,
 	normalize_template_status,
 	parse_whatsapp_template_to_doc,
@@ -95,10 +98,11 @@ class WATemplate(Document):
 
 		try:
 			file_doc = frappe.get_doc("File", {"file_url": self.header_media})
-			if file_doc.content_type:
-				self.mime_type = file_doc.content_type
+			content_type = getattr(file_doc, "content_type", None)
+			if content_type:
+				self.mime_type = content_type
 				return
-		except frappe.DoesNotExistError:
+		except (frappe.DoesNotExistError, AttributeError):
 			pass
 
 		ext = self.header_media.rsplit(".", 1)[-1].lower() if "." in self.header_media else ""
@@ -114,6 +118,31 @@ class WATemplate(Document):
 			"ogg": "audio/ogg",
 		}
 		self.mime_type = mime_map.get(ext, "")
+
+	def _ensure_header_media_handle(self) -> None:
+		"""Upload the sample file and keep Meta's approval handle on this template.
+
+		Skipped when the file has not changed and a handle is already stored.
+		A chat media id must not be written here; that id cannot approve a template.
+		"""
+		if self.header_type not in MEDIA_HEADER_TYPES or not self.header_media:
+			return
+		if self.header_media_handle and not self.has_value_changed("header_media"):
+			return
+
+		file_doc = get_header_media_file(self.header_media)
+		if not file_doc:
+			frappe.throw(_("Upload the sample on this site before sending the template to Meta."))
+
+		content = file_doc.get_content()
+		mime = self.mime_type or getattr(file_doc, "content_type", None) or "application/octet-stream"
+		whatsapp = _get_whatsapp_client(self.whatsapp_account)
+		try:
+			self.header_media_handle = whatsapp.upload_template_sample(
+				content, mime, file_doc.file_name or "sample"
+			)
+		except requests.HTTPError as e:
+			frappe.throw(_("Could not upload the template sample to Meta: {0}").format(str(e)))
 
 	def validate_template_name(self) -> None:
 		if not self.template_name:
@@ -214,6 +243,7 @@ class WATemplate(Document):
 			)
 			frappe.throw(_("WhatsApp Account is required to push template to Meta"))
 
+		self._ensure_header_media_handle()
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
@@ -306,6 +336,7 @@ class WATemplate(Document):
 				)
 			)
 
+		self._ensure_header_media_handle()
 		whatsapp = _get_whatsapp_client(self.whatsapp_account)
 
 		if not self.variable_format:
