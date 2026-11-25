@@ -370,7 +370,7 @@ export interface MessagesController {
   messages: WhatsAppMessage[];
   /** a fetch is in flight; pair with `messages.length` for a first-load-only spinner */
   loading: boolean;
-  /** a send is in flight. `canSend` already accounts for it — this is for showing progress */
+  /** a send is in flight. It does not block the next one: sends queue in the order made */
   sending: boolean;
   /** last failure of a fetch, a send or a reaction; `null` while healthy. Verbs never throw */
   error: unknown;
@@ -378,8 +378,9 @@ export interface MessagesController {
   serviceWindow: CustomerServiceWindow | null;
   reload: () => Promise<void>;
   /**
-   * Returns the new message's docname, or `null` when there was nothing to send, no
-   * recipient, or the call failed. A media send keeps the draft; a text send clears it.
+   * Shows the message in `messages` with a Sent tick and clears the composer at once, then
+   * resolves with the new message's docname once the server has it, or `null` when there was
+   * nothing to send, no recipient, or the call failed. A media send keeps the draft.
    */
   send: (
     overrides?: Pick<SendMessagePayload, "message">

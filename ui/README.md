@@ -176,9 +176,9 @@ losing any behaviour.
 
 It calls `messages.send()` itself and emits `send` only **after** the send lands — that is a
 notification (scroll to the bottom, close a drawer), not a request to perform the call. The
-controller clears what the send consumed: a text send is a full `reset()`, a media send
-clears only the attachment and the reply, because its body was the caption and whatever is
-still typed in the box is a separate unsent message.
+controller clears what the send consumed as soon as the send starts: a text send clears the
+draft, the attachment and the reply, a media send only the attachment and the reply, because
+its body was the caption and whatever is still typed in the box is a separate unsent message.
 
 ### The account form
 
@@ -670,8 +670,13 @@ const messages = useMessages({ references, to: () => props.phone });
 `messages` is sorted oldest-first across every reference: each one is read by its own query,
 so the rows arrive grouped, and a conversation is one chronological run through all of them.
 
-`sending` is true while a send is in flight, and `canSend` is false for its duration — which is
-what stops a second enter during the round trip from posting the same draft twice.
+A send is optimistic. The message joins `messages` at once with a Sent tick, and the composer
+is cleared, so the next message can be typed and sent straight away; `sending` is true until
+every send in flight has landed. Sends go out one at a time, in the order they were made. When
+a send lands, the reload replaces the placeholder with the real row, so its later Delivered and
+Read ticks, or a Failed state with WhatsApp's error, arrive the way they do for any other
+message. Only a request that fails outright drops the placeholder: the error is on `error`,
+and a text send goes back in the box if the box is still empty.
 
 `serviceWindow` is Meta's 24-hour customer service window, `{ status, expiresAt }`, worked
 out from the latest message in the loaded conversation, `null` until it has loaded, and
