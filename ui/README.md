@@ -744,7 +744,7 @@ The app publishes that event to each reference **document's** room rather than s
 the controller joins every reference's room — the socket server checks read permission on the
 document before joining, which is what keeps the event off other users' connections. Rooms
 belong to the connection, not to the controller, and the server's `doc_unsubscribe` leaves
-outright, so they are held through `subscribeToDoc` from `@framework/ui`: the room is left only
+outright, so they are held through `subscribeToDoc` from `@framework/ui/socket`: the room is left only
 when its last holder releases it, whether that holder is another controller or a host's
 `ActivityTimeline` on the same document. The holds follow the reference list when it changes
 and are released on effect-scope dispose along with the handler, so a controller held longer
