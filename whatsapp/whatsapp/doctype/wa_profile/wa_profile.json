@@ -50,7 +50,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Active\nBlocked\nArchived"
+   "options": "Active\nBlocked\nDisabled"
   },
   {
    "fieldname": "wa_id",
